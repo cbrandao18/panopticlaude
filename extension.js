@@ -43,6 +43,9 @@ async function repoUrl(cwd) {
   return url;
 }
 
+// The extension host's PATH lacks homebrew, so `gh` must be resolved absolutely.
+const GH = ['/opt/homebrew/bin/gh', '/usr/local/bin/gh'].find((p) => fs.existsSync(p)) || 'gh';
+
 async function prForBranch(cwd, branch) {
   const key = cwd + '|' + branch;
   const hit = prByKey.get(key);
@@ -50,8 +53,8 @@ async function prForBranch(cwd, branch) {
   let pr = null;
   try {
     const { stdout } = await execFileP(
-      'gh',
-      ['pr', 'list', '--head', branch, '--json', 'number,url', '--limit', '1'],
+      GH,
+      ['pr', 'list', '--head', branch, '--state', 'all', '--json', 'number,url,state', '--limit', '1'],
       { cwd }
     );
     const arr = JSON.parse(stdout);
@@ -110,16 +113,14 @@ class SessionsProvider {
     return Promise.all(snaps.map((s) => this._item(s, s.lastPrompt || prompts.get(s.sessionId))));
   }
   async _item(s, lastPrompt) {
-    // Derived names ("branch-ad") regenerate on every process restart; the user's own
-    // last prompt is what actually identifies a chat. Explicit names win when set.
+    // Derived names ("branch-ad") regenerate on every process restart. Identity order:
+    // explicit session name > chat tab title (ai-title) > the user's last prompt.
     const explicitName = s.nameSource && s.nameSource !== 'derived' ? s.name : null;
-    const label =
-      explicitName ||
-      (lastPrompt && lastPrompt.length > 46 ? lastPrompt.slice(0, 45) + '…' : lastPrompt) ||
-      s.name;
+    const trunc = (t) => (t && t.length > 46 ? t.slice(0, 45) + '…' : t);
+    const label = explicitName || trunc(s.title) || trunc(lastPrompt) || s.name;
     const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Collapsed);
     item.id = s.sessionId;
-    const branch = (await liveBranch(s.cwd)) || s.gitBranch;
+    const branch = (await liveBranch(s.workCwd)) || s.gitBranch;
     const bits = [];
     if (s.model) bits.push(s.model.replace(/^claude-/, ''));
     if (s.effort) bits.push(s.effort);
@@ -129,7 +130,7 @@ class SessionsProvider {
     item.description = bits.join(' · ');
     const [icon, color] = STATE_ICON[s.state] || STATE_ICON.idle;
     item.iconPath = new vscode.ThemeIcon(icon, new vscode.ThemeColor(color));
-    item.tooltip = `${lastPrompt || ''}\n\n${s.name} · ${s.cwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`.trim();
+    item.tooltip = `${s.title || ''}\n${lastPrompt ? '❝ ' + lastPrompt : ''}\n\n${s.name} · ${s.workCwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`.trim();
     item.command = {
       command: 'panopticlaude.openSession',
       title: 'Open session',
@@ -138,11 +139,14 @@ class SessionsProvider {
 
     const kids = [];
     if (branch) {
-      const url = await repoUrl(s.cwd);
+      const url = await repoUrl(s.workCwd);
       const issue = lib.issueNumberFromBranch(branch);
       if (url && issue) kids.push(link(`Issue #${issue}`, 'issues', `${url}/issues/${issue}`));
-      const pr = await prForBranch(s.cwd, branch);
-      if (pr) kids.push(link(`PR #${pr.number}`, 'git-pull-request', pr.url));
+      const pr = await prForBranch(s.workCwd, branch);
+      if (pr) {
+        const suffix = pr.state && pr.state !== 'OPEN' ? ` (${pr.state.toLowerCase()})` : '';
+        kids.push(link(`PR #${pr.number}${suffix}`, 'git-pull-request', pr.url));
+      }
     }
     kids.push(link('Open transcript', 'file-text', vscode.Uri.file(s.transcript)));
     item.kids = kids;

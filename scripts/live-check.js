@@ -13,10 +13,10 @@ if (!snaps.length) {
   for (const s of snaps) {
     let branch = s.gitBranch;
     try {
-      branch = execFileSync('git', ['-C', s.cwd, 'branch', '--show-current'], { encoding: 'utf8' }).trim() || branch;
+      branch = execFileSync('git', ['-C', s.workCwd, 'branch', '--show-current'], { encoding: 'utf8' }).trim() || branch;
     } catch {}
     const prompt = s.lastPrompt || prompts.get(s.sessionId);
-    const label = prompt ? prompt.slice(0, 45) : s.name;
+    const label = s.title || (prompt ? prompt.slice(0, 45) : s.name);
     console.log(
       `[${label}]  ${s.model} · ${s.effort} · ${s.pct}% · ${s.state} · ${branch} (pid ${s.pid}, issue ${lib.issueNumberFromBranch(branch)})`
     );

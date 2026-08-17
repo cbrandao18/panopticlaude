@@ -79,6 +79,15 @@ test('lastExitCodeFromLaunchctl', () => {
   assert.equal(lib.lastExitCodeFromLaunchctl('no such line'), null);
 });
 
+test('parseTranscriptTail: lastCwd and aiTitle from newest entries', () => {
+  const older = JSON.stringify({ type: 'ai-title', aiTitle: 'Old title', sessionId: 's1' });
+  const newer = JSON.stringify({ type: 'ai-title', aiTitle: 'Build VSCode Claude code dashboard', sessionId: 's1' });
+  const entryWithCwd = JSON.stringify({ type: 'user', toolUseResult: {}, cwd: '/Users/x/branch-worktrees/fix-33201', message: { content: [] } });
+  const r = lib.parseTranscriptTail(older + '\n' + newer + '\n' + entryWithCwd + '\n');
+  assert.equal(r.aiTitle, 'Build VSCode Claude code dashboard');
+  assert.equal(r.lastCwd, '/Users/x/branch-worktrees/fix-33201');
+});
+
 test('parseHistoryTail: last prompt per session wins, bad lines skipped', () => {
   const text =
     '{"display":"first prompt","sessionId":"s1"}\n' +

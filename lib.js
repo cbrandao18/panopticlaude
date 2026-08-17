@@ -53,12 +53,18 @@ function parseTranscriptTail(tailText) {
   let model = null;
   let usedTokens = null;
   let gitBranch = null;
+  let lastCwd = null;
   let lastUserPrompt = null;
+  let aiTitle = null;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (gitBranch === null) {
       const m = line.match(/"gitBranch":"([^"]+)"/);
       if (m) gitBranch = m[1];
+    }
+    if (lastCwd === null) {
+      const m = line.match(/"cwd":"([^"]+)"/);
+      if (m) lastCwd = m[1];
     }
     if (usedTokens === null && line.includes('"type":"assistant"') && line.includes('"usage"')) {
       try {
@@ -78,9 +84,40 @@ function parseTranscriptTail(tailText) {
         lastUserPrompt = typedPromptFromEntry(JSON.parse(line));
       } catch {}
     }
-    if (usedTokens !== null && gitBranch !== null && lastUserPrompt !== null) break;
+    if (aiTitle === null && line.includes('"type":"ai-title"')) {
+      try {
+        const e = JSON.parse(line);
+        if (e.aiTitle) aiTitle = e.aiTitle;
+      } catch {}
+    }
+    if (usedTokens !== null && gitBranch !== null && lastCwd !== null && lastUserPrompt !== null && aiTitle !== null) break;
   }
-  return { model, usedTokens, gitBranch, lastUserPrompt };
+  return { model, usedTokens, gitBranch, lastCwd, lastUserPrompt, aiTitle };
+}
+
+// The chat's tab title lives in "ai-title" transcript entries (set when the user renames
+// the chat or Claude titles it). A title set long ago can sit outside the tail window,
+// so fall back to one full-file scan, re-run only when the file size changes.
+const titleCache = new Map(); // sessionId -> { size, title }
+function transcriptTitle(transcript, sessionId, tailTitle) {
+  if (tailTitle) {
+    titleCache.set(sessionId, { size: -1, title: tailTitle });
+    return tailTitle;
+  }
+  try {
+    const size = fs.statSync(transcript).size;
+    const hit = titleCache.get(sessionId);
+    if (hit && hit.size === size) return hit.title;
+    const text = fs.readFileSync(transcript, 'utf8');
+    let title = null;
+    for (const m of text.matchAll(/"type":"ai-title","aiTitle":"((?:[^"\\]|\\.)*)"/g)) {
+      title = JSON.parse('"' + m[1] + '"');
+    }
+    titleCache.set(sessionId, { size, title });
+    return title;
+  } catch {
+    return null;
+  }
 }
 
 // ponytail: window size inferred from the configured model's [1m] suffix; per-session
@@ -172,6 +209,8 @@ function sessionSnapshot(reg, settings) {
     state: 'idle',
     effort: (settings && settings.effortLevel) || null,
     lastPrompt: null,
+    title: null,
+    workCwd: reg.cwd,
     transcript: transcriptPath(reg.cwd, reg.sessionId),
   };
   let mtimeMs = null;
@@ -182,6 +221,10 @@ function sessionSnapshot(reg, settings) {
     snap.model = tail.model;
     snap.gitBranch = tail.gitBranch;
     snap.lastPrompt = tail.lastUserPrompt;
+    snap.title = transcriptTitle(snap.transcript, snap.sessionId, tail.aiTitle);
+    // A session that moved into a worktree records the new cwd per entry while the
+    // registry keeps the original — the transcript's word wins for git lookups.
+    if (tail.lastCwd) snap.workCwd = tail.lastCwd;
     snap.pct = pctUsed(tail.usedTokens, contextWindowSize(settings && settings.model));
   } catch {}
   const state = sessionState(reg.sessionId, mtimeMs);
@@ -248,6 +291,7 @@ module.exports = {
   listLiveSessions,
   parseHistoryTail,
   lastPromptsBySession,
+  transcriptTitle,
   sessionState,
   sessionSnapshot,
   readClaudeSettings,
