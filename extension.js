@@ -104,8 +104,10 @@ class SessionsProvider {
       (a, b) =>
         (STATE_RANK[a.state] ?? 9) - (STATE_RANK[b.state] ?? 9) || a.startedAt - b.startedAt
     );
+    // history.jsonl is a fallback only: recent Claude Code versions stopped writing it,
+    // so the primary source is the transcript's own last typed-user entry.
     const prompts = lib.lastPromptsBySession();
-    return Promise.all(snaps.map((s) => this._item(s, prompts.get(s.sessionId))));
+    return Promise.all(snaps.map((s) => this._item(s, s.lastPrompt || prompts.get(s.sessionId))));
   }
   async _item(s, lastPrompt) {
     // Derived names ("branch-ad") regenerate on every process restart; the user's own

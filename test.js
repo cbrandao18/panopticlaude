@@ -24,6 +24,18 @@ test('parseTranscriptTail: usage from last assistant entry, branch from newest l
   assert.equal(r.gitBranch, 'poc/33148-staff-reskin-later');
 });
 
+test('parseTranscriptTail: last typed prompt skips tool results and harness noise', () => {
+  const typed = JSON.stringify({ type: 'user', message: { content: 'fix the login bug' } });
+  const typedArray = JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'build panopticlaude' }] } });
+  const toolResult = JSON.stringify({ type: 'user', toolUseResult: {}, message: { content: [{ type: 'tool_result', content: 'ok' }] } });
+  const command = JSON.stringify({ type: 'user', message: { content: '<command-name>/loop</command-name>' } });
+  const sidechain = JSON.stringify({ type: 'user', isSidechain: true, message: { content: 'subagent prompt' } });
+  const tail = [typed, typedArray, toolResult, command, sidechain].join('\n') + '\n';
+  assert.equal(lib.parseTranscriptTail(tail).lastUserPrompt, 'build panopticlaude');
+  assert.equal(lib.parseTranscriptTail(typed + '\n' + toolResult + '\n').lastUserPrompt, 'fix the login bug');
+  assert.equal(lib.parseTranscriptTail(command + '\n').lastUserPrompt, null);
+});
+
 test('parseTranscriptTail: no assistant entry in tail', () => {
   const r = lib.parseTranscriptTail(userLine + '\n');
   assert.equal(r.usedTokens, null);

@@ -31,11 +31,29 @@ function readTail(file, bytes = 65536) {
 // Last assistant entry carries the current window usage; any recent entry carries gitBranch.
 // The first line of a tail read from a byte offset is usually partial JSON: JSON.parse
 // failures are expected and skipped.
+// A "user" entry is only a typed prompt when it isn't a tool result, a sidechain
+// message, or harness noise (<command-name> invocations, resume caveats, interrupts).
+function typedPromptFromEntry(entry) {
+  if (!entry || entry.type !== 'user' || entry.isSidechain || entry.toolUseResult) return null;
+  const content = entry.message && entry.message.content;
+  let text = null;
+  if (typeof content === 'string') text = content;
+  else if (Array.isArray(content)) {
+    const t = content.find((c) => c && c.type === 'text');
+    if (t) text = t.text;
+  }
+  if (!text) return null;
+  text = text.trim();
+  if (!text || text.startsWith('<') || text.startsWith('Caveat:') || text.startsWith('[Request interrupted')) return null;
+  return text;
+}
+
 function parseTranscriptTail(tailText) {
   const lines = tailText.split('\n').filter(Boolean);
   let model = null;
   let usedTokens = null;
   let gitBranch = null;
+  let lastUserPrompt = null;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (gitBranch === null) {
@@ -55,9 +73,14 @@ function parseTranscriptTail(tailText) {
         }
       } catch {}
     }
-    if (usedTokens !== null && gitBranch !== null) break;
+    if (lastUserPrompt === null && line.includes('"type":"user"')) {
+      try {
+        lastUserPrompt = typedPromptFromEntry(JSON.parse(line));
+      } catch {}
+    }
+    if (usedTokens !== null && gitBranch !== null && lastUserPrompt !== null) break;
   }
-  return { model, usedTokens, gitBranch };
+  return { model, usedTokens, gitBranch, lastUserPrompt };
 }
 
 // ponytail: window size inferred from the configured model's [1m] suffix; per-session
@@ -148,14 +171,17 @@ function sessionSnapshot(reg, settings) {
     gitBranch: null,
     state: 'idle',
     effort: (settings && settings.effortLevel) || null,
+    lastPrompt: null,
     transcript: transcriptPath(reg.cwd, reg.sessionId),
   };
   let mtimeMs = null;
   try {
     mtimeMs = fs.statSync(snap.transcript).mtimeMs;
-    const tail = parseTranscriptTail(readTail(snap.transcript));
+    // 256KB back: a tool-heavy turn can push the last typed prompt well past 64KB
+    const tail = parseTranscriptTail(readTail(snap.transcript, 262144));
     snap.model = tail.model;
     snap.gitBranch = tail.gitBranch;
+    snap.lastPrompt = tail.lastUserPrompt;
     snap.pct = pctUsed(tail.usedTokens, contextWindowSize(settings && settings.model));
   } catch {}
   const state = sessionState(reg.sessionId, mtimeMs);

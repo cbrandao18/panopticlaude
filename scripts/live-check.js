@@ -15,7 +15,7 @@ if (!snaps.length) {
     try {
       branch = execFileSync('git', ['-C', s.cwd, 'branch', '--show-current'], { encoding: 'utf8' }).trim() || branch;
     } catch {}
-    const prompt = prompts.get(s.sessionId);
+    const prompt = s.lastPrompt || prompts.get(s.sessionId);
     const label = prompt ? prompt.slice(0, 45) : s.name;
     console.log(
       `[${label}]  ${s.model} · ${s.effort} · ${s.pct}% · ${s.state} · ${branch} (pid ${s.pid}, issue ${lib.issueNumberFromBranch(branch)})`
