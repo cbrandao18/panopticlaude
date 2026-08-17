@@ -102,6 +102,29 @@ function listLiveSessions() {
   return out;
 }
 
+// ~/.claude/history.jsonl appends {display, sessionId, ...} per typed prompt. Last one
+// per session wins. sessionIds survive process restarts, so this is the stable way to
+// recognize a chat (derived names like "branch-ad" regenerate on every restart).
+function parseHistoryTail(text) {
+  const map = new Map();
+  for (const line of text.split('\n')) {
+    if (!line) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e.sessionId && e.display) map.set(e.sessionId, e.display);
+    } catch {}
+  }
+  return map;
+}
+
+function lastPromptsBySession() {
+  try {
+    return parseHistoryTail(readTail(path.join(CLAUDE_DIR, 'history.jsonl'), 262144));
+  } catch {
+    return new Map();
+  }
+}
+
 // Hook-written state wins; without it, a transcript touched in the last 10s means running.
 function sessionState(sessionId, transcriptMtimeMs, nowMs = Date.now()) {
   try {
@@ -115,6 +138,7 @@ function sessionState(sessionId, transcriptMtimeMs, nowMs = Date.now()) {
 function sessionSnapshot(reg, settings) {
   const snap = {
     name: reg.name || String(reg.pid),
+    nameSource: reg.nameSource || null,
     pid: reg.pid,
     sessionId: reg.sessionId,
     cwd: reg.cwd,
@@ -196,6 +220,8 @@ module.exports = {
   issueNumberFromBranch,
   repoUrlFromRemote,
   listLiveSessions,
+  parseHistoryTail,
+  lastPromptsBySession,
   sessionState,
   sessionSnapshot,
   readClaudeSettings,

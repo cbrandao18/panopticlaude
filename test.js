@@ -67,6 +67,17 @@ test('lastExitCodeFromLaunchctl', () => {
   assert.equal(lib.lastExitCodeFromLaunchctl('no such line'), null);
 });
 
+test('parseHistoryTail: last prompt per session wins, bad lines skipped', () => {
+  const text =
+    '{"display":"first prompt","sessionId":"s1"}\n' +
+    '{"partial garbage\n' +
+    '{"display":"newer prompt","sessionId":"s1"}\n' +
+    '{"display":"other chat","sessionId":"s2"}\n';
+  const map = lib.parseHistoryTail(text);
+  assert.equal(map.get('s1'), 'newer prompt');
+  assert.equal(map.get('s2'), 'other chat');
+});
+
 test('cronOverdue', () => {
   const at = (h, m) => new Date(2026, 7, 17, h, m).getTime();
   assert.equal(lib.cronOverdue('12:04', at(12, 7), at(13, 0)), false, 'ran after schedule');

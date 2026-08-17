@@ -14,6 +14,24 @@ const remoteByCwd = new Map(); // cwd -> repo URL or null
 const prByKey = new Map(); // `${cwd}|${branch}` -> { t, pr }
 let cronCache = { t: 0, rows: null };
 
+const BRANCH_TTL_MS = 30 * 1000;
+const branchByCwd = new Map(); // cwd -> { t, v }
+
+// Live checkout of the session's cwd. The transcript's per-entry gitBranch reflects
+// whatever the folder was on when each entry was written, which misleads once the
+// checkout moves under an idle chat — the live value is the one that's always true.
+async function liveBranch(cwd) {
+  const hit = branchByCwd.get(cwd);
+  if (hit && Date.now() - hit.t < BRANCH_TTL_MS) return hit.v;
+  let v = null;
+  try {
+    const { stdout } = await execFileP('git', ['-C', cwd, 'branch', '--show-current']);
+    v = stdout.trim() || null;
+  } catch {}
+  branchByCwd.set(cwd, { t: Date.now(), v });
+  return v;
+}
+
 async function repoUrl(cwd) {
   if (remoteByCwd.has(cwd)) return remoteByCwd.get(cwd);
   let url = null;
@@ -86,21 +104,30 @@ class SessionsProvider {
       (a, b) =>
         (STATE_RANK[a.state] ?? 9) - (STATE_RANK[b.state] ?? 9) || a.startedAt - b.startedAt
     );
-    return Promise.all(snaps.map((s) => this._item(s)));
+    const prompts = lib.lastPromptsBySession();
+    return Promise.all(snaps.map((s) => this._item(s, prompts.get(s.sessionId))));
   }
-  async _item(s) {
-    const item = new vscode.TreeItem(s.name, vscode.TreeItemCollapsibleState.Collapsed);
+  async _item(s, lastPrompt) {
+    // Derived names ("branch-ad") regenerate on every process restart; the user's own
+    // last prompt is what actually identifies a chat. Explicit names win when set.
+    const explicitName = s.nameSource && s.nameSource !== 'derived' ? s.name : null;
+    const label =
+      explicitName ||
+      (lastPrompt && lastPrompt.length > 46 ? lastPrompt.slice(0, 45) + '…' : lastPrompt) ||
+      s.name;
+    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Collapsed);
     item.id = s.sessionId;
+    const branch = (await liveBranch(s.cwd)) || s.gitBranch;
     const bits = [];
     if (s.model) bits.push(s.model.replace(/^claude-/, ''));
     if (s.effort) bits.push(s.effort);
     if (s.pct != null) bits.push(s.pct + '%');
     bits.push(s.state);
-    if (s.gitBranch) bits.push(s.gitBranch);
+    if (branch) bits.push(branch);
     item.description = bits.join(' · ');
     const [icon, color] = STATE_ICON[s.state] || STATE_ICON.idle;
     item.iconPath = new vscode.ThemeIcon(icon, new vscode.ThemeColor(color));
-    item.tooltip = `${s.cwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`;
+    item.tooltip = `${lastPrompt || ''}\n\n${s.name} · ${s.cwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`.trim();
     item.command = {
       command: 'panopticlaude.openSession',
       title: 'Open session',
@@ -108,11 +135,11 @@ class SessionsProvider {
     };
 
     const kids = [];
-    if (s.gitBranch) {
+    if (branch) {
       const url = await repoUrl(s.cwd);
-      const issue = lib.issueNumberFromBranch(s.gitBranch);
+      const issue = lib.issueNumberFromBranch(branch);
       if (url && issue) kids.push(link(`Issue #${issue}`, 'issues', `${url}/issues/${issue}`));
-      const pr = await prForBranch(s.cwd, s.gitBranch);
+      const pr = await prForBranch(s.cwd, branch);
       if (pr) kids.push(link(`PR #${pr.number}`, 'git-pull-request', pr.url));
     }
     kids.push(link('Open transcript', 'file-text', vscode.Uri.file(s.transcript)));
