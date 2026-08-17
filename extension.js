@@ -196,7 +196,7 @@ class CronsProvider {
     } catch {}
     const overdue = lib.cronOverdue(schedule, logMtime);
     const inbox = expand(c.inbox);
-    const count = inbox ? lib.inboxCount(inbox) : null;
+    const count = inbox ? lib.unseenCount(lib.snapshotInbox(inbox), lib.loadInboxSeen()[c.label]) : null;
 
     const item = new vscode.TreeItem(
       c.label.replace(/^com\.[^.]+\./, ''),
@@ -231,8 +231,13 @@ class CronsProvider {
 
     const kids = [];
     if (log) kids.push(link('Open log', 'output', vscode.Uri.file(log)));
-    if (inbox) kids.push(revealLink(`Open inbox${count ? ` (${count})` : ''}`, 'inbox', inbox));
+    if (inbox) kids.push(revealLink(`Open inbox${count ? ` (${count} new)` : ''}`, 'inbox', inbox));
     item.kids = kids;
+    if (inbox) {
+      item.contextValue = 'cron-inbox';
+      item.cronLabel = c.label;
+      item.cronInbox = inbox;
+    }
     return item;
   }
 }
@@ -282,6 +287,11 @@ function activate(context) {
       crons.refresh(true);
     }),
     vscode.commands.registerCommand('panopticlaude.installHooks', () => installHooks(context)),
+    vscode.commands.registerCommand('panopticlaude.markInboxReviewed', (item) => {
+      if (!item || !item.cronInbox) return;
+      lib.saveInboxSeen(item.cronLabel, lib.snapshotInbox(item.cronInbox));
+      crons.refresh(true);
+    }),
     // claude-vscode.editor.open(sessionId) is the Claude Code extension's own internal
     // command for opening a conversation tab — undocumented, so fall back to the raw
     // transcript if it's missing or renamed.

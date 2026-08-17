@@ -324,6 +324,41 @@ function inboxCount(dir) {
   }
 }
 
+// "Mark inbox reviewed" snapshots {filename: mtimeMs}; the badge counts only files
+// that are new or changed since — reviewed drafts can stay in the folder forever.
+const SEEN_FILE = path.join(STATE_DIR, 'inbox-seen.json');
+
+function loadInboxSeen() {
+  try {
+    return JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveInboxSeen(label, snapshot) {
+  const all = loadInboxSeen();
+  all[label] = snapshot;
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+  fs.writeFileSync(SEEN_FILE, JSON.stringify(all, null, 2));
+}
+
+function snapshotInbox(dir) {
+  const snap = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      if (f.startsWith('.')) continue;
+      snap[f] = fs.statSync(path.join(dir, f)).mtimeMs;
+    }
+  } catch {}
+  return snap;
+}
+
+function unseenCount(snapshot, seen) {
+  if (!seen) return Object.keys(snapshot).length;
+  return Object.keys(snapshot).filter((f) => seen[f] !== snapshot[f]).length;
+}
+
 module.exports = {
   CLAUDE_DIR,
   STATE_DIR,
@@ -348,4 +383,8 @@ module.exports = {
   lastExitCodeFromLaunchctl,
   cronOverdue,
   inboxCount,
+  loadInboxSeen,
+  saveInboxSeen,
+  snapshotInbox,
+  unseenCount,
 };

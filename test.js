@@ -118,6 +118,15 @@ test('parseHistoryTail: last prompt per session wins, bad lines skipped', () => 
   assert.equal(map.get('s2'), 'other chat');
 });
 
+test('unseenCount: only new or changed files count', () => {
+  const snap = { 'a.md': 100, 'b.md': 200, 'c.md': 300 };
+  assert.equal(lib.unseenCount(snap, undefined), 3, 'no snapshot yet: everything counts');
+  assert.equal(lib.unseenCount(snap, { 'a.md': 100, 'b.md': 200, 'c.md': 300 }), 0, 'all reviewed');
+  assert.equal(lib.unseenCount(snap, { 'a.md': 100, 'b.md': 200 }), 1, 'new file');
+  assert.equal(lib.unseenCount(snap, { 'a.md': 100, 'b.md': 999, 'c.md': 300 }), 1, 'modified file');
+  assert.equal(lib.unseenCount({}, { 'a.md': 100 }), 0, 'deleted files do not count');
+});
+
 test('cronOverdue', () => {
   const at = (h, m) => new Date(2026, 7, 17, h, m).getTime();
   assert.equal(lib.cronOverdue('12:04', at(12, 7), at(13, 0)), false, 'ran after schedule');

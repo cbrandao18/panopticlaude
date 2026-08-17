@@ -42,6 +42,11 @@
       {
         "command": "panopticlaude.installHooks",
         "title": "Panopticlaude: Install Claude Code Hooks"
+      },
+      {
+        "command": "panopticlaude.markInboxReviewed",
+        "title": "Mark Inbox Reviewed",
+        "icon": "$(check-all)"
       }
     ],
     "menus": {
@@ -50,6 +55,13 @@
           "command": "panopticlaude.refresh",
           "when": "view == panopticlaude.sessions || view == panopticlaude.crons",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "panopticlaude.markInboxReviewed",
+          "when": "view == panopticlaude.crons && viewItem == cron-inbox",
+          "group": "inline"
         }
       ]
     },
