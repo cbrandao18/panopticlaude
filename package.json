@@ -1,0 +1,76 @@
+{
+  "name": "panopticlaude",
+  "displayName": "Panopticlaude",
+  "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
+  "version": "0.1.0",
+  "publisher": "cbrandao18",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cbrandao18/panopticlaude"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "panopticlaude",
+          "title": "Panopticlaude",
+          "icon": "media/eye.svg"
+        }
+      ]
+    },
+    "views": {
+      "panopticlaude": [
+        { "id": "panopticlaude.sessions", "name": "Sessions" },
+        { "id": "panopticlaude.crons", "name": "Crons" }
+      ]
+    },
+    "commands": [
+      {
+        "command": "panopticlaude.refresh",
+        "title": "Panopticlaude: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "panopticlaude.installHooks",
+        "title": "Panopticlaude: Install Claude Code Hooks"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "panopticlaude.refresh",
+          "when": "view == panopticlaude.sessions || view == panopticlaude.crons",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Panopticlaude",
+      "properties": {
+        "panopticlaude.crons": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Headless Claude bots to watch. Each entry: `label` (launchd label, resolves the plist and `launchctl print` status), `log` (file whose tail and mtime show last-run detail), `inbox` (optional directory whose file count shows as a needs-review badge).",
+          "items": {
+            "type": "object",
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "description": "launchd label, e.g. com.example.my-bot" },
+              "log": { "type": "string", "description": "Path to the bot's log file" },
+              "inbox": { "type": "string", "description": "Directory of files awaiting review" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

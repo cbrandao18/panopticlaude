@@ -1,6 +1,6 @@
 # Design plan
 
-Investigated 2026-08-17 against Claude Code 2.1.232 on macOS. Build not started.
+Investigated and built 2026-08-17 against Claude Code 2.1.232 on macOS. Deviations from the original plan are folded in below (registry read instead of CLI spawn per poll; `PermissionRequest` added as a fifth hook event).
 
 ## Goal
 
@@ -13,7 +13,7 @@ One TreeView in the VSCode sidebar, two sections:
 
 | Data | Source |
 |---|---|
-| Live sessions (pid, sessionId, cwd, name, startedAt) | `claude agents --json` (supported CLI); same data as `~/.claude/sessions/<pid>.json` |
+| Live sessions (pid, sessionId, cwd, name, startedAt) | `~/.claude/sessions/<pid>.json` (the registry `claude agents --json` reads), read directly with a pid-alive check so the 5s poll spawns nothing |
 | Model, context tokens, git branch | tail of `~/.claude/projects/<slug>/<sessionId>.jsonl`; the last assistant entry has `message.model`, `message.usage` (input + cache_read + cache_creation = window used), and `gitBranch` |
 | Effort | hook payloads carry `effort.level`; fallback is `effortLevel` in `~/.claude/settings.json` |
 | Session state | hooks: `UserPromptSubmit` = running, `Stop` = waiting for you, `Notification` (`permission_prompt` / `idle_prompt`) = needs you, `SessionEnd` = gone. Fallback heuristic: transcript mtime < 10s = running |
