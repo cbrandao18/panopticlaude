@@ -316,6 +316,15 @@ function cronOverdue(scheduleHHMM, logMtimeMs, nowMs = Date.now()) {
   return nowMs > sched.getTime() + GRACE_MS && logMtimeMs < sched.getTime();
 }
 
+function relTime(ms, nowMs = Date.now()) {
+  if (!ms) return null;
+  const s = Math.round((nowMs - ms) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
 function inboxCount(dir) {
   try {
     return fs.readdirSync(dir).filter((f) => !f.startsWith('.')).length;
@@ -382,6 +391,7 @@ module.exports = {
   scheduleFromPlist,
   lastExitCodeFromLaunchctl,
   cronOverdue,
+  relTime,
   inboxCount,
   loadInboxSeen,
   saveInboxSeen,

@@ -81,11 +81,14 @@ function revealLink(label, icon, fsPath) {
 
 const STATE_ICON = {
   'needs-you': ['warning', 'charts.red'],
-  running: ['play-circle', 'charts.green'],
   waiting: ['bell-dot', 'charts.yellow'],
+  running: ['loading~spin', null],
   idle: ['circle-outline', 'disabledForeground'],
 };
-const STATE_RANK = { 'needs-you': 0, running: 1, waiting: 2, idle: 3 };
+// Actionable first: permission prompts, then your-turn, then busy, then idle.
+const STATE_RANK = { 'needs-you': 0, waiting: 1, running: 2, idle: 3 };
+// The icon carries running/idle; words only where the user must act.
+const STATE_WORD = { 'needs-you': 'needs you', waiting: 'your turn' };
 
 class SessionsProvider {
   constructor() {
@@ -102,7 +105,13 @@ class SessionsProvider {
     if (parent) return parent.kids || [];
     const settings = lib.readClaudeSettings();
     const snaps = lib.listLiveSessions().map((r) => lib.sessionSnapshot(r, settings));
-    if (!snaps.length) return [new vscode.TreeItem('no live sessions')];
+    const attention = snaps.filter((s) => s.state === 'needs-you' || s.state === 'waiting').length;
+    if (this.view) {
+      this.view.badge = attention
+        ? { value: attention, tooltip: `${attention} session(s) waiting on you` }
+        : undefined;
+    }
+    if (!snaps.length) return []; // viewsWelcome takes over
     snaps.sort(
       (a, b) =>
         (STATE_RANK[a.state] ?? 9) - (STATE_RANK[b.state] ?? 9) || a.startedAt - b.startedAt
@@ -122,15 +131,23 @@ class SessionsProvider {
     item.id = s.sessionId;
     const branch = (await liveBranch(s.workCwd)) || s.gitBranch;
     const bits = [];
+    if (STATE_WORD[s.state]) bits.push(STATE_WORD[s.state]);
     if (s.model) bits.push(s.model.replace(/^claude-/, ''));
     if (s.effort) bits.push(s.effort);
-    if (s.pct != null) bits.push(s.pct + '%');
-    bits.push(s.state);
+    if (s.pct != null) bits.push(s.pct >= 80 ? `${s.pct}% ⚠` : s.pct + '%');
     if (branch) bits.push(branch);
     item.description = bits.join(' · ');
     const [icon, color] = STATE_ICON[s.state] || STATE_ICON.idle;
-    item.iconPath = new vscode.ThemeIcon(icon, new vscode.ThemeColor(color));
-    item.tooltip = `${s.title || ''}\n${lastPrompt ? '❝ ' + lastPrompt : ''}\n\n${s.name} · ${s.workCwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`.trim();
+    item.iconPath = new vscode.ThemeIcon(icon, color ? new vscode.ThemeColor(color) : undefined);
+    const md = new vscode.MarkdownString('', true);
+    if (s.title) md.appendMarkdown(`**${s.title}**\n\n`);
+    if (lastPrompt) md.appendMarkdown(`> ${lastPrompt.slice(0, 300)}\n\n`);
+    md.appendMarkdown(
+      `$(pulse) ${s.state} · ${s.model || '?'} · ${s.effort || '?'} · ${s.pct != null ? s.pct + '% context' : ''}\n\n` +
+        `$(folder) ${s.workCwd}\n\n` +
+        `$(terminal) ${s.name} · pid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`
+    );
+    item.tooltip = md;
     item.command = {
       command: 'panopticlaude.openSession',
       title: 'Open session',
@@ -169,7 +186,7 @@ class CronsProvider {
   async getChildren(parent) {
     if (parent) return parent.kids || [];
     const crons = vscode.workspace.getConfiguration('panopticlaude').get('crons') || [];
-    if (!crons.length) return [new vscode.TreeItem('no crons configured (setting: panopticlaude.crons)')];
+    if (!crons.length) return []; // viewsWelcome takes over
     if (!cronCache.rows || Date.now() - cronCache.t > CRON_TTL_MS) {
       cronCache = { t: Date.now(), rows: await Promise.all(crons.map((c) => this._row(c))) };
     }
@@ -206,16 +223,7 @@ class CronsProvider {
     const bits = [];
     if (schedule) bits.push('@' + schedule);
     if (exit != null && exit !== 'never-exited') bits.push('exit ' + exit);
-    if (logMtime)
-      bits.push(
-        'ran ' +
-          new Date(logMtime).toLocaleString([], {
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-      );
+    if (logMtime) bits.push('ran ' + lib.relTime(logMtime));
     if (overdue) bits.push('MISSED TODAY');
     if (count) bits.push(count + ' to review');
     item.description = bits.join(' · ');
@@ -279,8 +287,14 @@ function activate(context) {
   fs.mkdirSync(lib.STATE_DIR, { recursive: true });
   const sessions = new SessionsProvider();
   const crons = new CronsProvider();
+  // createTreeView (not registerTreeDataProvider) so the sessions view can set an
+  // activity-bar badge with the waiting-on-you count.
+  const sessionsView = vscode.window.createTreeView('panopticlaude.sessions', {
+    treeDataProvider: sessions,
+  });
+  sessions.view = sessionsView;
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('panopticlaude.sessions', sessions),
+    sessionsView,
     vscode.window.registerTreeDataProvider('panopticlaude.crons', crons),
     vscode.commands.registerCommand('panopticlaude.refresh', () => {
       sessions.refresh();

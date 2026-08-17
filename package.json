@@ -65,6 +65,16 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "panopticlaude.sessions",
+        "contents": "No live Claude Code sessions."
+      },
+      {
+        "view": "panopticlaude.crons",
+        "contents": "No bots configured.\n[Configure panopticlaude.crons](command:workbench.action.openSettings?%22panopticlaude.crons%22)"
+      }
+    ],
     "configuration": {
       "title": "Panopticlaude",
       "properties": {
