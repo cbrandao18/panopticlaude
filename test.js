@@ -88,6 +88,25 @@ test('parseTranscriptTail: lastCwd and aiTitle from newest entries', () => {
   assert.equal(r.lastCwd, '/Users/x/branch-worktrees/fix-33201');
 });
 
+test('toolDirHint: file_path dirname and cd targets', () => {
+  assert.equal(
+    lib.toolDirHint('{"input":{"file_path":"/Users/x/branch-worktrees/fix-33201/staff-fe/src/a.js"}}'),
+    '/Users/x/branch-worktrees/fix-33201/staff-fe/src'
+  );
+  assert.equal(
+    lib.toolDirHint('{"input":{"command":"cd /Users/x/branch-worktrees/fix-33201 && yarn test"}}'),
+    '/Users/x/branch-worktrees/fix-33201'
+  );
+  assert.equal(lib.toolDirHint('{"input":{"command":"ls -la"}}'), null);
+});
+
+test('workRootFromHints: majority git root wins, non-repo hints dropped', () => {
+  const repo = require('path').resolve(__dirname); // this repo has .git
+  const hints = [repo + '/scripts', repo, '/tmp/definitely-not-a-repo-xyz', repo + '/hooks'];
+  assert.equal(lib.workRootFromHints(hints), repo);
+  assert.equal(lib.workRootFromHints(['/tmp/definitely-not-a-repo-xyz']), null);
+});
+
 test('parseHistoryTail: last prompt per session wins, bad lines skipped', () => {
   const text =
     '{"display":"first prompt","sessionId":"s1"}\n' +

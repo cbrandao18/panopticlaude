@@ -48,6 +48,35 @@ function typedPromptFromEntry(entry) {
   return text;
 }
 
+// A tool call betrays where the chat is really working: an Edit/Write file_path or a
+// Bash `cd /abs/path`. The session-level cwd stays wherever the chat was opened, which
+// misleads for chats driving a worktree.
+function toolDirHint(line) {
+  let m = line.match(/"file_path":"(\/(?:[^"\\]|\\.)+?)"/);
+  if (m) return path.dirname(m[1]);
+  m = line.match(/"command":"cd (\/[^ "\\&;]+)/);
+  if (m) return m[1];
+  return null;
+}
+
+const gitRootCache = new Map();
+function findGitRoot(dir) {
+  if (gitRootCache.has(dir)) return gitRootCache.get(dir);
+  let d = dir;
+  let root = null;
+  while (d && d !== path.dirname(d)) {
+    try {
+      if (fs.existsSync(path.join(d, '.git'))) {
+        root = d;
+        break;
+      }
+    } catch {}
+    d = path.dirname(d);
+  }
+  gitRootCache.set(dir, root);
+  return root;
+}
+
 function parseTranscriptTail(tailText) {
   const lines = tailText.split('\n').filter(Boolean);
   let model = null;
@@ -56,8 +85,11 @@ function parseTranscriptTail(tailText) {
   let lastCwd = null;
   let lastUserPrompt = null;
   let aiTitle = null;
+  const hints = [];
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
+    const hint = toolDirHint(line);
+    if (hint) hints.push(hint);
     if (gitBranch === null) {
       const m = line.match(/"gitBranch":"([^"]+)"/);
       if (m) gitBranch = m[1];
@@ -90,9 +122,23 @@ function parseTranscriptTail(tailText) {
         if (e.aiTitle) aiTitle = e.aiTitle;
       } catch {}
     }
-    if (usedTokens !== null && gitBranch !== null && lastCwd !== null && lastUserPrompt !== null && aiTitle !== null) break;
   }
-  return { model, usedTokens, gitBranch, lastCwd, lastUserPrompt, aiTitle };
+  return { model, usedTokens, gitBranch, lastCwd, lastUserPrompt, aiTitle, hints };
+}
+
+// ponytail: majority vote over recent tool-call git roots; a chat splitting work evenly
+// across two repos will show whichever edges ahead in the tail window.
+function workRootFromHints(hints) {
+  const counts = new Map();
+  for (const h of hints) {
+    const root = findGitRoot(h);
+    if (root) counts.set(root, (counts.get(root) || 0) + 1);
+  }
+  let best = null;
+  for (const [root, n] of counts) {
+    if (!best || n > best.n) best = { root, n };
+  }
+  return best ? best.root : null;
 }
 
 // The chat's tab title lives in "ai-title" transcript entries (set when the user renames
@@ -222,9 +268,10 @@ function sessionSnapshot(reg, settings) {
     snap.gitBranch = tail.gitBranch;
     snap.lastPrompt = tail.lastUserPrompt;
     snap.title = transcriptTitle(snap.transcript, snap.sessionId, tail.aiTitle);
-    // A session that moved into a worktree records the new cwd per entry while the
-    // registry keeps the original — the transcript's word wins for git lookups.
-    if (tail.lastCwd) snap.workCwd = tail.lastCwd;
+    // Where the chat actually works, best signal first: majority git root of recent
+    // tool calls > per-entry cwd (updated when a session moves into a worktree) >
+    // registry cwd (wherever the chat was opened).
+    snap.workCwd = workRootFromHints(tail.hints) || tail.lastCwd || snap.workCwd;
     snap.pct = pctUsed(tail.usedTokens, contextWindowSize(settings && settings.model));
   } catch {}
   const state = sessionState(reg.sessionId, mtimeMs);
@@ -292,6 +339,8 @@ module.exports = {
   parseHistoryTail,
   lastPromptsBySession,
   transcriptTitle,
+  toolDirHint,
+  workRootFromHints,
   sessionState,
   sessionSnapshot,
   readClaudeSettings,
