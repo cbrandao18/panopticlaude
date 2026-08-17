@@ -101,6 +101,11 @@ class SessionsProvider {
     const [icon, color] = STATE_ICON[s.state] || STATE_ICON.idle;
     item.iconPath = new vscode.ThemeIcon(icon, new vscode.ThemeColor(color));
     item.tooltip = `${s.cwd}\npid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`;
+    item.command = {
+      command: 'panopticlaude.openSession',
+      title: 'Open session',
+      arguments: [s.sessionId, s.transcript],
+    };
 
     const kids = [];
     if (s.gitBranch) {
@@ -243,7 +248,17 @@ function activate(context) {
       sessions.refresh();
       crons.refresh(true);
     }),
-    vscode.commands.registerCommand('panopticlaude.installHooks', () => installHooks(context))
+    vscode.commands.registerCommand('panopticlaude.installHooks', () => installHooks(context)),
+    // claude-vscode.editor.open(sessionId) is the Claude Code extension's own internal
+    // command for opening a conversation tab — undocumented, so fall back to the raw
+    // transcript if it's missing or renamed.
+    vscode.commands.registerCommand('panopticlaude.openSession', async (sessionId, transcript) => {
+      try {
+        await vscode.commands.executeCommand('claude-vscode.editor.open', sessionId);
+      } catch {
+        await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(transcript));
+      }
+    })
   );
   const sessionTimer = setInterval(() => sessions.refresh(), 5_000);
   const cronTimer = setInterval(() => crons.refresh(), 60_000);

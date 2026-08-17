@@ -42,6 +42,7 @@ If you move the cloned folder, re-run Install Hooks: the hook entries point at t
 
 - Sessions come from `~/.claude/sessions/` (the registry behind `claude agents --json`), read directly with a pid-alive check so the 5s poll spawns nothing, then enriched from transcript tails and small hook-written state files
 - Session state (running / waiting for you / needs permission) is one shell hook registered on five Claude Code events, writing `~/.claude/panopticlaude/<sessionId>.json`
+- Clicking a session row opens that conversation in a Claude Code tab (via the Claude Code extension's internal `claude-vscode.editor.open` command; if that ever disappears, the click falls back to the raw transcript). A session whose tab lives in another VSCode window opens in the current one.
 - Crons: the launchd label resolves the plist schedule and `launchctl` exit status; the log's mtime gives last-run time and drives a "missed today" warning; the inbox file count shows as a needs-review badge
 - No marketplace release planned. Symlink from source, or a `.vsix` from Releases.
 
