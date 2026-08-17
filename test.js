@@ -107,6 +107,38 @@ test('workRootFromHints: majority git root wins, non-repo hints dropped', () => 
   assert.equal(lib.workRootFromHints(['/tmp/definitely-not-a-repo-xyz']), null);
 });
 
+test('parseTranscriptTail: edited files count mutating tools only, question detected', () => {
+  const editLine = JSON.stringify({
+    type: 'assistant',
+    message: {
+      content: [
+        { type: 'tool_use', name: 'Read', input: { file_path: '/x/read-only.js' } },
+        { type: 'tool_use', name: 'Edit', input: { file_path: '/x/a.js' } },
+        { type: 'tool_use', name: 'Write', input: { file_path: '/x/b.js' } },
+      ],
+    },
+  });
+  const dupEdit = JSON.stringify({
+    type: 'assistant',
+    message: { content: [{ type: 'tool_use', name: 'Edit', input: { file_path: '/x/a.js' } }] },
+  });
+  const question = JSON.stringify({
+    type: 'assistant',
+    message: { content: [{ type: 'text', text: 'Fixed. Want me to also update the docs?' }] },
+  });
+  const r = lib.parseTranscriptTail(editLine + '\n' + dupEdit + '\n' + question + '\n');
+  assert.deepEqual(r.editedFiles.sort(), ['/x/a.js', '/x/b.js']);
+  assert.equal(r.lastAssistantText, 'Fixed. Want me to also update the docs?');
+});
+
+test('age', () => {
+  const now = 1786993000000;
+  assert.equal(lib.age(now - 30e3, now), '<1m');
+  assert.equal(lib.age(now - 300e3, now), '5m');
+  assert.equal(lib.age(now - 7200e3, now), '2h');
+  assert.equal(lib.age(null, now), null);
+});
+
 test('parseHistoryTail: last prompt per session wins, bad lines skipped', () => {
   const text =
     '{"display":"first prompt","sessionId":"s1"}\n' +

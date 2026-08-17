@@ -81,14 +81,23 @@ function revealLink(label, icon, fsPath) {
 
 const STATE_ICON = {
   'needs-you': ['warning', 'charts.red'],
+  question: ['question', 'charts.orange'],
   waiting: ['bell-dot', 'charts.yellow'],
   running: ['loading~spin', null],
   idle: ['circle-outline', 'disabledForeground'],
 };
-// Actionable first: permission prompts, then your-turn, then busy, then idle.
-const STATE_RANK = { 'needs-you': 0, waiting: 1, running: 2, idle: 3 };
+// Actionable first: permission prompts, then blocked-on-a-question, then review-when-
+// convenient, then busy, then idle.
+const STATE_RANK = { 'needs-you': 0, question: 1, waiting: 2, running: 3, idle: 4 };
 // The icon carries running/idle; words only where the user must act.
-const STATE_WORD = { 'needs-you': 'needs you', waiting: 'your turn' };
+const STATE_WORD = { 'needs-you': 'needs you', question: 'asked you', waiting: 'your turn' };
+const ACTIONABLE = new Set(['needs-you', 'question', 'waiting']);
+
+// "waiting" conflates "finished, review whenever" with "stalled on a question" — a
+// closing question mark in the last assistant message is a cheap, decent splitter.
+function displayState(s) {
+  return s.state === 'waiting' && s.askedQuestion ? 'question' : s.state;
+}
 
 class SessionsProvider {
   constructor() {
@@ -105,17 +114,21 @@ class SessionsProvider {
     if (parent) return parent.kids || [];
     const settings = lib.readClaudeSettings();
     const snaps = lib.listLiveSessions().map((r) => lib.sessionSnapshot(r, settings));
-    const attention = snaps.filter((s) => s.state === 'needs-you' || s.state === 'waiting').length;
+    for (const s of snaps) s.display = displayState(s);
+    const attention = snaps.filter((s) => ACTIONABLE.has(s.display)).length;
     if (this.view) {
       this.view.badge = attention
         ? { value: attention, tooltip: `${attention} session(s) waiting on you` }
         : undefined;
     }
     if (!snaps.length) return []; // viewsWelcome takes over
-    snaps.sort(
-      (a, b) =>
-        (STATE_RANK[a.state] ?? 9) - (STATE_RANK[b.state] ?? 9) || a.startedAt - b.startedAt
-    );
+    // Within actionable states, the longest-forgotten session floats to the top.
+    snaps.sort((a, b) => {
+      const rank = (STATE_RANK[a.display] ?? 9) - (STATE_RANK[b.display] ?? 9);
+      if (rank) return rank;
+      if (ACTIONABLE.has(a.display)) return (a.stateTs || Infinity) - (b.stateTs || Infinity);
+      return a.startedAt - b.startedAt;
+    });
     // history.jsonl is a fallback only: recent Claude Code versions stopped writing it,
     // so the primary source is the transcript's own last typed-user entry.
     const prompts = lib.lastPromptsBySession();
@@ -131,22 +144,30 @@ class SessionsProvider {
     item.id = s.sessionId;
     const branch = (await liveBranch(s.workCwd)) || s.gitBranch;
     const bits = [];
-    if (STATE_WORD[s.state]) bits.push(STATE_WORD[s.state]);
+    if (STATE_WORD[s.display]) {
+      const waitAge = s.stateTs ? ' ' + lib.age(s.stateTs) : '';
+      bits.push(STATE_WORD[s.display] + waitAge);
+    }
     if (s.model) bits.push(s.model.replace(/^claude-/, ''));
     if (s.effort) bits.push(s.effort);
     if (s.pct != null) bits.push(s.pct >= 80 ? `${s.pct}% ⚠` : s.pct + '%');
+    if (s.editedFiles.length) bits.push(`✎${s.editedFiles.length}`);
     if (branch) bits.push(branch);
     item.description = bits.join(' · ');
-    const [icon, color] = STATE_ICON[s.state] || STATE_ICON.idle;
+    const [icon, color] = STATE_ICON[s.display] || STATE_ICON.idle;
     item.iconPath = new vscode.ThemeIcon(icon, color ? new vscode.ThemeColor(color) : undefined);
     const md = new vscode.MarkdownString('', true);
     if (s.title) md.appendMarkdown(`**${s.title}**\n\n`);
     if (lastPrompt) md.appendMarkdown(`> ${lastPrompt.slice(0, 300)}\n\n`);
     md.appendMarkdown(
-      `$(pulse) ${s.state} · ${s.model || '?'} · ${s.effort || '?'} · ${s.pct != null ? s.pct + '% context' : ''}\n\n` +
+      `$(pulse) ${s.display} · ${s.model || '?'} · ${s.effort || '?'} · ${s.pct != null ? s.pct + '% context' : ''}\n\n` +
         `$(folder) ${s.workCwd}\n\n` +
         `$(terminal) ${s.name} · pid ${s.pid} · started ${new Date(s.startedAt).toLocaleTimeString()}`
     );
+    if (s.editedFiles.length) {
+      const names = s.editedFiles.slice(-5).map((f) => path.basename(f));
+      md.appendMarkdown(`\n\n$(edit) ${s.editedFiles.length} file(s): ${names.join(', ')}`);
+    }
     item.tooltip = md;
     item.command = {
       command: 'panopticlaude.openSession',

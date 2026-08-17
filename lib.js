@@ -85,11 +85,17 @@ function parseTranscriptTail(tailText) {
   let lastCwd = null;
   let lastUserPrompt = null;
   let aiTitle = null;
+  let lastAssistantText = null;
   const hints = [];
+  const editedFiles = new Set();
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     const hint = toolDirHint(line);
     if (hint) hints.push(hint);
+    // Only mutating tools count as "files touched" — Read also carries file_path.
+    for (const m of line.matchAll(/"name":"(?:Edit|Write|MultiEdit|NotebookEdit)".*?"file_path":"((?:[^"\\]|\\.)+?)"/g)) {
+      editedFiles.add(m[1]);
+    }
     if (gitBranch === null) {
       const m = line.match(/"gitBranch":"([^"]+)"/);
       if (m) gitBranch = m[1];
@@ -122,8 +128,28 @@ function parseTranscriptTail(tailText) {
         if (e.aiTitle) aiTitle = e.aiTitle;
       } catch {}
     }
+    if (lastAssistantText === null && line.includes('"type":"assistant"') && line.includes('"text"')) {
+      try {
+        const entry = JSON.parse(line);
+        const content = entry.message && entry.message.content;
+        if (Array.isArray(content)) {
+          const texts = content.filter((c) => c && c.type === 'text' && c.text);
+          if (texts.length) lastAssistantText = texts[texts.length - 1].text;
+        }
+      } catch {}
+    }
   }
-  return { model, usedTokens, gitBranch, lastCwd, lastUserPrompt, aiTitle, hints };
+  return {
+    model,
+    usedTokens,
+    gitBranch,
+    lastCwd,
+    lastUserPrompt,
+    lastAssistantText,
+    aiTitle,
+    hints,
+    editedFiles: [...editedFiles],
+  };
 }
 
 // ponytail: majority vote over recent tool-call git roots; a chat splitting work evenly
@@ -256,6 +282,9 @@ function sessionSnapshot(reg, settings) {
     effort: (settings && settings.effortLevel) || null,
     lastPrompt: null,
     title: null,
+    askedQuestion: false,
+    editedFiles: [],
+    stateTs: null,
     workCwd: reg.cwd,
     transcript: transcriptPath(reg.cwd, reg.sessionId),
   };
@@ -267,6 +296,8 @@ function sessionSnapshot(reg, settings) {
     snap.model = tail.model;
     snap.gitBranch = tail.gitBranch;
     snap.lastPrompt = tail.lastUserPrompt;
+    snap.askedQuestion = /\?\s*$/.test((tail.lastAssistantText || '').trim());
+    snap.editedFiles = tail.editedFiles;
     snap.title = transcriptTitle(snap.transcript, snap.sessionId, tail.aiTitle);
     // Where the chat actually works, best signal first: majority git root of recent
     // tool calls > per-entry cwd (updated when a session moves into a worktree) >
@@ -276,6 +307,7 @@ function sessionSnapshot(reg, settings) {
   } catch {}
   const state = sessionState(reg.sessionId, mtimeMs);
   snap.state = state.state;
+  snap.stateTs = state.ts ? state.ts * 1000 : null; // hook writes epoch seconds
   if (state.effort) snap.effort = state.effort;
   return snap;
 }
@@ -314,6 +346,16 @@ function cronOverdue(scheduleHHMM, logMtimeMs, nowMs = Date.now()) {
   sched.setHours(h, min, 0, 0);
   const GRACE_MS = 15 * 60 * 1000;
   return nowMs > sched.getTime() + GRACE_MS && logMtimeMs < sched.getTime();
+}
+
+// Short age for row decorations: "3m", "2h", "1d".
+function age(ms, nowMs = Date.now()) {
+  if (!ms) return null;
+  const s = Math.round((nowMs - ms) / 1000);
+  if (s < 60) return '<1m';
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  if (s < 86400) return `${Math.round(s / 3600)}h`;
+  return `${Math.round(s / 86400)}d`;
 }
 
 function relTime(ms, nowMs = Date.now()) {
@@ -391,6 +433,7 @@ module.exports = {
   scheduleFromPlist,
   lastExitCodeFromLaunchctl,
   cronOverdue,
+  age,
   relTime,
   inboxCount,
   loadInboxSeen,
