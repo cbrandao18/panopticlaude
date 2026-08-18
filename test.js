@@ -58,6 +58,7 @@ test('issueNumberFromBranch', () => {
   assert.equal(lib.issueNumberFromBranch('poc/33148-staff-reskin'), 33148);
   assert.equal(lib.issueNumberFromBranch('trunk'), null);
   assert.equal(lib.issueNumberFromBranch('fix-123'), null);
+  assert.equal(lib.issueNumberFromBranch('fix/replay-empty-drivers-4000'), null, 'error codes are not issues');
 });
 
 test('repoUrlFromRemote', () => {

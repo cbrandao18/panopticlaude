@@ -204,7 +204,7 @@ function pctUsed(usedTokens, windowSize) {
 }
 
 function issueNumberFromBranch(branch) {
-  const m = (branch || '').match(/(\d{4,})/);
+  const m = (branch || '').match(/(\d{5,})/);
   return m ? Number(m[1]) : null;
 }
 
