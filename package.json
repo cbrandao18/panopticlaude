@@ -2,7 +2,7 @@
   "name": "panopticlaude",
   "displayName": "Panopticlaude",
   "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "cbrandao18",
   "license": "MIT",
   "repository": {
@@ -44,7 +44,8 @@
         {
           "id": "panopticlaude.worktrees",
           "name": "Worktrees",
-          "when": "!panopticlaude.gui"
+          "when": "!panopticlaude.gui",
+          "visibility": "collapsed"
         },
         {
           "id": "panopticlaude.crons",
@@ -83,6 +84,11 @@
         "command": "panopticlaude.markInboxReviewed",
         "title": "Mark Inbox Reviewed",
         "icon": "$(check-all)"
+      },
+      {
+        "command": "panopticlaude.cleanWorktrees",
+        "title": "Panopticlaude: Clean Up Worktrees",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -100,6 +106,11 @@
         {
           "command": "panopticlaude.showTree",
           "when": "view == panopticlaude.gui",
+          "group": "navigation"
+        },
+        {
+          "command": "panopticlaude.cleanWorktrees",
+          "when": "view == panopticlaude.worktrees",
           "group": "navigation"
         }
       ],

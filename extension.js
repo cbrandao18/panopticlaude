@@ -211,7 +211,7 @@ async function collectWorktreeRows() {
           const { stdout } = await execFileP('git', ['-C', repo, 'worktree', 'list', '--porcelain']);
           wts = lib.parseWorktrees(stdout).slice(1); // first stanza is the main checkout
         } catch {}
-        return Promise.all(wts.map(worktreeRowData));
+        return Promise.all(wts.map((wt) => worktreeRowData(wt, repo)));
       })
     );
     worktreeCache = { t: Date.now(), rows: perRepo.flat() };
@@ -219,7 +219,7 @@ async function collectWorktreeRows() {
   return worktreeCache.rows;
 }
 
-async function worktreeRowData(wt) {
+async function worktreeRowData(wt, repo) {
   let dirty = null;
   try {
     const { stdout } = await execFileP('git', ['-C', wt.path, 'status', '--porcelain']);
@@ -235,7 +235,71 @@ async function worktreeRowData(wt) {
   else if (wt.detached) bits.push('detached');
   if (dirty != null) bits.push(`${dirty} dirty`);
   if (lastCommitMs) bits.push(`last commit ${lib.relTime(lastCommitMs)}`);
-  return { ...wt, name: path.basename(wt.path), dirty, lastCommitMs, desc: bits.join(' · ') };
+  return { ...wt, repo, name: path.basename(wt.path), dirty, lastCommitMs, desc: bits.join(' · ') };
+}
+
+// Bulk stale-worktree cleanup: multi-select picker over every extra worktree, prunable
+// pre-checked and stalest first. Chosen prunable rows go through `git worktree prune`
+// (their directory is already gone); the rest through `git worktree remove`, which
+// refuses dirty worktrees — those get one explicit modal confirm before --force.
+async function cleanWorktrees() {
+  worktreeCache.t = 0;
+  const rows = await collectWorktreeRows();
+  if (!rows.length) {
+    vscode.window.showInformationMessage('panopticlaude: no extra worktrees to clean.');
+    return;
+  }
+  const picks = rows
+    .map((r) => ({
+      label: r.name,
+      description: r.desc + (r.prunable ? ' · PRUNABLE' : ''),
+      picked: r.prunable,
+      row: r,
+    }))
+    .sort((a, b) => b.row.prunable - a.row.prunable || (a.row.lastCommitMs || 0) - (b.row.lastCommitMs || 0));
+  const chosen = await vscode.window.showQuickPick(picks, {
+    canPickMany: true,
+    title: 'Remove worktrees',
+    placeHolder: 'Each selected worktree is git-worktree-removed; dirty ones ask before --force',
+  });
+  if (!chosen || !chosen.length) return;
+  const prunable = chosen.filter((c) => c.row.prunable);
+  for (const repo of new Set(prunable.map((c) => c.row.repo))) {
+    try {
+      await execFileP('git', ['-C', repo, 'worktree', 'prune']);
+    } catch {}
+  }
+  let removed = 0;
+  const refused = [];
+  for (const c of chosen.filter((c) => !c.row.prunable)) {
+    try {
+      await execFileP('git', ['-C', c.row.repo, 'worktree', 'remove', c.row.path]);
+      removed++;
+    } catch {
+      refused.push(c);
+    }
+  }
+  if (refused.length) {
+    const btn = await vscode.window.showWarningMessage(
+      `${refused.length} worktree(s) refused removal (dirty or locked): ${refused.map((c) => c.label).join(', ')}. Force remove and discard their uncommitted changes?`,
+      { modal: true },
+      'Force Remove'
+    );
+    if (btn === 'Force Remove') {
+      for (const c of refused) {
+        try {
+          await execFileP('git', ['-C', c.row.repo, 'worktree', 'remove', '--force', c.row.path]);
+          removed++;
+        } catch (err) {
+          vscode.window.showErrorMessage(`panopticlaude: ${c.label}: ${err.message}`);
+        }
+      }
+    }
+  }
+  vscode.window.showInformationMessage(
+    `panopticlaude: removed ${removed} worktree(s)${prunable.length ? `, pruned ${prunable.length}` : ''}.`
+  );
+  vscode.commands.executeCommand('panopticlaude.refresh');
 }
 
 async function cronRowData(c) {
@@ -513,6 +577,9 @@ class GuiViewProvider {
       case 'open-folder':
         vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(msg.path), { forceNewWindow: true });
         break;
+      case 'clean-worktrees':
+        vscode.commands.executeCommand('panopticlaude.cleanWorktrees');
+        break;
       case 'mark-reviewed':
         lib.saveInboxSeen(msg.label, lib.snapshotInbox(msg.inbox));
         cronCache.t = 0;
@@ -596,6 +663,7 @@ function activate(context) {
     vscode.commands.registerCommand('panopticlaude.showGui', () => setMode(true)),
     vscode.commands.registerCommand('panopticlaude.showTree', () => setMode(false)),
     vscode.commands.registerCommand('panopticlaude.installHooks', () => installHooks(context)),
+    vscode.commands.registerCommand('panopticlaude.cleanWorktrees', cleanWorktrees),
     vscode.commands.registerCommand('panopticlaude.markInboxReviewed', (item) => {
       if (!item || !item.cronInbox) return;
       lib.saveInboxSeen(item.cronLabel, lib.snapshotInbox(item.cronInbox));

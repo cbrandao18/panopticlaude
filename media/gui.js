@@ -122,20 +122,47 @@ function worktreeCard(w) {
   return card;
 }
 
-function section(name, items, build, emptyText) {
+// Collapse state persists via the webview's own state store (survives the 5s
+// re-renders and view reloads). Worktrees starts collapsed: it's the long one.
+function getCollapsed() {
+  const s = vscode.getState();
+  return new Set((s && s.collapsed) || ['Worktrees']);
+}
+
+function toggleSection(name) {
+  const c = getCollapsed();
+  if (c.has(name)) c.delete(name);
+  else c.add(name);
+  vscode.setState({ ...(vscode.getState() || {}), collapsed: [...c] });
+  if (lastData) render(lastData);
+}
+
+function section(name, items, build, emptyText, headerExtra) {
   const sec = el('div', 'section');
-  const header = el('div', 'section-header', name);
+  const isCollapsed = getCollapsed().has(name);
+  const header = el('div', 'section-header');
+  header.appendChild(el('span', 'chev', isCollapsed ? '▸' : '▾'));
+  header.appendChild(el('span', null, name));
   header.appendChild(el('span', 'count', String(items.length)));
+  if (headerExtra) header.appendChild(headerExtra);
+  header.addEventListener('click', () => toggleSection(name));
   sec.appendChild(header);
-  if (!items.length) sec.appendChild(el('div', 'empty', emptyText));
-  for (const item of items) sec.appendChild(build(item));
+  if (!isCollapsed) {
+    if (!items.length) sec.appendChild(el('div', 'empty', emptyText));
+    for (const item of items) sec.appendChild(build(item));
+  }
   return sec;
 }
 
-function render({ sessions, prs, worktrees, crons }) {
+let lastData = null;
+
+function render(data) {
+  lastData = data;
+  const { sessions, prs, worktrees, crons } = data;
   app.textContent = '';
   app.appendChild(section('Sessions', sessions, sessionCard, 'no live sessions'));
   app.appendChild(section('My PRs', prs || [], prCard, 'no open PRs (panopticlaude.repos)'));
-  app.appendChild(section('Worktrees', worktrees || [], worktreeCard, 'no worktrees (panopticlaude.repos)'));
+  const cleanBtn = chip('clean up…', () => vscode.postMessage({ type: 'clean-worktrees' }), true);
+  app.appendChild(section('Worktrees', worktrees || [], worktreeCard, 'no worktrees (panopticlaude.repos)', cleanBtn));
   app.appendChild(section('Crons', crons, cronCard, 'no bots configured (panopticlaude.crons)'));
 }
