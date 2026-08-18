@@ -1,0 +1,186 @@
+/* Themed entirely with --vscode variables so it follows every theme. */
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: transparent;
+  padding: 0 8px 12px;
+  margin: 0;
+}
+
+.section {
+  margin-top: 12px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  margin: 0 2px 6px;
+}
+.section-header .count {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: var(--vscode-sideBar-background);
+}
+.card:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.card.static {
+  cursor: default;
+}
+
+.row1 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.dot.running {
+  background: var(--vscode-charts-green);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.dot.idle {
+  background: transparent;
+  border: 1.5px solid var(--vscode-descriptionForeground);
+  opacity: 0.6;
+}
+.dot.needs-you { background: var(--vscode-charts-red); }
+.dot.question  { background: var(--vscode-charts-orange); }
+.dot.waiting   { background: var(--vscode-charts-yellow); }
+.dot.ok        { background: var(--vscode-charts-green); }
+.dot.bad       { background: var(--vscode-charts-red); }
+.dot.overdue   { background: var(--vscode-charts-orange); }
+.dot.inboxful  { background: var(--vscode-charts-blue); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Status pill: color plus the word, never color alone. */
+.pill {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.pill.needs-you { background: color-mix(in srgb, var(--vscode-charts-red) 18%, transparent); color: var(--vscode-charts-red); }
+.pill.question  { background: color-mix(in srgb, var(--vscode-charts-orange) 18%, transparent); color: var(--vscode-charts-orange); }
+.pill.waiting   { background: color-mix(in srgb, var(--vscode-charts-yellow) 18%, transparent); color: var(--vscode-charts-yellow); }
+.pill.edits {
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-weight: 500;
+}
+
+.meta {
+  margin: 4px 0 0 15px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Context meter: single hue; ≥80% switches hue AND shows the warning glyph in text. */
+.ctx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0 15px;
+}
+.ctx-bar {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+  overflow: hidden;
+}
+.ctx-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--vscode-progressBar-background);
+}
+.ctx-fill.hot {
+  background: var(--vscode-charts-red);
+}
+.ctx-label {
+  flex: none;
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  min-width: 34px;
+  text-align: right;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin: 7px 0 0 15px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 11px;
+  color: var(--vscode-textLink-foreground);
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, transparent);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip:hover {
+  background: color-mix(in srgb, var(--vscode-textLink-foreground) 20%, transparent);
+}
+.chip.action {
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+}
+.chip.action:hover {
+  background: color-mix(in srgb, var(--vscode-foreground) 16%, transparent);
+}
+
+.warn-line {
+  margin: 5px 0 0 15px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-charts-orange);
+}
+
+.empty {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  margin: 2px;
+}

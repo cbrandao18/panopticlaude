@@ -29,8 +29,9 @@
     },
     "views": {
       "panopticlaude": [
-        { "id": "panopticlaude.sessions", "name": "Sessions" },
-        { "id": "panopticlaude.crons", "name": "Crons" }
+        { "id": "panopticlaude.sessions", "name": "Sessions", "when": "!panopticlaude.gui" },
+        { "id": "panopticlaude.crons", "name": "Crons", "when": "!panopticlaude.gui" },
+        { "type": "webview", "id": "panopticlaude.gui", "name": "Mission Control", "when": "panopticlaude.gui" }
       ]
     },
     "commands": [
@@ -38,6 +39,16 @@
         "command": "panopticlaude.refresh",
         "title": "Panopticlaude: Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "panopticlaude.showGui",
+        "title": "Switch to GUI View",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "panopticlaude.showTree",
+        "title": "Switch to Tree View",
+        "icon": "$(list-tree)"
       },
       {
         "command": "panopticlaude.installHooks",
@@ -53,7 +64,17 @@
       "view/title": [
         {
           "command": "panopticlaude.refresh",
+          "when": "view == panopticlaude.sessions || view == panopticlaude.crons || view == panopticlaude.gui",
+          "group": "navigation"
+        },
+        {
+          "command": "panopticlaude.showGui",
           "when": "view == panopticlaude.sessions || view == panopticlaude.crons",
+          "group": "navigation"
+        },
+        {
+          "command": "panopticlaude.showTree",
+          "when": "view == panopticlaude.gui",
           "group": "navigation"
         }
       ],
