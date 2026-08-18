@@ -53,10 +53,7 @@ function sessionCard(s) {
 
   const chips = el('div', 'chips');
   if (s.issueUrl) chips.appendChild(chip('#' + s.issueNum, () => vscode.postMessage({ type: 'open-url', url: s.issueUrl })));
-  if (s.pr) {
-    const label = 'PR #' + s.pr.number + (s.pr.state && s.pr.state !== 'OPEN' ? ' (' + s.pr.state.toLowerCase() + ')' : '');
-    chips.appendChild(chip(label, () => vscode.postMessage({ type: 'open-url', url: s.pr.url })));
-  }
+  if (s.pr) chips.appendChild(chip(s.prLabel, () => vscode.postMessage({ type: 'open-url', url: s.pr.url })));
   chips.appendChild(chip('transcript', () => vscode.postMessage({ type: 'open-file', path: s.transcript }), true));
   card.appendChild(chips);
   return card;
@@ -78,6 +75,7 @@ function cronCard(c) {
     c.schedule ? '@' + c.schedule : null,
     c.exit != null && c.exit !== 'never-exited' ? 'exit ' + c.exit : null,
     c.ranAgo ? 'ran ' + c.ranAgo : null,
+    c.nextIn ? 'next in ' + c.nextIn : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -96,6 +94,34 @@ function cronCard(c) {
   return card;
 }
 
+function prCard(p) {
+  const card = el('div', 'card');
+  card.title = p.url;
+  card.addEventListener('click', () => vscode.postMessage({ type: 'open-url', url: p.url }));
+  const dotClass = p.status === 'bad' ? 'bad' : p.status === 'good' ? 'ok' : 'waiting';
+
+  const row1 = el('div', 'row1');
+  row1.appendChild(el('span', 'dot ' + dotClass));
+  row1.appendChild(el('span', 'title', p.title));
+  card.appendChild(row1);
+  card.appendChild(el('div', 'meta', p.desc));
+  return card;
+}
+
+function worktreeCard(w) {
+  const card = el('div', 'card');
+  card.title = w.path;
+  card.addEventListener('click', () => vscode.postMessage({ type: 'open-folder', path: w.path }));
+
+  const row1 = el('div', 'row1');
+  row1.appendChild(el('span', 'dot ' + (w.prunable ? 'overdue' : w.dirty ? 'inboxful' : 'idle')));
+  row1.appendChild(el('span', 'title', w.name));
+  card.appendChild(row1);
+  if (w.desc) card.appendChild(el('div', 'meta', w.desc));
+  if (w.prunable) card.appendChild(el('div', 'warn-line', '⚠ PRUNABLE'));
+  return card;
+}
+
 function section(name, items, build, emptyText) {
   const sec = el('div', 'section');
   const header = el('div', 'section-header', name);
@@ -106,8 +132,10 @@ function section(name, items, build, emptyText) {
   return sec;
 }
 
-function render({ sessions, crons }) {
+function render({ sessions, prs, worktrees, crons }) {
   app.textContent = '';
   app.appendChild(section('Sessions', sessions, sessionCard, 'no live sessions'));
+  app.appendChild(section('My PRs', prs || [], prCard, 'no open PRs (panopticlaude.repos)'));
+  app.appendChild(section('Worktrees', worktrees || [], worktreeCard, 'no worktrees (panopticlaude.repos)'));
   app.appendChild(section('Crons', crons, cronCard, 'no bots configured (panopticlaude.crons)'));
 }

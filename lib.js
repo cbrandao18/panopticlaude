@@ -208,6 +208,74 @@ function issueNumberFromBranch(branch) {
   return m ? Number(m[1]) : null;
 }
 
+// Central PR chip text so the tree and the GUI don't each rebuild the suffix:
+// "PR #34079 (merged 2d ago)" | "PR #123 (closed)" | "PR #123".
+function prLabel(pr, nowMs = Date.now()) {
+  if (!pr) return null;
+  let suffix = '';
+  if (pr.state === 'MERGED' && pr.mergedAt) suffix = ` (merged ${relTime(Date.parse(pr.mergedAt), nowMs)})`;
+  else if (pr.state && pr.state !== 'OPEN') suffix = ` (${pr.state.toLowerCase()})`;
+  return `PR #${pr.number}${suffix}`;
+}
+
+// gh's statusCheckRollup mixes CheckRun {status, conclusion} and StatusContext {state}
+// objects; a CheckRun still running has an empty conclusion.
+const CI_FAIL = /^(FAILURE|ERROR|TIMED_OUT|ACTION_REQUIRED|CANCELLED|STARTUP_FAILURE)$/;
+const CI_OK = /^(SUCCESS|NEUTRAL|SKIPPED)$/;
+function ciState(rollup) {
+  if (!rollup || !rollup.length) return null;
+  let pending = false;
+  for (const c of rollup) {
+    const v = c.conclusion || c.state || c.status || '';
+    if (CI_FAIL.test(v)) return 'failing';
+    if (!CI_OK.test(v)) pending = true;
+  }
+  return pending ? 'pending' : 'passing';
+}
+
+// One `gh pr list` entry -> display row. status drives the icon: bad (CI failing or
+// changes requested) / good (approved and CI not pending) / pending (everything else).
+function myPrRow(pr) {
+  const ci = ciState(pr.statusCheckRollup);
+  const status =
+    ci === 'failing' || pr.reviewDecision === 'CHANGES_REQUESTED'
+      ? 'bad'
+      : pr.reviewDecision === 'APPROVED' && ci !== 'pending'
+        ? 'good'
+        : 'pending';
+  const bits = ['#' + pr.number];
+  if (pr.isDraft) bits.push('draft');
+  if (pr.reviewDecision) bits.push(pr.reviewDecision.toLowerCase().replace(/_/g, ' '));
+  if (ci) bits.push('CI ' + ci);
+  if (pr.headRefName) bits.push(pr.headRefName);
+  return {
+    number: pr.number,
+    title: pr.title,
+    url: pr.url,
+    isDraft: !!pr.isDraft,
+    status,
+    desc: bits.join(' · '),
+    updatedAt: pr.updatedAt ? Date.parse(pr.updatedAt) : null,
+  };
+}
+
+// `git worktree list --porcelain`: blank-line-separated stanzas, one per worktree; the
+// first is the main checkout. `prunable` lines carry an optional reason after the word.
+function parseWorktrees(text) {
+  const out = [];
+  let cur = null;
+  for (const line of (text || '').split('\n')) {
+    if (line.startsWith('worktree ')) {
+      cur = { path: line.slice(9), branch: null, detached: false, prunable: false };
+      out.push(cur);
+    } else if (!cur) continue;
+    else if (line.startsWith('branch ')) cur.branch = line.slice(7).replace(/^refs\/heads\//, '');
+    else if (line === 'detached') cur.detached = true;
+    else if (line.startsWith('prunable')) cur.prunable = true;
+  }
+  return out;
+}
+
 // git@github.com:owner/repo.git | https://github.com/owner/repo(.git) -> https://github.com/owner/repo
 function repoUrlFromRemote(remote) {
   const m = (remote || '').trim().match(/github\.com[:/]([^/\s]+)\/([^/\s]+?)(\.git)?$/);
@@ -367,6 +435,26 @@ function relTime(ms, nowMs = Date.now()) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
+// Next occurrence of a daily HH:MM schedule: today if still ahead, else tomorrow.
+function nextRun(scheduleHHMM, nowMs = Date.now()) {
+  if (!scheduleHHMM) return null;
+  const [h, m] = scheduleHHMM.split(':').map(Number);
+  const next = new Date(nowMs);
+  next.setHours(h, m, 0, 0);
+  if (next.getTime() <= nowMs) next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
+// Future-facing counterpart of age(): "19h" until the given time.
+function untilTime(ms, nowMs = Date.now()) {
+  if (!ms) return null;
+  const s = Math.max(0, Math.round((ms - nowMs) / 1000));
+  if (s < 60) return '<1m';
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  if (s < 86400) return `${Math.round(s / 3600)}h`;
+  return `${Math.round(s / 86400)}d`;
+}
+
 function inboxCount(dir) {
   try {
     return fs.readdirSync(dir).filter((f) => !f.startsWith('.')).length;
@@ -420,6 +508,10 @@ module.exports = {
   contextWindowSize,
   pctUsed,
   issueNumberFromBranch,
+  prLabel,
+  ciState,
+  myPrRow,
+  parseWorktrees,
   repoUrlFromRemote,
   listLiveSessions,
   parseHistoryTail,
@@ -433,6 +525,8 @@ module.exports = {
   scheduleFromPlist,
   lastExitCodeFromLaunchctl,
   cronOverdue,
+  nextRun,
+  untilTime,
   age,
   relTime,
   inboxCount,

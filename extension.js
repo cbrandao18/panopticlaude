@@ -13,13 +13,22 @@ const lib = require('./lib');
 const PR_TTL_MS = 5 * 60 * 1000;
 const CRON_TTL_MS = 60 * 1000;
 const BRANCH_TTL_MS = 30 * 1000;
+const WORKTREE_TTL_MS = 60 * 1000;
 const remoteByCwd = new Map(); // cwd -> repo URL or null
 const prByKey = new Map(); // `${cwd}|${branch}` -> { t, pr }
 const branchByCwd = new Map(); // cwd -> { t, v }
 let cronCache = { t: 0, rows: null };
+let myPrCache = { t: 0, rows: null };
+let worktreeCache = { t: 0, rows: null };
 
 // The extension host's PATH lacks homebrew, so `gh` must be resolved absolutely.
 const GH = ['/opt/homebrew/bin/gh', '/usr/local/bin/gh'].find((p) => fs.existsSync(p)) || 'gh';
+
+const expandHome = (p) => p && p.replace(/^~(?=$|\/)/, os.homedir());
+
+function configuredRepos() {
+  return (vscode.workspace.getConfiguration('panopticlaude').get('repos') || []).map(expandHome);
+}
 
 // Live checkout of where the chat works. The transcript's per-entry gitBranch reflects
 // whatever the folder was on when each entry was written, which misleads once the
@@ -55,7 +64,7 @@ async function prForBranch(cwd, branch) {
   try {
     const { stdout } = await execFileP(
       GH,
-      ['pr', 'list', '--head', branch, '--state', 'all', '--json', 'number,url,state', '--limit', '1'],
+      ['pr', 'list', '--head', branch, '--state', 'all', '--json', 'number,url,state,mergedAt', '--limit', '1'],
       { cwd }
     );
     const arr = JSON.parse(stdout);
@@ -122,6 +131,7 @@ async function sessionRowData(s, lastPrompt) {
     issueNum,
     issueUrl,
     pr,
+    prLabel: lib.prLabel(pr),
     transcript: s.transcript,
     workCwd: s.workCwd,
   };
@@ -152,12 +162,86 @@ function badgeFor(n) {
   return n ? { value: n, tooltip: `${n} session(s) waiting on you` } : undefined;
 }
 
+const MYPR_STATUS_RANK = { bad: 0, pending: 1, good: 2 };
+
+async function collectMyPrRows() {
+  const repos = configuredRepos();
+  if (!repos.length) return [];
+  if (!myPrCache.rows || Date.now() - myPrCache.t > PR_TTL_MS) {
+    const perRepo = await Promise.all(
+      repos.map(async (repo) => {
+        try {
+          const { stdout } = await execFileP(
+            GH,
+            [
+              'pr',
+              'list',
+              '--author',
+              '@me',
+              '--json',
+              'number,title,url,reviewDecision,isDraft,statusCheckRollup,headRefName,updatedAt',
+            ],
+            { cwd: repo, maxBuffer: 10 * 1024 * 1024 } // statusCheckRollup is bulky on check-heavy repos
+          );
+          return JSON.parse(stdout).map((pr) => ({ ...lib.myPrRow(pr), repo }));
+        } catch {
+          return [];
+        }
+      })
+    );
+    const rows = perRepo.flat();
+    // Red on top, then in-flight, then approved; newest activity first within a band.
+    rows.sort(
+      (a, b) =>
+        MYPR_STATUS_RANK[a.status] - MYPR_STATUS_RANK[b.status] || (b.updatedAt || 0) - (a.updatedAt || 0)
+    );
+    myPrCache = { t: Date.now(), rows };
+  }
+  return myPrCache.rows;
+}
+
+async function collectWorktreeRows() {
+  const repos = configuredRepos();
+  if (!repos.length) return [];
+  if (!worktreeCache.rows || Date.now() - worktreeCache.t > WORKTREE_TTL_MS) {
+    const perRepo = await Promise.all(
+      repos.map(async (repo) => {
+        let wts = [];
+        try {
+          const { stdout } = await execFileP('git', ['-C', repo, 'worktree', 'list', '--porcelain']);
+          wts = lib.parseWorktrees(stdout).slice(1); // first stanza is the main checkout
+        } catch {}
+        return Promise.all(wts.map(worktreeRowData));
+      })
+    );
+    worktreeCache = { t: Date.now(), rows: perRepo.flat() };
+  }
+  return worktreeCache.rows;
+}
+
+async function worktreeRowData(wt) {
+  let dirty = null;
+  try {
+    const { stdout } = await execFileP('git', ['-C', wt.path, 'status', '--porcelain']);
+    dirty = stdout.split('\n').filter(Boolean).length;
+  } catch {}
+  let lastCommitMs = null;
+  try {
+    const { stdout } = await execFileP('git', ['-C', wt.path, 'log', '-1', '--format=%ct']);
+    lastCommitMs = Number(stdout.trim()) * 1000 || null;
+  } catch {}
+  const bits = [];
+  if (wt.branch) bits.push(wt.branch);
+  else if (wt.detached) bits.push('detached');
+  if (dirty != null) bits.push(`${dirty} dirty`);
+  if (lastCommitMs) bits.push(`last commit ${lib.relTime(lastCommitMs)}`);
+  return { ...wt, name: path.basename(wt.path), dirty, lastCommitMs, desc: bits.join(' · ') };
+}
+
 async function cronRowData(c) {
-  const home = os.homedir();
-  const expand = (p) => p && p.replace(/^~(?=$|\/)/, home);
   let schedule = null;
   try {
-    const plist = path.join(home, 'Library', 'LaunchAgents', c.label + '.plist');
+    const plist = path.join(os.homedir(), 'Library', 'LaunchAgents', c.label + '.plist');
     const { stdout } = await execFileP('plutil', ['-convert', 'json', '-o', '-', plist]);
     schedule = lib.scheduleFromPlist(JSON.parse(stdout));
   } catch {}
@@ -166,18 +250,19 @@ async function cronRowData(c) {
     const { stdout } = await execFileP('launchctl', ['print', `gui/${process.getuid()}/${c.label}`]);
     exit = lib.lastExitCodeFromLaunchctl(stdout);
   } catch {}
-  const log = expand(c.log);
+  const log = expandHome(c.log);
   let logMtime = null;
   try {
     logMtime = fs.statSync(log).mtimeMs;
   } catch {}
-  const inbox = expand(c.inbox);
+  const inbox = expandHome(c.inbox);
   return {
     label: c.label,
     shortLabel: c.label.replace(/^com\.[^.]+\./, ''),
     schedule,
     exit,
     ranAgo: logMtime ? lib.relTime(logMtime) : null,
+    nextIn: lib.untilTime(lib.nextRun(schedule)),
     overdue: lib.cronOverdue(schedule, logMtime),
     count: inbox ? lib.unseenCount(lib.snapshotInbox(inbox), lib.loadInboxSeen()[c.label]) : null,
     log: log || null,
@@ -259,10 +344,7 @@ class SessionsProvider {
     };
     const kids = [];
     if (r.issueUrl) kids.push(link(`Issue #${r.issueNum}`, 'issues', r.issueUrl));
-    if (r.pr) {
-      const suffix = r.pr.state && r.pr.state !== 'OPEN' ? ` (${r.pr.state.toLowerCase()})` : '';
-      kids.push(link(`PR #${r.pr.number}${suffix}`, 'git-pull-request', r.pr.url));
-    }
+    if (r.pr) kids.push(link(r.prLabel, 'git-pull-request', r.pr.url));
     kids.push(link('Open transcript', 'file-text', vscode.Uri.file(r.transcript)));
     item.kids = kids;
     return item;
@@ -293,6 +375,7 @@ class CronsProvider {
     if (r.schedule) bits.push('@' + r.schedule);
     if (r.exit != null && r.exit !== 'never-exited') bits.push('exit ' + r.exit);
     if (r.ranAgo) bits.push('ran ' + r.ranAgo);
+    if (r.nextIn) bits.push('next in ' + r.nextIn);
     if (r.overdue) bits.push('MISSED TODAY');
     if (r.count) bits.push(r.count + ' to review');
     item.description = bits.join(' · ');
@@ -316,6 +399,57 @@ class CronsProvider {
     }
     return item;
   }
+}
+
+// PRs and worktrees are flat lists; one provider parameterized by collector + item
+// builder keeps the collector→tree+GUI pattern without two more near-identical classes.
+class RowsProvider {
+  constructor(collect, item) {
+    this.collect = collect;
+    this.item = item;
+    this._em = new vscode.EventEmitter();
+    this.onDidChangeTreeData = this._em.event;
+  }
+  refresh() {
+    this._em.fire(undefined);
+  }
+  getTreeItem(item) {
+    return item;
+  }
+  async getChildren(parent) {
+    if (parent) return [];
+    return (await this.collect()).map(this.item); // empty -> viewsWelcome takes over
+  }
+}
+
+function myPrItem(r) {
+  const item = new vscode.TreeItem(r.title, vscode.TreeItemCollapsibleState.None);
+  item.description = r.desc;
+  item.tooltip = `${r.title}\n${r.desc}\n${r.url}`;
+  const [icon, color] =
+    r.status === 'bad'
+      ? ['error', 'charts.red']
+      : r.status === 'good'
+        ? ['check', 'charts.green']
+        : ['clock', 'charts.yellow'];
+  item.iconPath = new vscode.ThemeIcon(icon, new vscode.ThemeColor(color));
+  item.command = { command: 'vscode.open', title: 'Open PR', arguments: [vscode.Uri.parse(r.url)] };
+  return item;
+}
+
+function worktreeItem(r) {
+  const item = new vscode.TreeItem(r.name, vscode.TreeItemCollapsibleState.None);
+  item.description = r.desc + (r.prunable ? ' · PRUNABLE' : '');
+  item.tooltip = r.path;
+  item.iconPath = r.prunable
+    ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.orange'))
+    : new vscode.ThemeIcon('git-branch');
+  item.command = {
+    command: 'vscode.openFolder',
+    title: 'Open in new window',
+    arguments: [vscode.Uri.file(r.path), { forceNewWindow: true }],
+  };
+  return item;
 }
 
 // ---- GUI webview ----
@@ -350,9 +484,14 @@ class GuiViewProvider {
   }
   async refresh() {
     if (!this.view) return;
-    const [sessions, crons] = await Promise.all([collectSessionRows(), collectCronRows()]);
-    this.view.badge = badgeFor(attentionCount(sessions));
-    if (this.view.visible) this.view.webview.postMessage({ type: 'data', sessions, crons });
+    const [sessions, prs, worktrees, crons] = await Promise.all([
+      collectSessionRows(),
+      collectMyPrRows(),
+      collectWorktreeRows(),
+      collectCronRows(),
+    ]);
+    this.view.badge = badgeFor(attentionCount(sessions)); // badge stays sessions-only
+    if (this.view.visible) this.view.webview.postMessage({ type: 'data', sessions, prs, worktrees, crons });
   }
   async _onMessage(msg) {
     switch (msg.type) {
@@ -370,6 +509,9 @@ class GuiViewProvider {
         break;
       case 'reveal':
         vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(msg.path));
+        break;
+      case 'open-folder':
+        vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(msg.path), { forceNewWindow: true });
         break;
       case 'mark-reviewed':
         lib.saveInboxSeen(msg.label, lib.snapshotInbox(msg.inbox));
@@ -418,6 +560,8 @@ function installHooks(context) {
 function activate(context) {
   fs.mkdirSync(lib.STATE_DIR, { recursive: true });
   const sessions = new SessionsProvider();
+  const myPrs = new RowsProvider(collectMyPrRows, myPrItem);
+  const worktrees = new RowsProvider(collectWorktreeRows, worktreeItem);
   const crons = new CronsProvider();
   const gui = new GuiViewProvider(context.extensionUri);
 
@@ -436,10 +580,16 @@ function activate(context) {
   sessions.view = sessionsView;
   context.subscriptions.push(
     sessionsView,
+    vscode.window.registerTreeDataProvider('panopticlaude.prs', myPrs),
+    vscode.window.registerTreeDataProvider('panopticlaude.worktrees', worktrees),
     vscode.window.registerTreeDataProvider('panopticlaude.crons', crons),
     vscode.window.registerWebviewViewProvider('panopticlaude.gui', gui),
     vscode.commands.registerCommand('panopticlaude.refresh', () => {
+      myPrCache.t = 0;
+      worktreeCache.t = 0;
       sessions.refresh();
+      myPrs.refresh();
+      worktrees.refresh();
       crons.refresh(true);
       gui.refresh();
     }),
@@ -467,7 +617,12 @@ function activate(context) {
     sessions.refresh();
     gui.refresh();
   }, 5_000);
-  const cronTimer = setInterval(() => crons.refresh(), 60_000);
+  // One slow timer for everything spawn-backed; the caches gate the actual gh/git runs.
+  const cronTimer = setInterval(() => {
+    myPrs.refresh();
+    worktrees.refresh();
+    crons.refresh();
+  }, 60_000);
   context.subscriptions.push({
     dispose: () => {
       clearInterval(sessionTimer);

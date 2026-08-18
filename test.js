@@ -160,6 +160,95 @@ test('unseenCount: only new or changed files count', () => {
   assert.equal(lib.unseenCount({}, { 'a.md': 100 }), 0, 'deleted files do not count');
 });
 
+test('prLabel: merged age, closed suffix, open bare', () => {
+  const now = new Date(2026, 7, 17, 12, 0).getTime();
+  const merged = { number: 34079, state: 'MERGED', mergedAt: new Date(2026, 7, 15, 12, 0).toISOString() };
+  assert.equal(lib.prLabel(merged, now), 'PR #34079 (merged 2d ago)');
+  assert.equal(lib.prLabel({ number: 1, state: 'CLOSED' }, now), 'PR #1 (closed)');
+  assert.equal(lib.prLabel({ number: 2, state: 'MERGED' }, now), 'PR #2 (merged)', 'no mergedAt: plain suffix');
+  assert.equal(lib.prLabel({ number: 3, state: 'OPEN' }, now), 'PR #3');
+  assert.equal(lib.prLabel(null, now), null);
+});
+
+test('ciState: failing beats pending beats passing; CheckRun and StatusContext mix', () => {
+  assert.equal(lib.ciState(null), null);
+  assert.equal(lib.ciState([]), null);
+  assert.equal(lib.ciState([{ status: 'COMPLETED', conclusion: 'SUCCESS' }, { state: 'SUCCESS' }]), 'passing');
+  assert.equal(lib.ciState([{ conclusion: 'SUCCESS' }, { status: 'IN_PROGRESS', conclusion: '' }]), 'pending');
+  assert.equal(lib.ciState([{ conclusion: 'SUCCESS' }, { state: 'PENDING' }, { conclusion: 'FAILURE' }]), 'failing');
+  assert.equal(lib.ciState([{ conclusion: 'SKIPPED' }, { conclusion: 'NEUTRAL' }]), 'passing');
+});
+
+test('myPrRow: status and description', () => {
+  const base = {
+    number: 33999,
+    title: 'fix the thing',
+    url: 'https://github.com/gobranch/branch/pull/33999',
+    headRefName: 'fix/33999-thing',
+    updatedAt: '2026-08-17T12:00:00Z',
+  };
+  const approved = lib.myPrRow({
+    ...base,
+    reviewDecision: 'APPROVED',
+    statusCheckRollup: [{ conclusion: 'SUCCESS' }],
+  });
+  assert.equal(approved.status, 'good');
+  assert.equal(approved.desc, '#33999 · approved · CI passing · fix/33999-thing');
+  const changes = lib.myPrRow({ ...base, reviewDecision: 'CHANGES_REQUESTED', statusCheckRollup: [{ conclusion: 'SUCCESS' }] });
+  assert.equal(changes.status, 'bad');
+  const ciFail = lib.myPrRow({ ...base, reviewDecision: 'APPROVED', statusCheckRollup: [{ conclusion: 'FAILURE' }] });
+  assert.equal(ciFail.status, 'bad');
+  const draft = lib.myPrRow({ ...base, isDraft: true, reviewDecision: '', statusCheckRollup: [] });
+  assert.equal(draft.status, 'pending');
+  assert.equal(draft.desc, '#33999 · draft · fix/33999-thing', 'empty review decision and no checks drop out');
+  const approvedNoChecks = lib.myPrRow({ ...base, reviewDecision: 'APPROVED', statusCheckRollup: [] });
+  assert.equal(approvedNoChecks.status, 'good', 'no checks counts as passing');
+  assert.equal(typeof approved.updatedAt, 'number');
+});
+
+test('parseWorktrees: main checkout first, branch stripped, prunable and detached flagged', () => {
+  const porcelain = [
+    'worktree /Users/x/branch',
+    'HEAD aaa',
+    'branch refs/heads/trunk',
+    '',
+    'worktree /Users/x/branch-worktrees/fix-33201',
+    'HEAD bbb',
+    'branch refs/heads/fix/33201-drafts',
+    '',
+    'worktree /Users/x/branch-worktrees/old-spike',
+    'HEAD ccc',
+    'detached',
+    'prunable gitdir file points to non-existent location',
+    '',
+  ].join('\n');
+  const wts = lib.parseWorktrees(porcelain);
+  assert.equal(wts.length, 3);
+  assert.deepEqual(wts[0], { path: '/Users/x/branch', branch: 'trunk', detached: false, prunable: false });
+  assert.equal(wts[1].branch, 'fix/33201-drafts');
+  assert.equal(wts[2].branch, null);
+  assert.equal(wts[2].detached, true);
+  assert.equal(wts[2].prunable, true);
+  assert.deepEqual(lib.parseWorktrees(''), []);
+});
+
+test('nextRun: today if ahead, tomorrow if past', () => {
+  const at = (h, m) => new Date(2026, 7, 17, h, m).getTime();
+  assert.equal(lib.nextRun('12:04', at(9, 0)), at(12, 4), 'later today');
+  assert.equal(lib.nextRun('12:04', at(13, 0)), new Date(2026, 7, 18, 12, 4).getTime(), 'tomorrow');
+  assert.equal(lib.nextRun('12:04', at(12, 4)), new Date(2026, 7, 18, 12, 4).getTime(), 'exactly now rolls over');
+  assert.equal(lib.nextRun(null, at(9, 0)), null);
+});
+
+test('untilTime', () => {
+  const now = 1786993000000;
+  assert.equal(lib.untilTime(now + 30e3, now), '<1m');
+  assert.equal(lib.untilTime(now + 300e3, now), '5m');
+  assert.equal(lib.untilTime(now + 19 * 3600e3, now), '19h');
+  assert.equal(lib.untilTime(now + 3 * 86400e3, now), '3d');
+  assert.equal(lib.untilTime(null, now), null);
+});
+
 test('cronOverdue', () => {
   const at = (h, m) => new Date(2026, 7, 17, h, m).getTime();
   assert.equal(lib.cronOverdue('12:04', at(12, 7), at(13, 0)), false, 'ran after schedule');

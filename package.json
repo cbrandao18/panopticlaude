@@ -37,6 +37,16 @@
           "when": "!panopticlaude.gui"
         },
         {
+          "id": "panopticlaude.prs",
+          "name": "My PRs",
+          "when": "!panopticlaude.gui"
+        },
+        {
+          "id": "panopticlaude.worktrees",
+          "name": "Worktrees",
+          "when": "!panopticlaude.gui"
+        },
+        {
           "id": "panopticlaude.crons",
           "name": "Crons",
           "when": "!panopticlaude.gui"
@@ -79,12 +89,12 @@
       "view/title": [
         {
           "command": "panopticlaude.refresh",
-          "when": "view == panopticlaude.sessions || view == panopticlaude.crons || view == panopticlaude.gui",
+          "when": "view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons || view == panopticlaude.gui",
           "group": "navigation"
         },
         {
           "command": "panopticlaude.showGui",
-          "when": "view == panopticlaude.sessions || view == panopticlaude.crons",
+          "when": "view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons",
           "group": "navigation"
         },
         {
@@ -107,6 +117,14 @@
         "contents": "No live Claude Code sessions."
       },
       {
+        "view": "panopticlaude.prs",
+        "contents": "No open PRs.\n[Configure panopticlaude.repos](command:workbench.action.openSettings?%22panopticlaude.repos%22)"
+      },
+      {
+        "view": "panopticlaude.worktrees",
+        "contents": "No extra worktrees.\n[Configure panopticlaude.repos](command:workbench.action.openSettings?%22panopticlaude.repos%22)"
+      },
+      {
         "view": "panopticlaude.crons",
         "contents": "No bots configured.\n[Configure panopticlaude.crons](command:workbench.action.openSettings?%22panopticlaude.crons%22)"
       }
@@ -114,6 +132,14 @@
     "configuration": {
       "title": "Panopticlaude",
       "properties": {
+        "panopticlaude.repos": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Local repo paths (`~` ok) whose open PRs (authored by you) and extra git worktrees show in the My PRs and Worktrees sections.",
+          "items": {
+            "type": "string"
+          }
+        },
         "panopticlaude.crons": {
           "type": "array",
           "default": [],
