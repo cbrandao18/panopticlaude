@@ -269,37 +269,55 @@ async function cleanWorktrees() {
       await execFileP('git', ['-C', repo, 'worktree', 'prune']);
     } catch {}
   }
-  let removed = 0;
-  const refused = [];
-  for (const c of chosen.filter((c) => !c.row.prunable)) {
-    try {
-      await execFileP('git', ['-C', c.row.repo, 'worktree', 'remove', c.row.path]);
-      removed++;
-    } catch {
-      refused.push(c);
-    }
-  }
-  if (refused.length) {
+  const first = await removeWorktrees(chosen.filter((c) => !c.row.prunable), false);
+  let removed = first.removed;
+  if (first.refused.length) {
     const btn = await vscode.window.showWarningMessage(
-      `${refused.length} worktree(s) refused removal (dirty or locked): ${refused.map((c) => c.label).join(', ')}. Force remove and discard their uncommitted changes?`,
+      `${first.refused.length} worktree(s) refused removal (dirty or locked): ${first.refused.map((c) => c.label).join(', ')}. Force remove and discard their uncommitted changes?`,
       { modal: true },
       'Force Remove'
     );
     if (btn === 'Force Remove') {
-      for (const c of refused) {
-        try {
-          await execFileP('git', ['-C', c.row.repo, 'worktree', 'remove', '--force', c.row.path]);
-          removed++;
-        } catch (err) {
-          vscode.window.showErrorMessage(`panopticlaude: ${c.label}: ${err.message}`);
-        }
-      }
+      const second = await removeWorktrees(first.refused, true);
+      removed += second.removed;
+      for (const c of second.refused) vscode.window.showErrorMessage(`panopticlaude: ${c.label}: ${c.err.message}`);
     }
   }
   vscode.window.showInformationMessage(
     `panopticlaude: removed ${removed} worktree(s)${prunable.length ? `, pruned ${prunable.length}` : ''}.`
   );
   vscode.commands.executeCommand('panopticlaude.refresh');
+}
+
+// `git worktree remove` deletes the whole checkout directory — minutes each on a big
+// monorepo — so the sequential loop runs under a visible, cancellable progress bar.
+async function removeWorktrees(items, force) {
+  let removed = 0;
+  const refused = [];
+  if (!items.length) return { removed, refused };
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: force ? 'Force-removing worktrees' : 'Removing worktrees',
+      cancellable: true,
+    },
+    async (progress, token) => {
+      for (let i = 0; i < items.length; i++) {
+        if (token.isCancellationRequested) break;
+        const c = items[i];
+        progress.report({ message: `${c.label} (${i + 1}/${items.length})`, increment: 100 / items.length });
+        const args = ['-C', c.row.repo, 'worktree', 'remove'];
+        if (force) args.push('--force');
+        try {
+          await execFileP('git', [...args, c.row.path]);
+          removed++;
+        } catch (err) {
+          refused.push({ ...c, err });
+        }
+      }
+    }
+  );
+  return { removed, refused };
 }
 
 async function cronRowData(c) {
