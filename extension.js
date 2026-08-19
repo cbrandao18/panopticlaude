@@ -482,6 +482,7 @@ async function cronRowData(c) {
     logMtime = fs.statSync(log).mtimeMs;
   } catch {}
   const inbox = expandHome(c.inbox);
+  const inboxSnap = inbox ? lib.snapshotInbox(inbox) : {};
   return {
     label: c.label,
     shortLabel: c.label.replace(/^com\.[^.]+\./, ''),
@@ -490,7 +491,8 @@ async function cronRowData(c) {
     ranAgo: logMtime ? lib.relTime(logMtime) : null,
     nextIn: lib.untilTime(lib.nextRun(schedule)),
     overdue: lib.cronOverdue(schedule, logMtime),
-    count: inbox ? lib.unseenCount(lib.snapshotInbox(inbox), lib.loadInboxSeen()[c.label]) : null,
+    count: inbox ? lib.unseenCount(inboxSnap, lib.loadInboxSeen()[c.label]) : null,
+    hasDrafts: !!lib.latestDraftFile(Object.keys(inboxSnap)),
     log: log || null,
     inbox: inbox || null,
     repo: c.repo || null,
@@ -625,8 +627,8 @@ class CronsProvider {
     const kids = [];
     if (r.log) kids.push(link('Open log', 'output', vscode.Uri.file(r.log)));
     if (r.inbox) kids.push(revealLink(`Open inbox${r.count ? ` (${r.count} new)` : ''}`, 'inbox', r.inbox));
-    if (r.inbox) kids.push(cmdLink("Open today's draft", 'book', 'panopticlaude.openTodayDraft', [r.inbox]));
-    if (r.inbox && r.repo)
+    if (r.hasDrafts) kids.push(cmdLink("Open today's draft", 'book', 'panopticlaude.openTodayDraft', [r.inbox]));
+    if (r.hasDrafts && r.repo)
       kids.push(cmdLink('Post drafts…', 'comment-discussion', 'panopticlaude.postDrafts', [r.inbox, r.repo]));
     item.kids = kids;
     if (r.inbox) {
