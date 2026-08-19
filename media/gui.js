@@ -85,6 +85,12 @@ function cronCard(c) {
   const chips = el('div', 'chips');
   if (c.log) chips.appendChild(chip('log', () => vscode.postMessage({ type: 'open-file', path: c.log }), true));
   if (c.inbox) chips.appendChild(chip('inbox', () => vscode.postMessage({ type: 'reveal', path: c.inbox }), true));
+  if (c.inbox)
+    chips.appendChild(chip("today's draft", () => vscode.postMessage({ type: 'open-today-draft', inbox: c.inbox }), true));
+  if (c.inbox && c.repo)
+    chips.appendChild(
+      chip('post drafts…', () => vscode.postMessage({ type: 'post-drafts', inbox: c.inbox, repo: c.repo }))
+    );
   if (c.count) {
     chips.appendChild(
       chip('✓ mark reviewed', () => vscode.postMessage({ type: 'mark-reviewed', label: c.label, inbox: c.inbox }))

@@ -257,3 +257,80 @@ test('cronOverdue', () => {
   assert.equal(lib.cronOverdue('12:04', at(9, 0), at(11, 0)), false, 'before schedule');
   assert.equal(lib.cronOverdue(null, at(9, 0), at(13, 0)), false, 'no schedule known');
 });
+
+// --- assess-assumptions draft files ---
+
+const DRAFT_FIXTURE = [
+  '# Assumption-check drafts — 2026-08-19',
+  '',
+  'Repo verified against: `~/branch`.',
+  '',
+  '---',
+  '',
+  '## Draft 1 — #34213 Billing rounding (dabrunetti)',
+  '',
+  '**Verdict: wrong.**',
+  '',
+  '```markdown',
+  '> 🤖 _Automated assumption check — bot, not a human reviewer._',
+  '',
+  'body one [full](https://github.com/gobranch/branch/blob/trunk/a.ts#L1) and [rel](packages/billing/src/x.ts#L390).',
+  '```',
+  '',
+  '---',
+  '',
+  '## Draft 2 — #34211 Community Drive (SimonRoberts16)',
+  '',
+  '```markdown',
+  'body two [anchor](#heading) stays.',
+  '```',
+].join('\n');
+
+test('parseDraftsFile: extracts draft number, issue, and fenced body', () => {
+  const { posted, drafts } = lib.parseDraftsFile(DRAFT_FIXTURE);
+  assert.equal(posted, false);
+  assert.equal(drafts.length, 2);
+  assert.equal(drafts[0].n, 1);
+  assert.equal(drafts[0].issue, 34213);
+  assert.match(drafts[0].title, /Billing rounding/);
+  assert.match(drafts[0].body, /^> 🤖 _Automated assumption check/);
+  assert.match(drafts[0].body, /rel\]\(packages\/billing/);
+  assert.ok(!drafts[0].body.includes('```'), 'fence lines stay out of the body');
+  assert.equal(drafts[1].issue, 34211);
+  assert.match(drafts[1].body, /body two/);
+});
+
+test('parseDraftsFile: POSTED banner detected', () => {
+  const banner = '> **POSTED 2026-08-19** — drafts 2 posted.\n\n' + DRAFT_FIXTURE;
+  assert.equal(lib.parseDraftsFile(banner).posted, true);
+});
+
+test('expandRelativeLinks: only repo-relative links get the blob prefix', () => {
+  const body = lib.parseDraftsFile(DRAFT_FIXTURE).drafts[0].body;
+  const out = lib.expandRelativeLinks(body, 'gobranch/branch');
+  assert.match(out, /\[rel\]\(https:\/\/github\.com\/gobranch\/branch\/blob\/trunk\/packages\/billing\/src\/x\.ts#L390\)/);
+  assert.equal((out.match(/https:\/\/github\.com\/gobranch\/branch\/blob\/trunk\/a\.ts/g) || []).length, 1, 'absolute link untouched');
+  const anchored = lib.expandRelativeLinks('[a](#x) [b](https://y.z)', 'o/r');
+  assert.equal(anchored, '[a](#x) [b](https://y.z)');
+});
+
+test('draftFileName and latestDraftFile', () => {
+  assert.match(lib.draftFileName(new Date(2026, 7, 19).getTime()), /^DRAFTS-2026-08-19\.md$/);
+  assert.equal(
+    lib.latestDraftFile(['DRAFTS-2026-08-13.md', 'DRAFTS-2026-08-19.md', 'notes.md', '.DS_Store']),
+    'DRAFTS-2026-08-19.md'
+  );
+  assert.equal(lib.latestDraftFile([]), null);
+});
+
+test('postedBanner: convention line with comment ids and NOT-posted tail', () => {
+  const banner = lib.postedBanner(
+    [{ n: 2, issue: 34211, commentUrl: 'https://github.com/gobranch/branch/issues/34211#issuecomment-5346607568' }],
+    [{ n: 1, issue: 34213 }],
+    new Date(2026, 7, 19).getTime()
+  );
+  assert.match(banner, /^> \*\*POSTED 2026-08-19\*\* — drafts 2 posted via panopticlaude: #34211 \(issuecomment-5346607568\)\./);
+  assert.match(banner, /Drafts 1 \(#34213\) NOT posted — don't post later without asking\. Do not re-post\.$/);
+  const noSkips = lib.postedBanner([{ n: 3, issue: 1, commentUrl: 'x#issuecomment-9' }], [], 0);
+  assert.ok(!noSkips.includes('NOT posted'));
+});

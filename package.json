@@ -2,7 +2,7 @@
   "name": "panopticlaude",
   "displayName": "Panopticlaude",
   "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "cbrandao18",
   "license": "MIT",
   "repository": {
@@ -89,6 +89,16 @@
         "command": "panopticlaude.cleanWorktrees",
         "title": "Panopticlaude: Clean Up Worktrees",
         "icon": "$(trash)"
+      },
+      {
+        "command": "panopticlaude.openTodayDraft",
+        "title": "Open Today's Draft",
+        "icon": "$(book)"
+      },
+      {
+        "command": "panopticlaude.postDrafts",
+        "title": "Post Drafts to GitHub",
+        "icon": "$(comment-discussion)"
       }
     ],
     "menus": {
@@ -119,6 +129,16 @@
           "command": "panopticlaude.markInboxReviewed",
           "when": "view == panopticlaude.crons && viewItem == cron-inbox",
           "group": "inline"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "panopticlaude.openTodayDraft",
+          "when": "false"
+        },
+        {
+          "command": "panopticlaude.postDrafts",
+          "when": "false"
         }
       ]
     },
@@ -154,7 +174,7 @@
         "panopticlaude.crons": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Headless Claude bots to watch. Each entry: `label` (launchd label, resolves the plist and `launchctl print` status), `log` (file whose tail and mtime show last-run detail), `inbox` (optional directory whose file count shows as a needs-review badge).",
+          "markdownDescription": "Headless Claude bots to watch. Each entry: `label` (launchd label, resolves the plist and `launchctl print` status), `log` (file whose tail and mtime show last-run detail), `inbox` (optional directory whose file count shows as a needs-review badge), `repo` (optional owner/name GitHub repo that, with `inbox`, enables opening today's DRAFTS-*.md and posting selected drafts as issue comments).",
           "items": {
             "type": "object",
             "required": [
@@ -172,6 +192,10 @@
               "inbox": {
                 "type": "string",
                 "description": "Directory of files awaiting review"
+              },
+              "repo": {
+                "type": "string",
+                "description": "owner/name of the GitHub repo the bot's drafts post to (enables the Post drafts… action; requires inbox)"
               }
             }
           }

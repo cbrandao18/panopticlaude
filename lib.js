@@ -498,6 +498,65 @@ function unseenCount(snapshot, seen) {
   return Object.keys(snapshot).filter((f) => seen[f] !== snapshot[f]).length;
 }
 
+// --- assess-assumptions draft files (DRAFTS-YYYY-MM-DD.md in a cron's inbox dir) ---
+
+function draftFileName(nowMs = Date.now()) {
+  const d = new Date(nowMs);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `DRAFTS-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.md`;
+}
+
+// The date-stamped names sort lexicographically, so the newest file is the max.
+function latestDraftFile(names) {
+  return (
+    (names || [])
+      .filter((f) => /^DRAFTS-\d{4}-\d{2}-\d{2}\.md$/.test(f))
+      .sort()
+      .pop() || null
+  );
+}
+
+// A sweep drafts file: optional `> **POSTED ...**` banner, then per-draft sections of
+// `## Draft N — #ISSUE title` each containing one ```markdown fence — that fenced block
+// is the comment body, verbatim. Draft bodies never contain bare ``` lines.
+function parseDraftsFile(text) {
+  const posted = /^> \*\*POSTED\b/m.test(text || '');
+  const drafts = [];
+  const re = /^## Draft (\d+) — #(\d+)([^\n]*)\n([\s\S]*?)(?=^## Draft |(?![\s\S]))/gm;
+  for (const m of (text || '').matchAll(re)) {
+    const fence = m[4].match(/^```markdown\n([\s\S]*?)^```\s*$/m);
+    if (!fence) continue;
+    drafts.push({ n: Number(m[1]), issue: Number(m[2]), title: m[3].trim(), body: fence[1] });
+  }
+  return { posted, drafts };
+}
+
+// Repo-relative links break in GitHub issue comments (they resolve against the issue
+// URL, not the repo), so expand them to full blob URLs; http(s) and #anchor links pass.
+function expandRelativeLinks(body, repo) {
+  return (body || '').replace(/\]\((?!https?:\/\/|#)([^)]+)\)/g, `](https://github.com/${repo}/blob/trunk/$1)`);
+}
+
+function commentIdFromUrl(url) {
+  const m = (url || '').match(/#issuecomment-(\d+)/);
+  return m ? m[1] : null;
+}
+
+// Matches the sweep's hand-written banner convention so downstream sessions (and the
+// cron's own dedup) read machine- and human-posted files identically.
+function postedBanner(posted, notPosted, nowMs = Date.now()) {
+  const d = new Date(nowMs);
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const nums = posted.map((p) => p.n).join(', ');
+  const refs = posted.map((p) => `#${p.issue} (issuecomment-${commentIdFromUrl(p.commentUrl) || '?'})`).join(', ');
+  let line = `> **POSTED ${date}** — drafts ${nums} posted via panopticlaude: ${refs}.`;
+  if (notPosted.length) {
+    line += ` Drafts ${notPosted.map((p) => `${p.n} (#${p.issue})`).join(', ')} NOT posted — don't post later without asking.`;
+  }
+  return line + ' Do not re-post.';
+}
+
 module.exports = {
   CLAUDE_DIR,
   STATE_DIR,
@@ -534,4 +593,10 @@ module.exports = {
   saveInboxSeen,
   snapshotInbox,
   unseenCount,
+  draftFileName,
+  latestDraftFile,
+  parseDraftsFile,
+  expandRelativeLinks,
+  commentIdFromUrl,
+  postedBanner,
 };

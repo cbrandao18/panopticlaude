@@ -320,6 +320,150 @@ async function removeWorktrees(items, force) {
   return { removed, refused };
 }
 
+// --- assess-assumptions drafts: open today's file, post selected drafts via gh ---
+
+// Every sweep bot comment opens with this line; its presence on an issue means the
+// draft (or an equivalent) was already posted, so the issue is skipped.
+const DUP_MARKER = 'Automated assumption check';
+
+// Today's DRAFTS-YYYY-MM-DD.md, falling back to the newest one (sweep runs can be missed).
+function resolveDraftFile(inboxDir) {
+  const dir = expandHome(inboxDir);
+  const today = path.join(dir, lib.draftFileName());
+  if (fs.existsSync(today)) return today;
+  let names = [];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {}
+  const latest = lib.latestDraftFile(names);
+  return latest ? path.join(dir, latest) : null;
+}
+
+async function openTodayDraft(inboxDir) {
+  const file = resolveDraftFile(inboxDir);
+  if (!file) {
+    vscode.window.showInformationMessage('panopticlaude: no DRAFTS-*.md files in ' + inboxDir);
+    return;
+  }
+  await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(file));
+}
+
+async function postDrafts(inboxDir, repo) {
+  const file = resolveDraftFile(inboxDir);
+  if (!file) {
+    vscode.window.showErrorMessage('panopticlaude: no DRAFTS-*.md files in ' + inboxDir);
+    return;
+  }
+  const fileName = path.basename(file);
+  const { posted, drafts } = lib.parseDraftsFile(fs.readFileSync(file, 'utf8'));
+  if (posted) {
+    vscode.window.showErrorMessage(
+      `panopticlaude: ${fileName} already has a POSTED banner — post leftovers from a Claude session instead.`
+    );
+    return;
+  }
+  if (!drafts.length) {
+    vscode.window.showErrorMessage(`panopticlaude: no drafts found in ${fileName}.`);
+    return;
+  }
+  const byN = new Map(drafts.map((d) => [d.n, d]));
+  const input = await vscode.window.showInputBox({
+    title: `Post drafts from ${fileName}`,
+    prompt: `Draft numbers to post (available: ${drafts.map((d) => d.n).join(', ')})`,
+    placeHolder: 'e.g. 2, 3, 5',
+    validateInput: (v) => {
+      const nums = v.split(/[\s,]+/).filter(Boolean);
+      if (!nums.length) return 'Enter at least one draft number';
+      const bad = nums.filter((s) => !byN.has(Number(s)));
+      return bad.length ? `Not in ${fileName}: ${bad.join(', ')}` : null;
+    },
+  });
+  if (!input) return;
+  const chosen = [...new Set(input.split(/[\s,]+/).filter(Boolean).map(Number))].map((n) => byN.get(n));
+
+  // Preflight: closed issues and issues already carrying a bot comment are skipped.
+  const postable = [];
+  const skipped = [];
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Checking issues' },
+    async (progress) => {
+      for (const d of chosen) {
+        progress.report({ message: `#${d.issue}`, increment: 100 / chosen.length });
+        try {
+          const { stdout } = await execFileP(
+            GH,
+            ['issue', 'view', String(d.issue), '-R', repo, '--json', 'state,comments'],
+            { maxBuffer: 10 * 1024 * 1024 }
+          );
+          const info = JSON.parse(stdout);
+          if (info.state !== 'OPEN') skipped.push({ ...d, reason: info.state.toLowerCase() });
+          else if ((info.comments || []).some((c) => (c.body || '').includes(DUP_MARKER)))
+            skipped.push({ ...d, reason: 'already has a bot comment' });
+          else postable.push(d);
+        } catch (err) {
+          skipped.push({ ...d, reason: 'gh failed: ' + err.message.split('\n')[0] });
+        }
+      }
+    }
+  );
+  if (!postable.length) {
+    vscode.window.showWarningMessage(
+      'panopticlaude: nothing to post. ' + skipped.map((s) => `#${s.issue}: ${s.reason}`).join('; ')
+    );
+    return;
+  }
+  const detail =
+    postable.map((d) => `draft ${d.n} → #${d.issue} ${d.title}`).join('\n') +
+    (skipped.length ? '\n\nSkipped:\n' + skipped.map((s) => `draft ${s.n} → #${s.issue}: ${s.reason}`).join('\n') : '');
+  const btn = await vscode.window.showWarningMessage(
+    `Post ${postable.length} comment(s) to ${repo}?`,
+    { modal: true, detail },
+    'Post'
+  );
+  if (btn !== 'Post') return;
+
+  const postedOk = [];
+  const failed = [];
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Posting comments' },
+    async (progress) => {
+      for (const d of postable) {
+        progress.report({ message: `#${d.issue}`, increment: 100 / postable.length });
+        const tmp = path.join(os.tmpdir(), `panopticlaude-comment-${d.issue}.md`);
+        try {
+          fs.writeFileSync(tmp, lib.expandRelativeLinks(d.body, repo));
+          const { stdout } = await execFileP(GH, ['issue', 'comment', String(d.issue), '-R', repo, '--body-file', tmp]);
+          postedOk.push({ ...d, commentUrl: stdout.trim() });
+        } catch (err) {
+          failed.push({ ...d, err: err.message.split('\n')[0] });
+        } finally {
+          try {
+            fs.unlinkSync(tmp);
+          } catch {}
+        }
+      }
+    }
+  );
+  if (postedOk.length) {
+    // Anything not posted in this run (unselected, skipped, or failed) lands in the
+    // banner's NOT-posted list so a later session doesn't quietly re-post it.
+    const notPosted = drafts.filter((d) => !postedOk.some((p) => p.n === d.n));
+    const text = fs.readFileSync(file, 'utf8');
+    fs.writeFileSync(file, lib.postedBanner(postedOk, notPosted) + '\n\n' + text);
+  }
+  if (failed.length) {
+    vscode.window.showErrorMessage(
+      `panopticlaude: ${failed.length} post(s) failed: ` + failed.map((f) => `#${f.issue} (${f.err})`).join(', ')
+    );
+  }
+  vscode.window.showInformationMessage(
+    `panopticlaude: posted ${postedOk.length} comment(s) to ${repo}` +
+      (skipped.length ? `, skipped ${skipped.length}` : '') +
+      '.'
+  );
+  await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(file));
+}
+
 async function cronRowData(c) {
   let schedule = null;
   try {
@@ -349,6 +493,7 @@ async function cronRowData(c) {
     count: inbox ? lib.unseenCount(lib.snapshotInbox(inbox), lib.loadInboxSeen()[c.label]) : null,
     log: log || null,
     inbox: inbox || null,
+    repo: c.repo || null,
   };
 }
 
@@ -375,6 +520,13 @@ function revealLink(label, icon, fsPath) {
   const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
   item.iconPath = new vscode.ThemeIcon(icon);
   item.command = { command: 'revealFileInOS', title: 'Reveal', arguments: [vscode.Uri.file(fsPath)] };
+  return item;
+}
+
+function cmdLink(label, icon, command, args) {
+  const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+  item.iconPath = new vscode.ThemeIcon(icon);
+  item.command = { command, title: label, arguments: args };
   return item;
 }
 
@@ -473,6 +625,9 @@ class CronsProvider {
     const kids = [];
     if (r.log) kids.push(link('Open log', 'output', vscode.Uri.file(r.log)));
     if (r.inbox) kids.push(revealLink(`Open inbox${r.count ? ` (${r.count} new)` : ''}`, 'inbox', r.inbox));
+    if (r.inbox) kids.push(cmdLink("Open today's draft", 'book', 'panopticlaude.openTodayDraft', [r.inbox]));
+    if (r.inbox && r.repo)
+      kids.push(cmdLink('Post drafts…', 'comment-discussion', 'panopticlaude.postDrafts', [r.inbox, r.repo]));
     item.kids = kids;
     if (r.inbox) {
       item.contextValue = 'cron-inbox';
@@ -603,6 +758,12 @@ class GuiViewProvider {
         cronCache.t = 0;
         this.refresh();
         break;
+      case 'open-today-draft':
+        vscode.commands.executeCommand('panopticlaude.openTodayDraft', msg.inbox);
+        break;
+      case 'post-drafts':
+        vscode.commands.executeCommand('panopticlaude.postDrafts', msg.inbox, msg.repo);
+        break;
     }
   }
 }
@@ -682,6 +843,8 @@ function activate(context) {
     vscode.commands.registerCommand('panopticlaude.showTree', () => setMode(false)),
     vscode.commands.registerCommand('panopticlaude.installHooks', () => installHooks(context)),
     vscode.commands.registerCommand('panopticlaude.cleanWorktrees', cleanWorktrees),
+    vscode.commands.registerCommand('panopticlaude.openTodayDraft', openTodayDraft),
+    vscode.commands.registerCommand('panopticlaude.postDrafts', postDrafts),
     vscode.commands.registerCommand('panopticlaude.markInboxReviewed', (item) => {
       if (!item || !item.cronInbox) return;
       lib.saveInboxSeen(item.cronLabel, lib.snapshotInbox(item.cronInbox));
