@@ -160,12 +160,35 @@ function section(name, items, build, emptyText, headerExtra) {
   return sec;
 }
 
+function usageRow(u) {
+  const d = el('div', 'usage-row');
+  const top = el('div', 'usage-top');
+  top.appendChild(el('span', null, u.label));
+  top.appendChild(el('span', 'usage-pct', u.pct + '%'));
+  d.appendChild(top);
+  const bar = el('div', 'ctx-bar');
+  const fill = el('div', 'ctx-fill' + (u.hot ? ' hot' : ''));
+  fill.style.width = Math.max(2, Math.min(100, u.pct)) + '%';
+  bar.appendChild(fill);
+  d.appendChild(bar);
+  if (u.resets) d.appendChild(el('div', 'usage-resets', u.resets));
+  return d;
+}
+
 let lastData = null;
 
 function render(data) {
   lastData = data;
-  const { sessions, prs, worktrees, crons } = data;
+  const { sessions, prs, worktrees, crons, usage } = data;
   app.textContent = '';
+  if (usage && usage.length) {
+    const sec = el('div', 'section');
+    const header = el('div', 'section-header static');
+    header.appendChild(el('span', null, 'Usage'));
+    sec.appendChild(header);
+    for (const u of usage) sec.appendChild(usageRow(u));
+    app.appendChild(sec);
+  }
   app.appendChild(section('Sessions', sessions, sessionCard, 'no live sessions'));
   app.appendChild(section('My PRs', prs || [], prCard, 'no open PRs (panopticlaude.repos)'));
   const cleanBtn = chip('clean up…', () => vscode.postMessage({ type: 'clean-worktrees' }), true);

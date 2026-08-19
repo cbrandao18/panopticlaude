@@ -334,3 +334,23 @@ test('postedBanner: convention line with comment ids and NOT-posted tail', () =>
   const noSkips = lib.postedBanner([{ n: 3, issue: 1, commentUrl: 'x#issuecomment-9' }], [], 0);
   assert.ok(!noSkips.includes('NOT posted'));
 });
+
+test('usageRows: maps the OAuth /usage limits array to labeled bars', () => {
+  const now = Date.parse('2026-08-19T18:00:00Z');
+  const json = {
+    limits: [
+      { kind: 'session', percent: 24, severity: 'normal', resets_at: '2026-08-19T21:00:00Z', scope: null },
+      { kind: 'weekly_all', percent: 22, severity: 'normal', resets_at: '2026-08-23T18:00:00Z', scope: null },
+      { kind: 'weekly_scoped', percent: 86, severity: 'warning', resets_at: '2026-08-23T18:00:00Z', scope: { model: { display_name: 'Fable' } } },
+      { kind: 'mystery', percent: null },
+    ],
+  };
+  const rows = lib.usageRows(json, now);
+  assert.deepEqual(rows.map((r) => r.label), ['Session (5hr)', 'Weekly (7 day)', 'Weekly Fable']);
+  assert.deepEqual(rows.map((r) => r.pct), [24, 22, 86]);
+  assert.equal(rows[0].resets, 'Resets in 3h');
+  assert.equal(rows[1].resets, 'Resets in 4d');
+  assert.deepEqual(rows.map((r) => r.hot), [false, false, true]);
+  assert.deepEqual(lib.usageRows(null), []);
+  assert.deepEqual(lib.usageRows({}), []);
+});

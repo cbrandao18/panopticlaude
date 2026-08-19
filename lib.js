@@ -455,6 +455,28 @@ function untilTime(ms, nowMs = Date.now()) {
   return `${Math.round(s / 86400)}d`;
 }
 
+// Claude Code's OAuth /usage endpoint: limits[] carries the same bars the CLI's
+// /usage screen shows — session (5hr), weekly all-models, weekly per-model scoped.
+function usageRows(json, nowMs = Date.now()) {
+  const rows = [];
+  for (const l of (json && json.limits) || []) {
+    if (l.percent == null) continue;
+    let label = l.kind;
+    if (l.kind === 'session') label = 'Session (5hr)';
+    else if (l.kind === 'weekly_all') label = 'Weekly (7 day)';
+    else if (l.kind === 'weekly_scoped')
+      label = ('Weekly ' + ((l.scope && l.scope.model && l.scope.model.display_name) || '')).trim();
+    const resetMs = l.resets_at ? Date.parse(l.resets_at) : null;
+    rows.push({
+      label,
+      pct: Math.round(l.percent),
+      resets: resetMs ? 'Resets in ' + untilTime(resetMs, nowMs) : null,
+      hot: (l.severity && l.severity !== 'normal') || l.percent >= 80,
+    });
+  }
+  return rows;
+}
+
 function inboxCount(dir) {
   try {
     return fs.readdirSync(dir).filter((f) => !f.startsWith('.')).length;
@@ -588,6 +610,7 @@ module.exports = {
   untilTime,
   age,
   relTime,
+  usageRows,
   inboxCount,
   loadInboxSeen,
   saveInboxSeen,

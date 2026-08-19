@@ -2,7 +2,7 @@
   "name": "panopticlaude",
   "displayName": "Panopticlaude",
   "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "cbrandao18",
   "license": "MIT",
   "repository": {
@@ -31,6 +31,12 @@
     },
     "views": {
       "panopticlaude": [
+        {
+          "type": "webview",
+          "id": "panopticlaude.usage",
+          "name": "Usage",
+          "when": "!panopticlaude.gui"
+        },
         {
           "id": "panopticlaude.sessions",
           "name": "Sessions",
@@ -68,12 +74,12 @@
       },
       {
         "command": "panopticlaude.showGui",
-        "title": "Switch to GUI View",
+        "title": "Panopticlaude: Switch to GUI View",
         "icon": "$(preview)"
       },
       {
         "command": "panopticlaude.showTree",
-        "title": "Switch to Tree View",
+        "title": "Panopticlaude: Switch to Tree View",
         "icon": "$(list-tree)"
       },
       {
@@ -105,12 +111,12 @@
       "view/title": [
         {
           "command": "panopticlaude.refresh",
-          "when": "view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons || view == panopticlaude.gui",
+          "when": "view == panopticlaude.usage || view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons || view == panopticlaude.gui",
           "group": "navigation"
         },
         {
           "command": "panopticlaude.showGui",
-          "when": "view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons",
+          "when": "view == panopticlaude.usage || view == panopticlaude.sessions || view == panopticlaude.prs || view == panopticlaude.worktrees || view == panopticlaude.crons",
           "group": "navigation"
         },
         {

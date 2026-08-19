@@ -24,6 +24,9 @@ body {
   cursor: pointer;
   user-select: none;
 }
+.section-header.static {
+  cursor: default;
+}
 .section-header .chev {
   width: 10px;
   flex: none;
@@ -156,6 +159,24 @@ body {
   color: var(--vscode-descriptionForeground);
   min-width: 34px;
   text-align: right;
+}
+
+/* Usage bars: reuses the context meter's .ctx-bar/.ctx-fill for the bar itself. */
+.usage-row {
+  margin: 0 2px 8px;
+}
+.usage-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.usage-pct {
+  color: var(--vscode-descriptionForeground);
+}
+.usage-resets {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .chips {

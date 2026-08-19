@@ -4,6 +4,7 @@
 // and installs the Claude Code hooks.
 const vscode = require('vscode');
 const fs = require('fs');
+const https = require('https');
 const os = require('os');
 const path = require('path');
 const util = require('util');
@@ -20,6 +21,8 @@ const branchByCwd = new Map(); // cwd -> { t, v }
 let cronCache = { t: 0, rows: null };
 let myPrCache = { t: 0, rows: null };
 let worktreeCache = { t: 0, rows: null };
+let usageCache = { t: 0, rows: null };
+const USAGE_TTL_MS = 60 * 1000;
 
 // The extension host's PATH lacks homebrew, so `gh` must be resolved absolutely.
 const GH = ['/opt/homebrew/bin/gh', '/usr/local/bin/gh'].find((p) => fs.existsSync(p)) || 'gh';
@@ -691,6 +694,118 @@ function worktreeItem(r) {
   return item;
 }
 
+// ---- usage bars (Claude plan limits) ----
+
+// OAuth token lives in the macOS Keychain (how Claude Code stores it on Mac); the
+// plaintext ~/.claude/.credentials.json is the Linux fallback. Claude Code itself
+// refreshes the token, so an expired one just means empty bars until it next runs.
+async function claudeOauthToken() {
+  let raw = null;
+  try {
+    ({ stdout: raw } = await execFileP('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w']));
+  } catch {
+    try {
+      raw = fs.readFileSync(path.join(lib.CLAUDE_DIR, '.credentials.json'), 'utf8');
+    } catch {}
+  }
+  try {
+    return JSON.parse(raw).claudeAiOauth.accessToken;
+  } catch {
+    return null;
+  }
+}
+
+function getJson(url, headers) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, { headers }, (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) return reject(new Error('HTTP ' + res.statusCode));
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      })
+      .on('error', reject);
+  });
+}
+
+async function collectUsageRows() {
+  if (usageCache.rows && Date.now() - usageCache.t < USAGE_TTL_MS) return usageCache.rows;
+  let rows = [];
+  try {
+    const token = await claudeOauthToken();
+    if (token) {
+      const json = await getJson('https://api.anthropic.com/api/oauth/usage', {
+        Authorization: 'Bearer ' + token,
+        'anthropic-beta': 'oauth-2025-04-20',
+      });
+      rows = lib.usageRows(json);
+    }
+  } catch {}
+  usageCache = { t: Date.now(), rows };
+  return rows;
+}
+
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+// Native-mode usage view: no interaction needed, so the HTML is just re-set on each
+// refresh — no script, no message passing.
+function usageHtml(rows) {
+  const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const bars = rows
+    .map(
+      (r) => `
+  <div class="row"><span>${escapeHtml(r.label)}</span><span class="pct">${r.pct}%</span></div>
+  <div class="bar"><div class="fill${r.hot ? ' hot' : ''}" style="width:${Math.max(2, Math.min(100, r.pct))}%"></div></div>
+  ${r.resets ? `<div class="resets">${escapeHtml(r.resets)}</div>` : ''}`
+    )
+    .join('');
+  return `<!DOCTYPE html><html><head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
+<style>
+body { font-family: var(--vscode-font-family); font-size: 12px; color: var(--vscode-foreground); background: transparent; margin: 0; padding: 2px 12px 8px; }
+.row { display: flex; justify-content: space-between; margin-top: 8px; }
+.pct { color: var(--vscode-descriptionForeground); }
+.bar { height: 4px; border-radius: 2px; margin-top: 4px; background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent); overflow: hidden; }
+.fill { height: 100%; border-radius: 2px; background: var(--vscode-progressBar-background); }
+.fill.hot { background: var(--vscode-charts-red); }
+.resets { margin-top: 3px; font-size: 10px; color: var(--vscode-descriptionForeground); }
+.empty { color: var(--vscode-descriptionForeground); margin-top: 8px; }
+.gui-link { display: block; margin-top: 10px; padding: 0; border: none; background: none; font: inherit; font-size: 10px; color: var(--vscode-textLink-foreground); cursor: pointer; }
+</style></head><body>
+${rows.length ? bars : '<div class="empty">usage unavailable</div>'}
+<button class="gui-link" id="gui">switch to GUI view</button>
+<script nonce="${nonce}">
+const vscode = acquireVsCodeApi();
+document.getElementById('gui').addEventListener('click', () => vscode.postMessage({ type: 'show-gui' }));
+</script></body></html>`;
+}
+
+// This view only exists in tree mode, so it doubles as the always-visible way back to
+// GUI mode — the view/title icons on stacked tree views are hover-only and easy to miss.
+class UsageViewProvider {
+  resolveWebviewView(webviewView) {
+    this.view = webviewView;
+    webviewView.webview.options = { enableScripts: true };
+    webviewView.webview.onDidReceiveMessage((msg) => {
+      if (msg.type === 'show-gui') vscode.commands.executeCommand('panopticlaude.showGui');
+    });
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) this.refresh();
+    });
+    this.refresh();
+  }
+  async refresh() {
+    if (!this.view || !this.view.visible) return;
+    this.view.webview.html = usageHtml(await collectUsageRows());
+  }
+}
+
 // ---- GUI webview ----
 
 class GuiViewProvider {
@@ -723,14 +838,15 @@ class GuiViewProvider {
   }
   async refresh() {
     if (!this.view) return;
-    const [sessions, prs, worktrees, crons] = await Promise.all([
+    const [sessions, prs, worktrees, crons, usage] = await Promise.all([
       collectSessionRows(),
       collectMyPrRows(),
       collectWorktreeRows(),
       collectCronRows(),
+      collectUsageRows(),
     ]);
     this.view.badge = badgeFor(attentionCount(sessions)); // badge stays sessions-only
-    if (this.view.visible) this.view.webview.postMessage({ type: 'data', sessions, prs, worktrees, crons });
+    if (this.view.visible) this.view.webview.postMessage({ type: 'data', sessions, prs, worktrees, crons, usage });
   }
   async _onMessage(msg) {
     switch (msg.type) {
@@ -811,6 +927,7 @@ function activate(context) {
   const myPrs = new RowsProvider(collectMyPrRows, myPrItem);
   const worktrees = new RowsProvider(collectWorktreeRows, worktreeItem);
   const crons = new CronsProvider();
+  const usage = new UsageViewProvider();
   const gui = new GuiViewProvider(context.extensionUri);
 
   const guiMode = context.globalState.get('guiMode', false);
@@ -831,14 +948,17 @@ function activate(context) {
     vscode.window.registerTreeDataProvider('panopticlaude.prs', myPrs),
     vscode.window.registerTreeDataProvider('panopticlaude.worktrees', worktrees),
     vscode.window.registerTreeDataProvider('panopticlaude.crons', crons),
+    vscode.window.registerWebviewViewProvider('panopticlaude.usage', usage),
     vscode.window.registerWebviewViewProvider('panopticlaude.gui', gui),
     vscode.commands.registerCommand('panopticlaude.refresh', () => {
       myPrCache.t = 0;
       worktreeCache.t = 0;
+      usageCache.t = 0;
       sessions.refresh();
       myPrs.refresh();
       worktrees.refresh();
       crons.refresh(true);
+      usage.refresh();
       gui.refresh();
     }),
     vscode.commands.registerCommand('panopticlaude.showGui', () => setMode(true)),
@@ -873,6 +993,7 @@ function activate(context) {
     myPrs.refresh();
     worktrees.refresh();
     crons.refresh();
+    usage.refresh();
   }, 60_000);
   context.subscriptions.push({
     dispose: () => {
