@@ -2,7 +2,7 @@
   "name": "panopticlaude",
   "displayName": "Panopticlaude",
   "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "cbrandao18",
   "license": "MIT",
   "repository": {

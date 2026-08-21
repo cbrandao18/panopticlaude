@@ -351,6 +351,33 @@ async function openTodayDraft(inboxDir) {
   await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(file));
 }
 
+// Comments post as the ticket-automation GitHub App, never as the user. The mint
+// script lives in the assess-assumptions skill (plugin cache when installed,
+// ai-agent-tools checkout as fallback); newest copy wins.
+function resolveMintScript() {
+  const rel = ['skills', 'assess-assumptions', 'scripts', 'mint-bot-token.sh'];
+  const cacheRoot = path.join(os.homedir(), '.claude', 'plugins', 'cache', 'ai-agent-tools', 'ticket-tools');
+  const candidates = [];
+  try {
+    for (const hash of fs.readdirSync(cacheRoot)) candidates.push(path.join(cacheRoot, hash, ...rel));
+  } catch {}
+  candidates.push(path.join(os.homedir(), 'branch-workshop', 'ai-agent-tools', 'plugins', 'ticket-tools', ...rel));
+  const found = candidates.filter((p) => fs.existsSync(p));
+  if (!found.length) return null;
+  return found.map((p) => ({ p, m: fs.statSync(p).mtimeMs })).sort((a, b) => b.m - a.m)[0].p;
+}
+
+async function mintBotToken() {
+  const script = resolveMintScript();
+  if (!script) throw new Error('mint-bot-token.sh not found (plugin cache or ~/branch-workshop/ai-agent-tools)');
+  // Extension host PATH lacks homebrew; the script needs doppler + jq.
+  const env = { ...process.env, PATH: '/opt/homebrew/bin:/usr/local/bin:' + (process.env.PATH || '') };
+  const { stdout } = await execFileP('bash', [script], { env });
+  const token = stdout.trim();
+  if (!token.startsWith('ghs_')) throw new Error('unexpected mint output: ' + token.slice(0, 30));
+  return token;
+}
+
 async function postDrafts(inboxDir, repo) {
   const file = resolveDraftFile(inboxDir);
   if (!file) {
@@ -419,11 +446,23 @@ async function postDrafts(inboxDir, repo) {
     postable.map((d) => `draft ${d.n} → #${d.issue} ${d.title}`).join('\n') +
     (skipped.length ? '\n\nSkipped:\n' + skipped.map((s) => `draft ${s.n} → #${s.issue}: ${s.reason}`).join('\n') : '');
   const btn = await vscode.window.showWarningMessage(
-    `Post ${postable.length} comment(s) to ${repo}?`,
+    `Post ${postable.length} comment(s) to ${repo} as ticket-automation[bot]?`,
     { modal: true, detail },
     'Post'
   );
   if (btn !== 'Post') return;
+
+  let botToken;
+  try {
+    botToken = await mintBotToken();
+  } catch (err) {
+    vscode.window.showErrorMessage(
+      'panopticlaude: could not mint ticket-automation bot token — nothing posted (will not post as you). ' +
+        err.message.split('\n')[0]
+    );
+    return;
+  }
+  const botEnv = { ...process.env, GH_TOKEN: botToken };
 
   const postedOk = [];
   const failed = [];
@@ -435,7 +474,9 @@ async function postDrafts(inboxDir, repo) {
         const tmp = path.join(os.tmpdir(), `panopticlaude-comment-${d.issue}.md`);
         try {
           fs.writeFileSync(tmp, lib.expandRelativeLinks(d.body, repo));
-          const { stdout } = await execFileP(GH, ['issue', 'comment', String(d.issue), '-R', repo, '--body-file', tmp]);
+          const { stdout } = await execFileP(GH, ['issue', 'comment', String(d.issue), '-R', repo, '--body-file', tmp], {
+            env: botEnv,
+          });
           postedOk.push({ ...d, commentUrl: stdout.trim() });
         } catch (err) {
           failed.push({ ...d, err: err.message.split('\n')[0] });
