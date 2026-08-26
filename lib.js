@@ -88,8 +88,11 @@ function parseTranscriptTail(tailText) {
   let lastAssistantText = null;
   const hints = [];
   const editedFiles = new Set();
+  const mentionedNumbers = new Set();
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
+    // PR/issue numbers the chat actually talked about ("#34222", ".../pull/34222").
+    for (const m of line.matchAll(/(?:#|\/pull\/|\/issues\/)(\d{4,6})\b/g)) mentionedNumbers.add(Number(m[1]));
     const hint = toolDirHint(line);
     if (hint) hints.push(hint);
     // Only mutating tools count as "files touched" — Read also carries file_path.
@@ -148,6 +151,7 @@ function parseTranscriptTail(tailText) {
     lastAssistantText,
     aiTitle,
     hints,
+    mentionedNumbers: [...mentionedNumbers],
     editedFiles: [...editedFiles],
   };
 }
@@ -352,6 +356,7 @@ function sessionSnapshot(reg, settings) {
     title: null,
     askedQuestion: false,
     editedFiles: [],
+    mentionedNumbers: [],
     stateTs: null,
     workCwd: reg.cwd,
     transcript: transcriptPath(reg.cwd, reg.sessionId),
@@ -366,6 +371,7 @@ function sessionSnapshot(reg, settings) {
     snap.lastPrompt = tail.lastUserPrompt;
     snap.askedQuestion = /\?\s*$/.test((tail.lastAssistantText || '').trim());
     snap.editedFiles = tail.editedFiles;
+    snap.mentionedNumbers = tail.mentionedNumbers;
     snap.title = transcriptTitle(snap.transcript, snap.sessionId, tail.aiTitle);
     // Where the chat actually works, best signal first: majority git root of recent
     // tool calls > per-entry cwd (updated when a session moves into a worktree) >

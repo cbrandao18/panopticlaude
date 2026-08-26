@@ -110,6 +110,8 @@ async function sessionRowData(s, lastPrompt) {
     if (url && issueNum) issueUrl = `${url}/issues/${issueNum}`;
     else issueNum = null;
     pr = await prForBranch(s.workCwd, branch);
+    // Many unrelated chats share one checkout; only badge the PR this chat actually mentioned.
+    if (pr && !(s.mentionedNumbers || []).includes(pr.number)) pr = null;
   }
   // Derived names ("branch-ad") regenerate on every process restart. Identity order:
   // explicit session name > chat tab title (ai-title) > the user's last prompt.

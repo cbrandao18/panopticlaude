@@ -362,3 +362,10 @@ test('usageRows: maps the OAuth /usage limits array to labeled bars', () => {
   assert.deepEqual(lib.usageRows(null), []);
   assert.deepEqual(lib.usageRows({}), []);
 });
+
+test('parseTranscriptTail: mentionedNumbers from #N and /pull/N, short numbers ignored', () => {
+  const a = JSON.stringify({ type: 'user', message: { content: 'look at PR #34222 and item #3' } });
+  const b = JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'https://github.com/o/r/pull/34111 done' }] } });
+  const r = lib.parseTranscriptTail(a + '\n' + b + '\n');
+  assert.deepEqual(r.mentionedNumbers.sort(), [34111, 34222]);
+});
