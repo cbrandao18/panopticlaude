@@ -71,6 +71,7 @@ test('scheduleFromPlist', () => {
   assert.equal(lib.scheduleFromPlist({ StartCalendarInterval: { Hour: 12, Minute: 4 } }), '12:04');
   assert.equal(lib.scheduleFromPlist({ StartCalendarInterval: [{ Hour: 9 }] }), '09:00');
   assert.equal(lib.scheduleFromPlist({}), null);
+  assert.equal(lib.scheduleFromPlist({ StartCalendarInterval: { Hour: 13, Minute: 0, Weekday: 1 } }), '13:00 Mon');
 });
 
 test('lastExitCodeFromLaunchctl', () => {
@@ -238,6 +239,10 @@ test('nextRun: today if ahead, tomorrow if past', () => {
   assert.equal(lib.nextRun('12:04', at(13, 0)), new Date(2026, 7, 18, 12, 4).getTime(), 'tomorrow');
   assert.equal(lib.nextRun('12:04', at(12, 4)), new Date(2026, 7, 18, 12, 4).getTime(), 'exactly now rolls over');
   assert.equal(lib.nextRun(null, at(9, 0)), null);
+  // 2026-08-17 is a Monday
+  assert.equal(lib.nextRun('13:00 Mon', at(9, 0)), at(13, 0), 'weekly, later today');
+  assert.equal(lib.nextRun('13:00 Mon', at(14, 0)), new Date(2026, 7, 24, 13, 0).getTime(), 'weekly, next week');
+  assert.equal(lib.nextRun('13:00 Mon', new Date(2026, 7, 19, 9, 0).getTime()), new Date(2026, 7, 24, 13, 0).getTime(), 'weekly, mid-week');
 });
 
 test('untilTime', () => {
@@ -256,6 +261,9 @@ test('cronOverdue', () => {
   assert.equal(lib.cronOverdue('12:04', at(9, 0), at(12, 10)), false, 'within grace window');
   assert.equal(lib.cronOverdue('12:04', at(9, 0), at(11, 0)), false, 'before schedule');
   assert.equal(lib.cronOverdue(null, at(9, 0), at(13, 0)), false, 'no schedule known');
+  const wed = (h) => new Date(2026, 7, 19, h, 0).getTime();
+  assert.equal(lib.cronOverdue('13:00 Mon', at(13, 5), wed(14)), false, 'weekly: ran Monday, not overdue Wednesday');
+  assert.equal(lib.cronOverdue('13:00 Mon', new Date(2026, 7, 10, 13, 5).getTime(), wed(14)), true, 'weekly: last ran the week before');
 });
 
 // --- assess-assumptions draft files ---

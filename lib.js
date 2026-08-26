@@ -395,7 +395,28 @@ function scheduleFromPlist(plistJson) {
   if (!cal) return null;
   const one = Array.isArray(cal) ? cal[0] : cal;
   if (one == null || one.Hour == null) return null;
-  return `${String(one.Hour).padStart(2, '0')}:${String(one.Minute || 0).padStart(2, '0')}`;
+  const hhmm = `${String(one.Hour).padStart(2, '0')}:${String(one.Minute || 0).padStart(2, '0')}`;
+  return one.Weekday == null ? hhmm : `${hhmm} ${WEEKDAYS[one.Weekday % 7]}`;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// "13:00" (daily) or "13:00 Mon" (weekly) -> { h, m, weekday|null }
+function parseSchedule(schedule) {
+  const [hhmm, day] = schedule.split(' ');
+  const [h, m] = hhmm.split(':').map(Number);
+  const weekday = day ? WEEKDAYS.indexOf(day) : null;
+  return { h, m, weekday: weekday === -1 ? null : weekday };
+}
+
+// Most recent scheduled fire time at or before nowMs.
+function lastScheduled(scheduleHHMM, nowMs) {
+  const { h, m, weekday } = parseSchedule(scheduleHHMM);
+  const t = new Date(nowMs);
+  t.setHours(h, m, 0, 0);
+  if (weekday != null) t.setDate(t.getDate() - ((t.getDay() - weekday + 7) % 7));
+  if (t.getTime() > nowMs) t.setDate(t.getDate() - (weekday == null ? 1 : 7));
+  return t.getTime();
 }
 
 // launchctl prints "last exit code = 0" or "last exit code = (never exited)".
@@ -406,14 +427,12 @@ function lastExitCodeFromLaunchctl(text) {
   return v.includes('never') ? 'never-exited' : v;
 }
 
-// Overdue = past today's schedule (+15 min grace) with no log write since the scheduled time.
+// Overdue = past the most recent scheduled fire (+15 min grace) with no log write since it.
 function cronOverdue(scheduleHHMM, logMtimeMs, nowMs = Date.now()) {
   if (!scheduleHHMM || !logMtimeMs) return false;
-  const [h, min] = scheduleHHMM.split(':').map(Number);
-  const sched = new Date(nowMs);
-  sched.setHours(h, min, 0, 0);
+  const sched = lastScheduled(scheduleHHMM, nowMs);
   const GRACE_MS = 15 * 60 * 1000;
-  return nowMs > sched.getTime() + GRACE_MS && logMtimeMs < sched.getTime();
+  return nowMs > sched + GRACE_MS && logMtimeMs < sched;
 }
 
 // Short age for row decorations: "3m", "2h", "1d".
@@ -435,13 +454,12 @@ function relTime(ms, nowMs = Date.now()) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
-// Next occurrence of a daily HH:MM schedule: today if still ahead, else tomorrow.
+// Next occurrence of a "HH:MM" (daily) or "HH:MM Mon" (weekly) schedule.
 function nextRun(scheduleHHMM, nowMs = Date.now()) {
   if (!scheduleHHMM) return null;
-  const [h, m] = scheduleHHMM.split(':').map(Number);
-  const next = new Date(nowMs);
-  next.setHours(h, m, 0, 0);
-  if (next.getTime() <= nowMs) next.setDate(next.getDate() + 1);
+  const { weekday } = parseSchedule(scheduleHHMM);
+  const next = new Date(lastScheduled(scheduleHHMM, nowMs));
+  next.setDate(next.getDate() + (weekday == null ? 1 : 7));
   return next.getTime();
 }
 
