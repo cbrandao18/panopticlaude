@@ -43,8 +43,9 @@ test('parseTranscriptTail: no assistant entry in tail', () => {
 });
 
 test('contextWindowSize', () => {
-  assert.equal(lib.contextWindowSize('claude-fable-5[1m]'), 1_000_000);
-  assert.equal(lib.contextWindowSize('claude-fable-5'), 200_000);
+  assert.equal(lib.contextWindowSize('claude-opus-5[1m]'), 1_000_000);
+  assert.equal(lib.contextWindowSize('claude-fable-5-1'), 1_000_000);
+  assert.equal(lib.contextWindowSize('claude-opus-5'), 200_000);
   assert.equal(lib.contextWindowSize(undefined), 200_000);
 });
 

@@ -196,10 +196,10 @@ function transcriptTitle(transcript, sessionId, tailTitle) {
   }
 }
 
-// ponytail: window size inferred from the configured model's [1m] suffix; per-session
-// overrides aren't visible outside the session. Revisit if that ever matters.
-function contextWindowSize(settingsModel) {
-  return /\[1m\]/.test(settingsModel || '') ? 1_000_000 : 200_000;
+// ponytail: window size inferred from the model name: Fable is 1M natively, anything
+// else is 1M only with the [1m] suffix. Add ids here when a model's window changes.
+function contextWindowSize(model) {
+  return /\[1m\]|fable/i.test(model || '') ? 1_000_000 : 200_000;
 }
 
 function pctUsed(usedTokens, windowSize) {
@@ -377,7 +377,7 @@ function sessionSnapshot(reg, settings) {
     // tool calls > per-entry cwd (updated when a session moves into a worktree) >
     // registry cwd (wherever the chat was opened).
     snap.workCwd = workRootFromHints(tail.hints) || tail.lastCwd || snap.workCwd;
-    snap.pct = pctUsed(tail.usedTokens, contextWindowSize(settings && settings.model));
+    snap.pct = pctUsed(tail.usedTokens, contextWindowSize(tail.model || (settings && settings.model)));
   } catch {}
   const state = sessionState(reg.sessionId, mtimeMs);
   snap.state = state.state;
