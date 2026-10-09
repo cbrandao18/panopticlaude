@@ -1,0 +1,11 @@
+{
+  "crons": [
+    {
+      "label": "com.example.my-bot",
+      "automationId": "your-orca-automation-id",
+      "log": "~/bots/my-bot/logs/runs.log",
+      "inbox": "~/bots/my-bot/drafts",
+      "repo": "owner/repository"
+    }
+  ]
+}

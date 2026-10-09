@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Panopticlaude · Local jobs</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div class="brand"><svg aria-hidden="true" viewBox="0 0 32 32"><path d="M3 16s5-9 13-9 13 9 13 9-5 9-13 9S3 16 3 16Z"/><circle cx="16" cy="16" r="4"/></svg> PANOPTICLAUDE</div>
+        <span class="local"><span class="dot"></span> On your Mac</span>
+      </header>
+      <section class="heading">
+        <div><p class="eyebrow">YOUR AUTOMATIONS</p><h1>Local jobs</h1><p class="subtitle">See what ran. Review what’s next.</p></div>
+        <button id="refresh" class="secondary">Refresh</button>
+      </section>
+      <div class="connection"><span id="connection" role="status">Connecting to your jobs…</span><span id="timezone"></span></div>
+      <p id="error" class="error" role="alert" hidden></p>
+      <section id="jobs" class="jobs" aria-label="Scheduled jobs"></section>
+      <section id="viewer" class="viewer" hidden aria-label="Job details">
+        <header class="viewer-heading"><div><p id="viewer-job" class="eyebrow"></p><h2 id="viewer-title"></h2></div><button id="close" class="secondary">Close</button></header>
+        <div id="viewer-tools" class="viewer-tools"></div>
+        <div id="viewer-content"></div>
+      </section>
+      <footer><span>Schedules run independently of this page.</span><span>Refreshes every 10 seconds</span></footer>
+    </main>
+  </body>
+</html>

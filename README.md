@@ -52,3 +52,7 @@ If you move the cloned folder, re-run Install Hooks: the hook entries point at t
 - Claude Code 2.1.x. This reads undocumented internals (session registry, transcript JSONL) that can shift between releases.
 - macOS for the cron section (launchd). The sessions section has no OS-specific parts.
 - `gh` CLI for PR links (optional).
+
+## Local automation dashboard
+
+The [local monitor](monitor/README.md) shows Orca automation or launchd job status, run output, and draft comments with per-ticket review and posting controls. It runs in a browser, including Orca's embedded browser.
