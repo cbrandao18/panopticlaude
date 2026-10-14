@@ -85,3 +85,12 @@ Add Orca to macOS login items.
 - Posting, replying or triaging from the brief (the dashboard keeps its Post flow).
 - Channels beyond DMs, mentions and her own threads.
 - Weekend briefs.
+
+## Implementation notes (2026-10-14)
+
+- **Home moved:** the brief lives in `~/daily-brief`, a plain Orca folder project, not `~/branch/.context`. The Orca CLI rejects non-git folders, so it was added in the Orca UI. The sidebar filter "Hide default branch" hides it.
+- **Format:** Orca renders Markdown file tabs, so the brief stays `.md`.
+- **Skill:** `~/.claude/skills/daily-brief/SKILL.md`. Its state adds `slackLastOkAt` and `slackWindowStart`, so failed Slack reads are retried and midday keeps unanswered morning asks.
+- **Read-only:** enforced by deny rules in `~/daily-brief/.claude/settings.json`, not only by the prompt.
+- **Bot status:** Orca's `completed` status means the run was handed off to the agent, so the brief says "ran at HH:MM", never "finished".
+- **Automations:** `daily-brief` fbdf206b, `daily-brief-midday` 7196f0c6.
