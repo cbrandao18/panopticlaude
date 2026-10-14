@@ -26,6 +26,7 @@ async function fixture(t, options = {}) {
   const server = createMonitor({
     jobs: [job],
     run,
+    renderMarkdown: async (text) => `<p>${text}</p>`,
     readSeen: () => seen,
     writeSeen: (label, snapshot) => {
       seen[label] = snapshot;
@@ -38,7 +39,7 @@ async function fixture(t, options = {}) {
     fs.rmSync(dir, { recursive: true, force: true });
   });
   const base = `http://127.0.0.1:${server.address().port}`;
-  const get = (route, params = {}, options) =>
+  const get = (route, params = {}, options = {}) =>
     fetch(`${base}/api/${route}?${new URLSearchParams({ job: job.label, ...params })}`, options);
   const review = (files, headers = {}) =>
     get(
@@ -244,4 +245,26 @@ test('Orca log tabs return the latest saved output and errors, not stale cron fi
   assert.equal((await (await f.get('log')).json()).text, 'Completed a fixture run.\n');
   runs.length = 0;
   assert.match((await (await f.get('log', { kind: 'output' })).json()).text, /No saved output/);
+});
+
+test('drafts include GitHub-rendered HTML and fall back to raw text when rendering fails', async (t) => {
+  const calls = [];
+  const rendered = await fixture(t, {
+    renderMarkdown: async (text, repo) => {
+      calls.push({ text, repo });
+      return '<p>An exact comment.</p>';
+    }
+  });
+  const data = await (await rendered.get('file', { name: rendered.name })).json();
+  assert.equal(data.drafts[0].html, '<p>An exact comment.</p>');
+  assert.deepEqual(calls, [{ text: data.drafts[0].body, repo: 'owner/repo' }]);
+
+  const failing = await fixture(t, {
+    renderMarkdown: async () => {
+      throw new Error('gh unavailable');
+    }
+  });
+  const fallback = await (await failing.get('file', { name: failing.name })).json();
+  assert.equal(fallback.drafts[0].html, null);
+  assert.equal(fallback.drafts[0].body, 'An exact comment.\n');
 });

@@ -281,7 +281,14 @@ async function renderView(view) {
       const card = element('article', null, 'draft');
       const heading = element('div', null, 'draft-heading');
       const preview = element('div', null, 'draft-preview');
-      const body = element('pre', draft.body);
+      const body = draft.html ? element('div', null, 'markdown') : element('pre', draft.body);
+      if (draft.html) {
+        body.innerHTML = draft.html;
+        for (const link of body.querySelectorAll('a')) {
+          link.target = '_blank';
+          link.rel = 'noopener';
+        }
+      }
       body.id = `draft-body-${data.drafts.indexOf(draft)}`;
       body.hidden = true;
       const h3 = element('h3');

@@ -178,10 +178,23 @@ async function jobStatus(job, { run = exec, readSeen = lib.loadInboxSeen } = {})
   };
 }
 
+// GitHub's renderer returns sanitized HTML that matches how the posted comment will look.
+async function renderGithubMarkdown(text, repo, run = exec) {
+  const args = ['api', 'markdown', '-f', `text=${text}`, '-f', 'mode=gfm'];
+  if (repo) {
+    args.push('-f', `context=${repo}`);
+  }
+  // Rendering needs no bot scope, so use gh's own login rather than whatever GH_TOKEN the launcher exports.
+  const { GH_TOKEN, GITHUB_TOKEN, ...env } = process.env;
+  const { stdout } = await run('/opt/homebrew/bin/gh', args, { env, timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
+  return stdout;
+}
+
 function createMonitor({
   jobs,
   run,
   postDraft = createPoster(),
+  renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
   writeSeen = lib.saveInboxSeen
 }) {
@@ -268,10 +281,14 @@ function createMonitor({
           text,
           version: digest(text),
           ...parsed,
-          drafts: parsed.drafts.map((draft) => {
-            const expanded = { ...draft, body: job.repo ? lib.expandRelativeLinks(draft.body, job.repo) : draft.body };
-            return { ...expanded, posting: receipt(job, expanded) };
-          })
+          drafts: await Promise.all(
+            parsed.drafts.map(async (draft) => {
+              const expanded = { ...draft, body: job.repo ? lib.expandRelativeLinks(draft.body, job.repo) : draft.body };
+              // The raw body stays the source of truth; a failed render falls back to it in the page.
+              const html = await renderMarkdown(expanded.body, job.repo).catch(() => null);
+              return { ...expanded, html, posting: receipt(job, expanded) };
+            })
+          )
         });
       }
       if (req.method === 'POST' && url.pathname === '/api/post') {
