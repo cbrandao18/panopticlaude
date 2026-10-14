@@ -332,6 +332,7 @@ async function renderView(view) {
         async (node) => {
           node.textContent = 'Posting…';
           result.hidden = true;
+          result.classList.remove('post-failed');
           try {
             const posted = await api(
               'post',
@@ -346,6 +347,7 @@ async function renderView(view) {
           } catch (error) {
             node.textContent = 'Post';
             result.textContent = error.message;
+            result.classList.add('post-failed');
             result.hidden = false;
           }
         },
@@ -372,7 +374,7 @@ async function renderView(view) {
       }
       actions.append(post);
       heading.append(preview, actions);
-      card.append(heading, body, result);
+      card.append(heading, result, body);
       content.push(card);
     }
     if (data.drafts.length) {

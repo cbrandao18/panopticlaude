@@ -184,9 +184,7 @@ async function renderGithubMarkdown(text, repo, run = exec) {
   if (repo) {
     args.push('-f', `context=${repo}`);
   }
-  // Rendering needs no bot scope, so use gh's own login rather than whatever GH_TOKEN the launcher exports.
-  const { GH_TOKEN, GITHUB_TOKEN, ...env } = process.env;
-  const { stdout } = await run('/opt/homebrew/bin/gh', args, { env, timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
+  const { stdout } = await run('/opt/homebrew/bin/gh', args, { timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
   return stdout;
 }
 
@@ -386,6 +384,10 @@ function createMonitor({
 }
 
 if (require.main === module) {
+  // Reads use gh's own login; posting passes its minted bot token explicitly. A launcher-exported token
+  // would override both reads, and a stale one fails them with 401.
+  Reflect.deleteProperty(process.env, 'GH_TOKEN');
+  Reflect.deleteProperty(process.env, 'GITHUB_TOKEN');
   const args = process.argv.slice(2);
   const option = (name) => args[args.indexOf(name) + 1];
   const config = args.includes('--config')

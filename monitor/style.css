@@ -373,6 +373,13 @@ button.draft-toggle {
 .post-result {
   margin: 14px 0 0;
 }
+.post-result.post-failed {
+  color: #ffd0c8;
+  border: 1px solid #68493e;
+  background: #36251f;
+  padding: 10px 14px;
+  border-radius: 7px;
+}
 .draft h3 {
   font-size: 14px;
   line-height: 1.6;
