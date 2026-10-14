@@ -163,6 +163,7 @@ test('Orca status reads the saved schedule and latest run, without consulting la
   const f = await fixture(t);
   f.job.automationId = 'automation-fixture';
   let enabled = true;
+  let rrule = 'FREQ=DAILY;BYHOUR=12;BYMINUTE=34';
   const runs = [
     { createdAt: 100, status: 'failed', error: 'Old failure' },
     { createdAt: 200, startedAt: 205, status: 'completed' }
@@ -175,7 +176,7 @@ test('Orca status reads the saved schedule and latest run, without consulting la
         ? {
             automation: {
               enabled,
-              rrule: 'FREQ=DAILY;BYHOUR=12;BYMINUTE=34',
+              rrule,
               timezone: 'America/New_York',
               nextRunAt: 500
             }
@@ -204,6 +205,8 @@ test('Orca status reads the saved schedule and latest run, without consulting la
   }
   runs.length = 0;
   assert.equal((await read()).status, 'waiting');
+  rrule = 'FREQ=WEEKLY;BYDAY=MO;BYHOUR=10;BYMINUTE=0';
+  assert.equal((await read()).schedule, 'Mondays at 10:00 · America/New_York');
 });
 
 test('Orca outages and RPC errors stay unknown rather than looking successful', async (t) => {
@@ -267,4 +270,33 @@ test('drafts include GitHub-rendered HTML and fall back to raw text when renderi
   const fallback = await (await failing.get('file', { name: failing.name })).json();
   assert.equal(fallback.drafts[0].html, null);
   assert.equal(fallback.drafts[0].body, 'An exact comment.\n');
+});
+
+test('skip feedback validates reasons, saves per draft, and comes back with the file', async (t) => {
+  const f = await fixture(t);
+  const data = await (await f.get('file', { name: f.name })).json();
+  assert.ok(data.skipReasons['no-scope-change']);
+  assert.equal(data.drafts[0].skipped, null);
+  const skip = (changes = {}, headers = {}) =>
+    f.get(
+      'skip',
+      {},
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1', ...headers },
+        body: JSON.stringify({ name: f.name, version: data.version, n: 1, reasons: ['no-scope-change'], note: '', ...changes })
+      }
+    );
+  assert.equal((await skip({}, { 'X-Panopticlaude': '' })).status, 403);
+  assert.equal((await skip({ reasons: ['made-up'] })).status, 400);
+  assert.equal((await skip({ reasons: [], note: '  ' })).status, 400);
+  assert.equal((await skip({ n: 2 })).status, 400);
+  assert.equal((await skip({ version: 'stale' })).status, 409);
+  assert.equal((await skip({ reasons: ['already-known', 'already-known'], note: ' PM decided in Slack ' })).status, 200);
+  const saved = (await (await f.get('file', { name: f.name })).json()).drafts[0].skipped;
+  assert.deepEqual(saved.reasons, ['already-known']);
+  assert.equal(saved.note, 'PM decided in Slack');
+  assert.equal(saved.issue, 123);
+  assert.equal(saved.file, f.name);
+  assert.equal(fs.readdirSync(path.join(f.inbox, '.monitor-feedback')).length, 1);
 });

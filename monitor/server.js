@@ -7,7 +7,7 @@ const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const lib = require('../lib');
-const { createPoster, receipt, digest } = require('./posting');
+const { createPoster, receipt, digest, draftKey } = require('./posting');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -25,6 +25,27 @@ async function readOrca(args, run = exec) {
     throw new Error('Orca could not return automation data.');
   }
   return response.result;
+}
+
+// Why a held draft wasn't posted. The weekly sweep-tuning automation reads these keys.
+const SKIP_REASONS = {
+  'no-scope-change': 'Doesn’t change what gets built',
+  'wrong-or-overstated': 'Finding is wrong or overstated',
+  'already-known': 'Team already knows or decided this',
+  'too-long-or-technical': 'Too long or too technical for this ticket',
+  'bad-timing': 'Bad timing: ticket closed, in progress, or owned elsewhere',
+  'handled-myself': 'I’ll handle it myself (Slack, ticket edit, or my own comment)'
+};
+const feedbackPath = (job, draft) => path.join(job.inbox, '.monitor-feedback', `${draftKey(job, draft)}.json`);
+function readFeedback(job, draft) {
+  try {
+    return JSON.parse(fs.readFileSync(feedbackPath(job, draft), 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function latestOrcaRun(runs) {
@@ -84,10 +105,14 @@ async function jobStatus(job, { run = exec, readSeen = lib.loadInboxSeen } = {})
       latestRun = latestOrcaRun(history.runs);
       const hour = automation.rrule.match(/(?:^|;)BYHOUR=(\d+)(?:;|$)/)?.[1];
       const minute = automation.rrule.match(/(?:^|;)BYMINUTE=(\d+)(?:;|$)/)?.[1];
+      const day = automation.rrule.match(/(?:^|;)BYDAY=(MO|TU|WE|TH|FR|SA|SU)(?:;|$)/)?.[1];
+      const time = hour != null && minute != null ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : null;
       schedule =
-        automation.rrule.startsWith('FREQ=DAILY;') && hour != null && minute != null
-          ? `Daily at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')} · ${automation.timezone}`
-          : automation.rrule;
+        automation.rrule.startsWith('FREQ=DAILY;') && time
+          ? `Daily at ${time} · ${automation.timezone}`
+          : automation.rrule.startsWith('FREQ=WEEKLY;') && time && day
+            ? `${{ MO: 'Mon', TU: 'Tues', WE: 'Wednes', TH: 'Thurs', FR: 'Fri', SA: 'Satur', SU: 'Sun' }[day]}days at ${time} · ${automation.timezone}`
+            : automation.rrule;
       if (latestRun?.error) {
         warnings.push(latestRun.error);
       }
@@ -284,9 +309,10 @@ function createMonitor({
               const expanded = { ...draft, body: job.repo ? lib.expandRelativeLinks(draft.body, job.repo) : draft.body };
               // The raw body stays the source of truth; a failed render falls back to it in the page.
               const html = await renderMarkdown(expanded.body, job.repo).catch(() => null);
-              return { ...expanded, html, posting: receipt(job, expanded) };
+              return { ...expanded, html, posting: receipt(job, expanded), skipped: readFeedback(job, expanded) };
             })
-          )
+          ),
+          skipReasons: SKIP_REASONS
         });
       }
       if (req.method === 'POST' && url.pathname === '/api/post') {
@@ -338,6 +364,64 @@ function createMonitor({
         } catch (error) {
           return send(409, { error: error.message });
         }
+      }
+      if (req.method === 'POST' && url.pathname === '/api/skip') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Feedback must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 16384) {
+            return send(413, { error: 'This note is too long.' });
+          }
+        }
+        let request;
+        try {
+          request = JSON.parse(body);
+        } catch {
+          return send(400, { error: 'Invalid feedback request.' });
+        }
+        const reasons = request?.reasons;
+        const note = typeof request?.note === 'string' ? request.note.trim() : '';
+        if (
+          !Number.isSafeInteger(request?.n) ||
+          typeof request.version !== 'string' ||
+          !Array.isArray(reasons) ||
+          reasons.some((reason) => !Object.hasOwn(SKIP_REASONS, reason)) ||
+          note.length > 4000
+        ) {
+          return send(400, { error: 'Invalid feedback request.' });
+        }
+        if (!reasons.length && !note) {
+          return send(400, { error: 'Pick a reason or add a note.' });
+        }
+        const file = inboxFiles(job.inbox).find((item) => item.name === request.name);
+        if (!file) {
+          return send(404, { error: 'Draft not found.' });
+        }
+        const text = fs.readFileSync(path.join(job.inbox, file.name), 'utf8');
+        if (digest(text) !== request.version) {
+          return send(409, { error: 'This draft changed. Reopen it and review the latest version.' });
+        }
+        const matches = lib.parseDraftsFile(text).drafts.filter((draft) => draft.n === request.n);
+        if (matches.length !== 1) {
+          return send(400, { error: 'This draft number is missing or duplicated in the file.' });
+        }
+        const draft = matches[0];
+        const expanded = { ...draft, body: job.repo ? lib.expandRelativeLinks(draft.body, job.repo) : draft.body };
+        const feedback = {
+          issue: draft.issue,
+          file: file.name,
+          n: draft.n,
+          title: draft.title,
+          reasons: [...new Set(reasons)],
+          note,
+          savedAt: new Date().toISOString()
+        };
+        fs.mkdirSync(path.dirname(feedbackPath(job, expanded)), { recursive: true });
+        fs.writeFileSync(feedbackPath(job, expanded), JSON.stringify(feedback, null, 2));
+        return send(200, feedback);
       }
       if (req.method === 'POST' && url.pathname === '/api/review') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {

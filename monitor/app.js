@@ -355,6 +355,8 @@ async function renderView(view) {
       );
       function showPosted(posted) {
         post.hidden = true;
+        skip.hidden = true;
+        skipForm.hidden = true;
         const link = element('a', 'Posted · View comment');
         const issueUrl = `https://github.com/${job.repo}/issues/${draft.issue}`;
         link.href = posted.commentUrl?.startsWith(`${issueUrl}#issuecomment-`) ? posted.commentUrl : issueUrl;
@@ -363,6 +365,85 @@ async function renderView(view) {
         result.replaceChildren(link);
         result.hidden = false;
       }
+      const skipForm = element('form', null, 'skip-form');
+      skipForm.hidden = true;
+      const skipSummary = element('p', '', 'note skip-summary');
+      skipSummary.hidden = true;
+      const fieldset = element('fieldset');
+      fieldset.append(element('legend', 'Why aren’t you posting this?'));
+      const boxes = Object.entries(data.skipReasons).map(([key, label]) => {
+        const option = element('label', null, 'skip-option');
+        const box = element('input');
+        box.type = 'checkbox';
+        box.value = key;
+        box.checked = Boolean(draft.skipped?.reasons.includes(key));
+        option.append(box, document.createTextNode(label));
+        fieldset.append(option);
+        return box;
+      });
+      const noteLabel = element('label', 'Anything else? (optional)', 'skip-note');
+      const note = element('textarea');
+      note.rows = 3;
+      note.maxLength = 4000;
+      note.value = draft.skipped?.note || '';
+      noteLabel.append(note);
+      const skipError = element('p', '', 'note post-result post-failed');
+      skipError.hidden = true;
+      skipError.setAttribute('role', 'alert');
+      const save = element('button', 'Save reason', 'primary');
+      save.type = 'submit';
+      skipForm.append(fieldset, noteLabel, skipError, save);
+      function showSkipped(feedback) {
+        const reasons = feedback.reasons.map((key) => data.skipReasons[key] || key);
+        skipSummary.textContent = `Not posting: ${[...reasons, feedback.note].filter(Boolean).join(' · ')}`;
+        skipSummary.hidden = false;
+        skip.textContent = 'Edit reason';
+      }
+      skipForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        save.disabled = true;
+        skipError.hidden = true;
+        try {
+          const feedback = await api(
+            'skip',
+            { job: job.label },
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
+              body: JSON.stringify({
+                name: data.name,
+                version: data.version,
+                n: draft.n,
+                reasons: boxes.filter((box) => box.checked).map((box) => box.value),
+                note: note.value
+              })
+            }
+          );
+          draft.skipped = feedback;
+          skipForm.hidden = true;
+          showSkipped(feedback);
+        } catch (error) {
+          skipError.textContent = error.message;
+          skipError.hidden = false;
+        } finally {
+          save.disabled = false;
+        }
+      });
+      const skip = button(
+        'Not posting',
+        () => {
+          skipForm.hidden = !skipForm.hidden;
+          if (!skipForm.hidden) {
+            boxes[0]?.focus();
+          }
+        },
+        'text'
+      );
+      if (draft.skipped) {
+        showSkipped(draft.skipped);
+      }
+      skip.hidden = draft.posting?.status === 'posted';
+      actions.append(skip);
       post.disabled = !job.repo || data.posted;
       if (draft.posting?.status === 'posted') {
         showPosted(draft.posting);
@@ -374,7 +455,7 @@ async function renderView(view) {
       }
       actions.append(post);
       heading.append(preview, actions);
-      card.append(heading, result, body);
+      card.append(heading, result, skipSummary, skipForm, body);
       content.push(card);
     }
     if (data.drafts.length) {

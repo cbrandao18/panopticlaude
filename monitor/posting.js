@@ -11,8 +11,8 @@ const exec = promisify(execFile);
 const GH = '/opt/homebrew/bin/gh';
 const DUP_MARKER = 'Automated assumption check';
 const digest = (text) => createHash('sha256').update(text).digest('hex');
-const receiptPath = (job, draft) =>
-  path.join(job.inbox, '.monitor-posts', `${digest(`${job.repo}:${draft.issue}:${draft.body}`)}.json`);
+const draftKey = (job, draft) => digest(`${job.repo}:${draft.issue}:${draft.body}`);
+const receiptPath = (job, draft) => path.join(job.inbox, '.monitor-posts', `${draftKey(job, draft)}.json`);
 
 function receipt(job, draft) {
   try {
@@ -142,4 +142,4 @@ function createPoster({ run = exec, mint = () => mintBotToken(run) } = {}) {
   };
 }
 
-module.exports = { createPoster, receipt, digest, mintBotToken };
+module.exports = { createPoster, receipt, digest, draftKey, mintBotToken };
