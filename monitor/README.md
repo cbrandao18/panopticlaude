@@ -11,7 +11,7 @@ node monitor/server.js
 
 Open `http://localhost:4318`. Use `--port 55060` or `--config /path/to/config.json` to override the defaults. In Conductor, the server uses `CONDUCTOR_PORT` when available.
 
-In Orca, start the server in a terminal with `--port 55060`, then open `http://localhost:55060` in a browser tab. Keep the source outside a disposable workspace. The server needs the Orca CLI at `/usr/local/bin/orca` (override with `ORCA_CLI_COMMAND`) and the existing GitHub/Doppler authentication for posting. Use your local credential wrapper when launching; never put credentials in this config or the browser. Stop and restart the server after changing its config.
+On this Mac the server runs as the LaunchAgent `com.christie.panopticlaude-dashboard` (`RunAtLoad` + `KeepAlive`), which starts it at login with `--port 55060` and restarts it if it exits; logs go to `dashboard.out` / `dashboard.err` beside the launcher. Open `http://localhost:55060` in a browser tab. Keep the source outside a disposable workspace. The server needs the Orca CLI at `/usr/local/bin/orca` (override with `ORCA_CLI_COMMAND`) and the existing GitHub/Doppler authentication for posting. Use your local credential wrapper when launching; never put credentials in this config or the browser. Stop and restart the server after changing its config.
 
 Orca jobs read their schedule, enabled state, run history, saved output, and errors through the CLI. Launchd jobs keep using their plist and launchctl status.
 
