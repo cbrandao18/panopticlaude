@@ -357,6 +357,7 @@ async function renderView(view) {
         post.hidden = true;
         skip.hidden = true;
         skipForm.hidden = true;
+        card.classList.remove('skipping');
         const link = element('a', 'Posted · View comment');
         const issueUrl = `https://github.com/${job.repo}/issues/${draft.issue}`;
         link.href = posted.commentUrl?.startsWith(`${issueUrl}#issuecomment-`) ? posted.commentUrl : issueUrl;
@@ -421,6 +422,7 @@ async function renderView(view) {
           );
           draft.skipped = feedback;
           skipForm.hidden = true;
+          card.classList.remove('skipping');
           showSkipped(feedback);
         } catch (error) {
           skipError.textContent = error.message;
@@ -433,7 +435,11 @@ async function renderView(view) {
         'Not posting',
         () => {
           skipForm.hidden = !skipForm.hidden;
+          card.classList.toggle('skipping', !skipForm.hidden);
           if (!skipForm.hidden) {
+            // Keep the draft beside the reasons so it can be reread while choosing.
+            body.hidden = false;
+            toggle.setAttribute('aria-expanded', 'true');
             boxes[0]?.focus();
           }
         },
@@ -455,7 +461,9 @@ async function renderView(view) {
       }
       actions.append(post);
       heading.append(preview, actions);
-      card.append(heading, result, skipSummary, skipForm, body);
+      const bodyRow = element('div', null, 'draft-body-row');
+      bodyRow.append(body, skipForm);
+      card.append(heading, result, skipSummary, bodyRow);
       content.push(card);
     }
     if (data.drafts.length) {

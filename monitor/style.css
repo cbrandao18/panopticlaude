@@ -364,8 +364,8 @@ button.draft-toggle {
 .draft-toggle[aria-expanded="true"]::before {
   content: "▾";
 }
-.draft > pre,
-.draft > .markdown {
+.draft-body-row > pre,
+.draft-body-row > .markdown {
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
@@ -543,9 +543,13 @@ footer {
 .skip-option {
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
+  line-height: 1.4;
   font-size: 13px;
   cursor: pointer;
+}
+.skip-option input {
+  margin: 2px 0 0;
 }
 .skip-note {
   display: grid;
@@ -563,4 +567,24 @@ footer {
   border-radius: 7px;
   padding: 10px 12px;
   resize: vertical;
+}
+.draft.skipping .draft-body-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+.draft.skipping .skip-form {
+  position: sticky;
+  top: 16px;
+  margin-top: 18px;
+}
+@media (max-width: 760px) {
+  .draft.skipping .draft-body-row {
+    grid-template-columns: 1fr;
+  }
+  .draft.skipping .skip-form {
+    position: static;
+    grid-row: 1;
+  }
 }
