@@ -1,0 +1,26 @@
+#ticket-work { margin: 32px 0; border-top: 1px solid var(--border); padding-top: 24px; }
+#ticket-work .tw-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#ticket-work h2 { margin: 0; font-size: 22px; }
+#ticket-work .tw-health, #ticket-work .tw-summary, #ticket-work .tw-note, #ticket-work .tw-count { font-size: 13px; color: var(--muted); line-height: 1.6; }
+#ticket-work .tw-warning { color: #f2cf91; }
+#ticket-work .tw-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
+#ticket-work label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+#ticket-work label:last-child { grid-column: 1 / -1; }
+#ticket-work select, #ticket-work input { width: 100%; min-width: 0; min-height: 40px; border: 1px solid var(--border); border-radius: 7px; background: #1a211d; color: #e7e9e8; padding: 9px; font: inherit; font-size: 14px; }
+#ticket-work select:focus-visible, #ticket-work input:focus-visible { outline: 2px solid #cae7d2; outline-offset: 3px; }
+#ticket-work .tw-list { display: grid; gap: 12px; margin-bottom: 14px; }
+#ticket-work .tw-ticket { background: #181f1b; border: 1px solid var(--border); border-radius: 9px; padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+#ticket-work h3 { font-size: 16px; line-height: 1.5; margin: 0 0 8px; }
+#ticket-work .tw-meta { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 6px 0; }
+#ticket-work .tw-action { margin: 10px 0 6px; line-height: 1.5; font-weight: 550; }
+#ticket-work .tw-prs { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; margin: 8px 0; }
+#ticket-work details { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; font-size: 13px; line-height: 1.6; }
+#ticket-work summary { cursor: pointer; color: #c3d1c8; }
+#ticket-work li { margin-bottom: 10px; }
+#ticket-work [hidden] { display: none; }
+@media (max-width: 650px) {
+  #ticket-work .tw-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #ticket-work .tw-heading { align-items: flex-start; }
+  #ticket-work h2 { font-size: 19px; }
+  #ticket-work .tw-ticket { padding: 12px; }
+}
