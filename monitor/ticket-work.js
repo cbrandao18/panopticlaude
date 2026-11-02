@@ -67,7 +67,7 @@
     };
     const date = value => {
       const parsed = new Date(value);
-      return value && Number.isFinite(parsed.getTime()) ? parsed.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : 'Unknown';
+      return value && Number.isFinite(parsed.getTime()) ? parsed.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).replace(/\s?(AM|PM)/g, (_, period) => period.toLowerCase()) : 'Unknown';
     };
     const heading = el('div',null,'tw-heading');
     const title = el('h2','GitHub ticket work');
@@ -112,7 +112,7 @@
       refresh.disabled = !!data?.health?.running;
       refresh.textContent = refresh.disabled ? 'Refreshing…' : 'Refresh GitHub';
       health.classList.toggle('tw-warning',!!data?.stale || !!data?.health?.error || !snapshot);
-      health.textContent = [snapshot ? `Last successful refresh: ${date(snapshot.refreshedAt)}.` : 'Unavailable — no successful snapshot.',data?.stale ? 'Stale data (over 30 minutes old).' : '',data?.health?.error ? `Refresh failed: ${data.health.error}` : '',data?.health?.running ? 'Refresh in progress.' : '',data?.health?.lastAttemptAt ? `Last attempt: ${date(data.health.lastAttemptAt)}.` : ''].filter(Boolean).join(' ');
+      health.textContent = [snapshot ? `Last successful refresh: ${date(snapshot.refreshedAt)}.` : 'Unavailable — no successful snapshot.',data?.stale ? 'Data needs a successful refresh.' : '',data?.health?.error ? `Refresh failed: ${data.health.error}` : '',data?.health?.running ? 'Refresh in progress.' : '',data?.health?.lastAttemptAt ? `Last attempt: ${date(data.health.lastAttemptAt)}.` : ''].filter(Boolean).join(' ');
       if (!snapshot) { summary.textContent = 'Ticket counts unavailable.'; count.textContent = ''; list.replaceChildren(); more.hidden = true; return; }
       updateOptions('category',snapshot.tickets.map(t => t.category || 'Unknown'),'All categories');
       updateOptions('owner',snapshot.tickets.map(t => t.owner || 'Owner needed'),'All owners');
