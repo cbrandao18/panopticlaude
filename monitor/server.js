@@ -8,6 +8,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
+const { ticketData, startRefresh } = require('./ticket-work-api');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -54,6 +55,8 @@ function latestOrcaRun(runs) {
 const assets = {
   '/': ['index.html', 'text/html'],
   '/app.js': ['app.js', 'text/javascript'],
+  '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
+  '/ticket-work.css': ['ticket-work.css', 'text/css'],
   '/style.css': ['style.css', 'text/css']
 };
 
@@ -216,6 +219,8 @@ async function renderGithubMarkdown(text, repo, run = exec) {
 function createMonitor({
   jobs,
   run,
+  readTickets = ticketData,
+  refreshTickets = startRefresh,
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
@@ -246,6 +251,15 @@ function createMonitor({
       if (req.method === 'GET' && assets[url.pathname]) {
         const [file, type] = assets[url.pathname];
         return send(200, fs.readFileSync(path.join(__dirname, file)), type);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/ticket-work') {
+        return send(200, readTickets());
+      }
+      if (req.method === 'POST' && url.pathname === '/api/ticket-work/refresh') {
+        if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'Use a JSON request.' });
+        req.resume();
+        const started = refreshTickets();
+        return send(202, { started, message: started ? 'Refresh started.' : 'Refresh already running.' });
       }
       if (req.method === 'GET' && url.pathname === '/api/status') {
         const rows = await Promise.all(jobs.map((job) => jobStatus(job, { run, readSeen })));
