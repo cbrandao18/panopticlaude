@@ -34,3 +34,19 @@ test('refresh does not start a duplicate subprocess', async () => {
   await new Promise(setImmediate);
   finish();
 });
+test('invalid nested renderer fields are not exposed as a snapshot', t => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tickets-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  fs.writeFileSync(path.join(dir,'snapshot.json'),JSON.stringify({schema:1,refreshedAt:new Date().toISOString(),projects:[],tickets:[{repo:'gobranch/branch',number:1,url:'https://github.com/gobranch/branch/issues/1',projects:null,actions:'bad'}]}));
+  assert.equal(ticketData(dir).snapshot,null);
+});
+test('a refresh subprocess failure remains visible even before wrapper health exists', async t => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tickets-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  fs.writeFileSync(path.join(dir,'snapshot.json'),JSON.stringify({schema:1,refreshedAt:new Date().toISOString(),projects:[],tickets:[]}));
+  createRefresh(()=>Promise.reject(Error('private raw output')))();
+  await new Promise(setImmediate);
+  assert.equal(ticketData(dir).stale,true);
+  assert.match(ticketData(dir).health.error,/could not complete/);
+  assert(!ticketData(dir).health.error.includes('private raw output'));
+});

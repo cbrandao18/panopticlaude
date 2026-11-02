@@ -26,3 +26,14 @@ test('links accept only canonical HTTPS GitHub evidence and reject credentials',
   assert.equal(safeGithubUrl('https://github.com/gobranch/branch/issues/12#issuecomment-42'),'https://github.com/gobranch/branch/issues/12#issuecomment-42');
   for(const url of ['javascript:alert(1)','https://github.com.evil.test/x','https://user:secret@github.com/x','http://github.com/x','https://github.com/']) assert.equal(safeGithubUrl(url),null);
 });
+
+test('summary counts the same merged PR only once across linked tickets', () => {
+  const rows = [1,2].map(number => ({number,repo:'gobranch/branch',category:'Existing work',prs:[{number:99,state:'MERGED'}]}));
+  assert.equal(summarize(rows).mergedPRs,1);
+});
+test('explicit action ranks survive wording and closed decisions are not waiting', () => {
+  const low={...base,number:1,nextAction:'Resolve the historical question',nextActionRank:3};
+  const high={...base,number:2,nextAction:'Confirm receiving team',nextActionRank:1};
+  assert.deepEqual(filterTickets([low,high]).map(t=>t.number),[2,1]);
+  assert.equal(summarize([{...base,state:'CLOSED',category:'Needs decision or clarification',actions:[]}]).decisions,0);
+});

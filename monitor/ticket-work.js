@@ -20,6 +20,7 @@
     return ticket.nextAction || openActions(ticket)[0]?.text || (archived(ticket) ? 'Review history' : 'Needs assessment');
   }
   function rank(ticket) {
+    if (Number.isFinite(ticket.nextActionRank)) return ticket.nextActionRank;
     const text = actionText(ticket);
     if (/fail|broken/i.test(text)) return 0;
     if (/decision|clarif|block|depend/i.test(text)) return 1;
@@ -40,8 +41,8 @@
     const unassessed = tickets.filter(t => !t.category || /unassessed|unknown|needs assessment/i.test(t.category)).length;
     return {tickets:tickets.length,assessed:tickets.length-unassessed,unassessed,
       openPRTickets:tickets.filter(t => (t.prs || []).some(isOpen)).length,
-      mergedPRs:tickets.reduce((n,t) => n + (t.prs || []).filter(isMerged).length,0),
-      decisions:tickets.filter(t => /decision|clarification/i.test(t.category || '')).length};
+      mergedPRs:new Set(tickets.flatMap(t => (t.prs || []).filter(isMerged).map(p => `${t.repo}#${p.number}`))).size,
+      decisions:tickets.filter(t => /decision|clarification/i.test(t.category || '') && openActions(t).length).length};
   }
   function safeGithubUrl(value) {
     try {
@@ -136,12 +137,12 @@
         const meta = el('p',`${ticket.category || 'Needs assessment'} · ${stage(ticket)}`,'tw-meta');
         const action = el('p',actionText(ticket),'tw-action');
         const owner = el('p',`Action owner: ${ticket.owner || openActions(ticket)[0]?.owner || 'Owner needed'}`,'tw-meta');
-        const blockers = openActions(ticket).filter(item => /block|decision|clarif|depend/i.test(item.text) && item.text !== actionText(ticket));
+        const blockers = openActions(ticket).filter(item => (item.blocking || /block|decision|clarif|depend/i.test(item.text)) && item.text !== actionText(ticket));
         const blocker = el('p',blockers.length ? `Also outstanding: ${blockers.map(item => item.text).join(' · ')}` : '', 'tw-meta');
         blocker.hidden = !blockers.length;
         const prs = el('div',null,'tw-prs');
         for (const pr of ticket.prs || []) prs.append(link(`PR #${pr.number} · ${pr.state}${pr.isDraft ? ' · Draft' : ''}`,pr.url));
-        const freshness = el('p',`Observed ${date(ticket.observedAt)} · Assessment ${ticket.assessmentDate || snapshot.assessmentDate || 'Not assessed'}`,'tw-meta');
+        const freshness = el('p',`Observed ${date(ticket.observedAt)} · Assessment ${ticket.assessmentDate || 'Not assessed'}`,'tw-meta');
         const details = el('details'); details.open = expanded.has(key);
         const outstanding = openActions(ticket);
         details.append(el('summary',`Assessment, evidence and ${outstanding.length} outstanding action${outstanding.length === 1 ? '' : 's'}`));
