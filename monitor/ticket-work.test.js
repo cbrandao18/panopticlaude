@@ -37,3 +37,27 @@ test('explicit action ranks survive wording and closed decisions are not waiting
   assert.deepEqual(filterTickets([low,high]).map(t=>t.number),[2,1]);
   assert.equal(summarize([{...base,state:'CLOSED',category:'Needs decision or clarification',actions:[]}]).decisions,0);
 });
+
+test('review shortlist uses judgment, deduplicates PRs and separates live blockers', () => {
+  const { reviewQueue } = require('./ticket-work');
+  const pr=(number,ci='success')=>({number,head:'abc',state:'OPEN',ci,review:'REVIEW_REQUIRED',isDraft:true});
+  const rows=[{...base,prs:[pr(1),pr(2,'failure'),pr(3),pr(4),pr(5)]},{...base,number:14,prs:[pr(1)]}];
+  const judgment=(pr,rank,head='abc')=>({pr,rank,head,assessedAt:new Date().toISOString(),reason:'Customer impact',nextAction:'Verify',source:`https://github.com/gobranch/branch/pull/${pr}`});
+  const queue=reviewQueue(rows,[judgment(1,2),judgment(2,1),judgment(3,3,'old'),{...judgment(4,4),excludedReason:'Test only'}]);
+  assert.deepEqual(queue.ready.map(r=>r.pr.number),[1]);
+  assert.deepEqual(queue.blocked.map(r=>r.pr.number),[2]);
+  assert.deepEqual(queue.unranked.map(r=>r.pr.number),[3,5]);
+  assert.equal(queue.excluded.length,1);
+});
+test('closed PRs leave shortlist and old judgments require reassessment', () => {
+  const { reviewQueue }=require('./ticket-work');
+  const old={pr:1,rank:1,head:'abc',assessedAt:'2020-01-01',reason:'Impact',nextAction:'Review'};
+  const row={...base,prs:[{number:1,head:'abc',state:'OPEN',ci:'success'},{number:2,state:'MERGED'}]};
+  const q=reviewQueue([row],[old]);
+  assert.equal(q.ready.length,0);assert.equal(q.unranked.length,1);
+});
+test('a changed excluded PR needs reassessment instead of keeping an old exclusion', () => {
+  const {reviewQueue}=require('./ticket-work');
+  const q=reviewQueue([{...base,prs:[{number:1,state:'OPEN',head:'new'}]}],[{pr:1,rank:1,head:'old',assessedAt:new Date().toISOString(),excludedReason:'Do not merge test'}]);
+  assert.equal(q.excluded.length,0);assert.equal(q.unranked.length,1);
+});

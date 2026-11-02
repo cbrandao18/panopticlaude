@@ -50,3 +50,13 @@ test('a refresh subprocess failure remains visible even before wrapper health ex
   assert.match(ticketData(dir).health.error,/could not complete/);
   assert(!ticketData(dir).health.error.includes('private raw output'));
 });
+test('judgment metadata validates independently without discarding live status', t => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tickets-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const file=path.join(dir,'priorities.json');
+  fs.writeFileSync(file,JSON.stringify([{pr:1,rank:1,head:'a'.repeat(40),reason:'Impact',nextAction:'Review',assessedAt:new Date().toISOString(),source:'https://github.com/gobranch/branch/pull/1'}]));
+  assert.equal(ticketData(dir,file).priorities.length,1);
+  fs.writeFileSync(file,JSON.stringify([{pr:1,rank:1,source:'javascript:evil'}]));
+  assert.equal(ticketData(dir,file).priorities.length,0);
+  assert.match(ticketData(dir,file).priorityError,/priorit/i);
+});

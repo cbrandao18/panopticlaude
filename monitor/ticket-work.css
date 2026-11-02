@@ -24,3 +24,9 @@
   #ticket-work h2 { font-size: 19px; }
   #ticket-work .tw-ticket { padding: 12px; }
 }
+#ticket-work .tw-priority { border: 1px solid var(--border); border-radius: 9px; padding: 16px; margin: 18px 0; background: #141d18; }
+#ticket-work .tw-review-list { padding-left: 24px; margin: 12px 0 0; }
+#ticket-work .tw-review-list > li { padding: 10px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+#ticket-work .tw-review-list > li > a { font-weight: 600; }
+#ticket-work .tw-review-why { font-size: 14px; line-height: 1.5; margin: 6px 0; }
+#ticket-work .tw-review-list .tw-action { font-size: 13px; margin: 4px 0; }

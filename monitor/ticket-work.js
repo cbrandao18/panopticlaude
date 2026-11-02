@@ -44,13 +44,34 @@
       mergedPRs:new Set(tickets.flatMap(t => (t.prs || []).filter(isMerged).map(p => `${t.repo}#${p.number}`))).size,
       decisions:tickets.filter(t => /decision|clarification/i.test(t.category || '') && openActions(t).length).length};
   }
+  function reviewQueue(tickets, judgments = [], now = Date.now()) {
+    const recommendations = new Map(judgments.map(r => [r.pr, r]));
+    const unique = new Map();
+    for (const ticket of tickets) for (const pr of ticket.prs || []) {
+      if (isOpen(pr) && !unique.has(pr.number)) unique.set(pr.number, { pr, ticket });
+    }
+    const queue = { ready: [], blocked: [], unranked: [], excluded: [] };
+    for (const entry of unique.values()) {
+      const r = recommendations.get(entry.pr.number);
+      entry.judgment = r;
+      if (!r || r.head !== entry.pr.head || !Number.isFinite(Date.parse(r.assessedAt)) || now - Date.parse(r.assessedAt) > 7 * 86400000) {
+        entry.blocker = r ? 'Reassess priority: the PR changed or its judgment is over seven days old.' : 'Not yet prioritized.';
+        queue.unranked.push(entry); continue;
+      }
+      if (r?.excludedReason) { entry.blocker = r.excludedReason; queue.excluded.push(entry); continue; }
+      entry.blocker = [r.blockedReason, entry.pr.ci !== 'success' ? `CI ${entry.pr.ci || 'unknown'}` : '', entry.pr.review === 'CHANGES_REQUESTED' ? 'Changes requested' : ''].filter(Boolean).join(' · ');
+      queue[entry.blocker ? 'blocked' : 'ready'].push(entry);
+    }
+    for (const rows of Object.values(queue)) rows.sort((a,b) => (a.judgment?.rank ?? Infinity) - (b.judgment?.rank ?? Infinity) || a.pr.number - b.pr.number);
+    return queue;
+  }
   function safeGithubUrl(value) {
     try {
       const url = new URL(value);
       return url.protocol === 'https:' && url.hostname === 'github.com' && !url.port && !url.username && !url.password && /^\/[^/]+\/[^/]+\/(issues|pull)\/\d+(?:\/[^?#]*)?$/.test(url.pathname) ? url.href : null;
     } catch { return null; }
   }
-  if (typeof module !== 'undefined' && module.exports) module.exports = {stage,filterTickets,summarize,safeGithubUrl};
+  if (typeof module !== 'undefined' && module.exports) module.exports = {stage,filterTickets,summarize,safeGithubUrl,reviewQueue};
   if (typeof document === 'undefined') return;
   function boot() {
     const root = document.getElementById('ticket-work');
@@ -75,6 +96,7 @@
     const refresh = el('button','Refresh GitHub','secondary'); refresh.type = 'button';
     heading.append(title,refresh);
     const health = el('p',null,'tw-health'); health.setAttribute('role','status');
+    const priorityPanel = el('section',null,'tw-priority'); priorityPanel.setAttribute('aria-label','Review first');
     const filters = el('div',null,'tw-filters');
     const controls = {};
     function control(name,label,options) {
@@ -98,9 +120,42 @@
     const more = el('button','Show all records','secondary'); more.type = 'button';
     more.addEventListener('click',() => { showAll = !showAll; render(); });
     const note = el('p','Merged PRs do not confirm production deployment or full issue resolution.','tw-note');
-    root.append(heading,health,filters,summary,count,list,more,note);
+    root.append(heading,health,priorityPanel,el('h3','All ticket next actions'),filters,summary,count,list,more,note);
     let data = null, showAll = false, fetching = false, lastRecords = '', pendingRender = false;
     const expanded = new Set();
+    let priorityKey = '';
+    function renderPriorities(tickets) {
+      const queue = reviewQueue(tickets, data?.priorities || []);
+      const key = JSON.stringify([queue,data?.priorityError,data?.stale,controls.project.value]);
+      if (priorityKey === key || priorityPanel.contains(document.activeElement)) return;
+      priorityKey = key;
+      const openDetails = [...priorityPanel.querySelectorAll('details')].map(d => d.open);
+      const title = el('h3','Review first');
+      const description = el('p','Best value to move forward now: customer impact, urgency, scope and remaining work. Judgment-based; not the board priority score. Drafts still need verification.','tw-meta');
+      const status = el('p',data?.priorityError || (data?.stale ? 'GitHub status is stale. Refresh before acting.' : 'Live CI and requested changes move blocked PRs out of the first five.'),'tw-meta');
+      function cards(rows, numbered = false) {
+        const out = el(numbered ? 'ol' : 'ul',null,'tw-review-list');
+        for (const {pr,judgment,blocker} of rows) {
+          const item = el('li');
+          item.append(link(`#${pr.number} ${pr.title}`,pr.url));
+          if (judgment) item.append(el('p',judgment.reason,'tw-review-why'));
+          item.append(el('p',blocker || `Next: ${judgment?.nextAction || 'Assess the PR.'}`,'tw-action'));
+          if (blocker && judgment) item.append(el('p',`Next: ${judgment.nextAction}`,'tw-meta'));
+          const reviewLabel = { APPROVED: 'Human review approved', CHANGES_REQUESTED: 'Changes requested', REVIEW_REQUIRED: 'Human review needed', UNKNOWN: 'Human review unverified' }[pr.review] || 'Human review unverified';
+          const ciLabel = { success: 'passed', failure: 'failed', pending: 'pending' }[pr.ci] || 'unknown';
+          item.append(el('p',`${pr.isDraft ? 'Draft' : 'Open'} · CI ${ciLabel} · ${reviewLabel}${judgment ? ` · Judged ${date(judgment.assessedAt)}` : ''}`,'tw-meta'));
+          out.append(item);
+        }
+        return out;
+      }
+      const waiting = el('details'); waiting.open = openDetails[0] || false;
+      waiting.append(el('summary',`Important but blocked (${queue.blocked.length})`),cards(queue.blocked));
+      const other = el('details'); other.open = openDetails[1] || false;
+      const rest = [...queue.ready.slice(5),...queue.unranked,...queue.excluded];
+      other.append(el('summary',`Other open PRs / needs reassessment (${rest.length})`),cards(rest));
+      priorityPanel.replaceChildren(title,description,status,queue.ready.length ? cards(queue.ready.slice(0,5),true) : el('p','No current, unblocked recommendations in this sub-project.'),waiting,other);
+    }
+
     function updateOptions(name,values,label) {
       const node = controls[name]; const selected = node.value;
       const options = ['',...new Set(values)].sort((a,b) => a.localeCompare(b));
@@ -114,12 +169,13 @@
       refresh.textContent = refresh.disabled ? 'Refreshing…' : 'Refresh GitHub';
       health.classList.toggle('tw-warning',!!data?.stale || !!data?.health?.error || !snapshot);
       health.textContent = [snapshot ? `Last successful refresh: ${date(snapshot.refreshedAt)}.` : 'Unavailable — no successful snapshot.',data?.stale ? 'Data needs a successful refresh.' : '',data?.health?.error ? `Refresh failed: ${data.health.error}` : '',data?.health?.running ? 'Refresh in progress.' : '',data?.health?.lastAttemptAt ? `Last attempt: ${date(data.health.lastAttemptAt)}.` : ''].filter(Boolean).join(' ');
-      if (!snapshot) { summary.textContent = 'Ticket counts unavailable.'; count.textContent = ''; list.replaceChildren(); more.hidden = true; return; }
+      if (!snapshot) { priorityPanel.replaceChildren(el('p','PR recommendations unavailable until ticket status loads.')); priorityKey = ''; summary.textContent = 'Ticket counts unavailable.'; count.textContent = ''; list.replaceChildren(); more.hidden = true; return; }
       updateOptions('category',snapshot.tickets.map(t => t.category || 'Unknown'),'All categories');
       updateOptions('owner',snapshot.tickets.map(t => t.owner || 'Owner needed'),'All owners');
       const selected = Object.fromEntries(Object.entries(controls).map(([key,node]) => [key,node.value]));
       const project = snapshot.projects.find(p => p.id === selected.project);
       const projectTickets = snapshot.tickets.filter(t => !selected.project || t.projects.includes(selected.project));
+      renderPriorities(projectTickets);
       const totals = summarize(projectTickets);
       summary.textContent = project && !project.assessed ? `${project.name}: Not assessed. Assessment and implementation have not been run.` : `${totals.tickets} tickets · ${totals.assessed} assessed · ${totals.unassessed} unassessed · ${totals.openPRTickets} tickets with open PRs · ${totals.mergedPRs} merged PRs · ${totals.decisions} awaiting decisions`;
       const matches = filterTickets(snapshot.tickets,selected);

@@ -17,7 +17,22 @@ function validSnapshot(data) {
       Array.isArray(t.prs) && t.prs.every(p => textFields(p, ['title','url','state','head','ci','review']) && Number.isInteger(p.number) && typeof p.isDraft === 'boolean' && strings(p.reviewers)));
 }
 let refreshError = null;
-function ticketData(dir = stateDir) {
+function readPriorities(file) {
+  try {
+    const rows = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const seen = new Set();
+    if (!Array.isArray(rows) || !rows.every(r => {
+      if (!r || !Number.isInteger(r.pr) || r.pr <= 0 || seen.has(r.pr) || !Number.isInteger(r.rank) || r.rank < 1) return false;
+      seen.add(r.pr);
+      return ['head','reason','nextAction','assessedAt','source'].every(k => typeof r[k] === 'string' && r[k].length > 0 && r[k].length <= 900) &&
+        /^[a-f0-9]{40}$/.test(r.head) && Number.isFinite(Date.parse(r.assessedAt)) &&
+        r.source === `https://github.com/gobranch/branch/pull/${r.pr}` &&
+        ['blockedReason','excludedReason'].every(k => r[k] === undefined || (typeof r[k] === 'string' && r[k].length <= 900));
+    })) throw Error('Invalid priorities');
+    return { priorities: rows, priorityError: null };
+  } catch { return { priorities: [], priorityError: 'PR priorities need assessment or repair. Live ticket status remains available.' }; }
+}
+function ticketData(dir = stateDir, priorityFile = path.join(os.homedir(), 'branch-agents/projects/process-updates/github-ticket-work/pr-priorities.json')) {
   let snapshot = null;
   let health = { error: null, running: false, lastAttemptAt: null };
   try { health = { ...health, ...JSON.parse(fs.readFileSync(path.join(dir, 'health.json'), 'utf8')) }; }
@@ -32,7 +47,7 @@ function ticketData(dir = stateDir) {
     health.error ||= 'Last refresh did not finish. Retry Refresh.';
   }
   health.error ||= refreshError;
-  return { snapshot, health, stale: !snapshot || Boolean(health.error) || Date.now() - Date.parse(snapshot.refreshedAt) > 30 * 60 * 1000 };
+  return { snapshot, health, ...readPriorities(priorityFile), stale: !snapshot || Boolean(health.error) || Date.now() - Date.parse(snapshot.refreshedAt) > 30 * 60 * 1000 };
 }
 function createRefresh(run = () => promisify(execFile)('/opt/homebrew/bin/python3', [wrapper], { timeout: 700000, maxBuffer: 1024 * 1024 })) {
   let running = false;
