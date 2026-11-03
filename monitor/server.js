@@ -9,6 +9,7 @@ const { promisify } = require('node:util');
 const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { ticketData, startRefresh } = require('./ticket-work-api');
+const { createMapReader } = require('./map-api');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -57,6 +58,9 @@ const assets = {
   '/app.js': ['app.js', 'text/javascript'],
   '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
   '/ticket-work.css': ['ticket-work.css', 'text/css'],
+  '/map': ['map.html', 'text/html'],
+  '/map.js': ['map.js', 'text/javascript'],
+  '/map.css': ['map.css', 'text/css'],
   '/style.css': ['style.css', 'text/css']
 };
 
@@ -221,6 +225,7 @@ function createMonitor({
   run,
   readTickets = ticketData,
   refreshTickets = startRefresh,
+  readMap = createMapReader(),
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
@@ -260,6 +265,9 @@ function createMonitor({
         req.resume();
         const started = refreshTickets();
         return send(202, { started, message: started ? 'Refresh started.' : 'Refresh already running.' });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/map') {
+        return send(200, await readMap());
       }
       if (req.method === 'GET' && url.pathname === '/api/status') {
         const rows = await Promise.all(jobs.map((job) => jobStatus(job, { run, readSeen })));
