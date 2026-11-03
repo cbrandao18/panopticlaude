@@ -19,12 +19,13 @@ const SCRIPT = [
 
 const slackLink = (ts) => `https://team-branch.slack.com/archives/${CHANNEL}/p${ts.replace('.', '')}`;
 
-// Reads locally when this host has the log (the VM), otherwise over Coder SSH from the Mac.
-function readSource(run = exec) {
+// Runs locally when this host has the log (the VM), otherwise over Coder SSH from the Mac.
+function runOnHost(script, run = exec) {
   const local = fs.existsSync(path.join(os.homedir(), 'orca/projects/daily-brief/ease.log'));
-  const [cmd, args] = local ? ['/bin/sh', ['-c', SCRIPT]] : ['coder', ['ssh', 'branch-ec2.main', '--', SCRIPT]];
+  const [cmd, args] = local ? ['/bin/sh', ['-c', script]] : ['coder', ['ssh', 'branch-ec2.main', '--', script]];
   return run(cmd, args, { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }).then((r) => r.stdout);
 }
+const readSource = () => runOnHost(SCRIPT);
 
 function parse(text) {
   const [logPart, rest = ''] = `\n${text}`.split('\n@@TODO\n');
@@ -65,9 +66,12 @@ function buildPost(ts, events, { todo, drafts }, ws, prStates) {
     else if (last.kind === 'clear') actions.push({ text: 'Dev deploy and live check, then mark the PR ready', state: 'open', url: prUrl });
     else actions.push({ text: 'Agent is running the Devlo review and CI', state: 'waiting', url: prUrl });
   }
-  if (events.some((e) => e.kind === 'not-easy')) {
+  const filed = events.findLast((e) => e.kind === 'filed');
+  if (filed) {
+    actions.push({ text: `Ticket filed: ${filed.text}`, state: 'done', url: /https:\/\/github\.com\/\S+/.exec(filed.text)?.[0] });
+  } else if (events.some((e) => e.kind === 'not-easy')) {
     actions.push(todoLine
-      ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', draft }
+      ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', draft, canFile: Boolean(ticketFromDraft(draft)) }
       : { text: 'Ticket draft decided (removed from todo.md)', state: 'done' });
   }
   if (events.some((e) => e.kind === 'drafted')) {
@@ -92,6 +96,46 @@ function buildPost(ts, events, { todo, drafts }, ws, prStates) {
     events: events.map(({ time, kind, text }) => ({ time, kind, text })),
     actions
   };
+}
+
+// The draft's "## Paste-ready ticket draft" section: an optional "Title:" line (bold or plain, else the
+// draft's # heading), then the template's ### fields, possibly wrapped in a code fence.
+function ticketFromDraft(draft) {
+  const m = /^## Paste-ready ticket draft.*$/m.exec(draft || '');
+  if (!m) return null;
+  const section = draft.slice(m.index + m[0].length).split(/^## /m)[0];
+  const first = section.search(/^### /m);
+  if (first < 0) return null;
+  const title = (/^(?:\*\*Title:\*\*|Title:)\s*(.+)$/m.exec(section.slice(0, first)) || /^# (.+)$/m.exec(draft))?.[1].trim();
+  const body = section.slice(first).replace(/\n```\s*$/, '').trim();
+  return title ? { title, body } : null;
+}
+
+// Files the drafted ticket as the gh user, unless the post is already on GitHub, then logs it and
+// drops the todo.md line on the VM so the brief and this page both show it decided.
+async function fileTicket(ts, { source = readSource, host = runOnHost, run = exec } = {}) {
+  if (!/^\d+\.\d+$/.test(ts)) throw Object.assign(new Error('Unknown post.'), { status: 400 });
+  const id = ts.replace('.', '');
+  const parsed = parse(await source());
+  if (parsed.events.some((e) => e.ts === ts && e.kind === 'filed')) throw Object.assign(new Error('Already filed.'), { status: 409 });
+  const ticket = ticketFromDraft(parsed.drafts[id]);
+  if (!ticket) throw Object.assign(new Error('No ticket draft found for this post.'), { status: 404 });
+  const gh = (args) => run('/opt/homebrew/bin/gh', args, { timeout: 30000 }).then((r) => r.stdout);
+  const existing = JSON.parse(await gh(['search', 'issues', '--repo', 'gobranch/branch', '--include-prs', `p${id}`, '--json', 'url']));
+  if (existing.length) throw Object.assign(new Error(`Already on GitHub: ${existing.map((e) => e.url).join(' ')}`), { status: 409 });
+  const issue = JSON.parse(await gh(['api', 'repos/gobranch/branch/issues', '-f', `title=${ticket.title}`, '-f', `body=${ticket.body}`, '-f', 'type=Story']));
+  const url = issue.html_url;
+  if (!/^https:\/\/github\.com\/gobranch\/branch\/issues\/\d+$/.test(url)) return { url, number: issue.number, warning: 'Filed, but the VM log and todo.md were not updated.' };
+  try {
+    await host([
+      'cd ~/orca/projects/daily-brief || exit 1',
+      `printf '%s filed ${ts}: #${issue.number} ${url}\\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" >> ease.log`,
+      `grep -v 'todo/ease-${id}\\.md' todo.md > todo.md.tmp; mv todo.md.tmp todo.md`
+    ].join('\n'));
+  } catch {
+    return { url, number: issue.number, warning: 'Filed, but the VM log and todo.md were not updated.' };
+  }
+  return { url, number: issue.number };
 }
 
 async function readPrStates(numbers, run = exec) {
@@ -124,7 +168,7 @@ async function easeData({ source = readSource, readMap, prStates = readPrStates 
 function createEaseReader(options = {}, ttl = 60000) {
   let cached = null;
   let pending = null;
-  return () => {
+  const read = () => {
     if (cached && Date.now() - cached.refreshedAt < ttl) return Promise.resolve(cached);
     pending ||= easeData(options)
       .then((data) => (cached = data))
@@ -132,6 +176,8 @@ function createEaseReader(options = {}, ttl = 60000) {
       .finally(() => { pending = null; });
     return pending;
   };
+  read.clear = () => { cached = null; };
+  return read;
 }
 
-module.exports = { parse, buildPost, easeData, createEaseReader };
+module.exports = { parse, buildPost, easeData, createEaseReader, ticketFromDraft, fileTicket };

@@ -4,7 +4,7 @@
   const root = document.getElementById('ease');
   if (!root) return;
   const LABELS = {
-    started: 'Started a workspace', skipped: 'Skipped', 'not-easy': 'Not an easy win', pr: 'Opened a draft PR',
+    started: 'Started a workspace', filed: 'You filed the ticket', skipped: 'Skipped', 'not-easy': 'Not an easy win', pr: 'Opened a draft PR',
     clear: 'Devlo clear, CI green', blocked: 'Blocked', drafted: 'Saved a Slack reply draft', 'dry-run': 'Dry run'
   };
   const WHOSE = { you: 'Needs you', agent: 'Agent working', closed: 'Closed' };
@@ -38,11 +38,47 @@
     if (text) li.append(document.createTextNode(`: ${text}`));
     return li;
   }
-  function actionLeaf(a) {
+  const filing = new Set();
+  function fileButton(ts) {
+    const wrap = el('span', null, 'ease-file');
+    const button = el('button', filing.has(ts) ? 'Filing…' : 'File ticket as drafted', 'secondary ease-file-button');
+    button.type = 'button';
+    button.disabled = filing.has(ts);
+    const status = el('span', null, 'ease-muted');
+    status.setAttribute('role', 'status');
+    button.addEventListener('click', async () => {
+      if (!confirm('File this ticket in gobranch/branch as you, exactly as drafted?')) return;
+      filing.add(ts);
+      button.disabled = true;
+      button.textContent = 'Filing…';
+      try {
+        const res = await fetch('/api/ease/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
+          body: JSON.stringify({ ts })
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
+        filing.delete(ts);
+        await load();
+        if (body.warning) alert(`Filed #${body.number}. ${body.warning}`);
+      } catch (error) {
+        filing.delete(ts);
+        button.disabled = false;
+        button.textContent = 'File ticket as drafted';
+        status.textContent = ` ${error.message}`;
+        status.className = 'ease-error';
+      }
+    });
+    wrap.append(button, status);
+    return wrap;
+  }
+  function actionLeaf(a, ts) {
     const li = el('li', null, `ease-leaf ease-action ease-${a.state}`);
     li.append(el('span', { open: 'To do', done: 'Done', waiting: 'Agent', unknown: 'Check' }[a.state], 'ease-state'));
     li.append(a.url ? link(a.url, a.text) : el('span', a.text));
     if (a.state === 'unknown') li.append(el('span', ' (sent status isn’t tracked)', 'ease-muted'));
+    if (a.canFile) li.append(fileButton(ts));
     if (a.draft) {
       const d = el('details', null, 'ease-draft');
       d.append(el('summary', 'Read the ticket draft'), el('pre', a.draft));
@@ -59,7 +95,7 @@
     s.append(el('span', WHOSE[p.whose], 'ease-badge'), el('span', p.title, 'ease-title'));
     s.append(el('span', [p.priority, time(p.updatedAt)].filter(Boolean).join(' · '), 'ease-muted'));
     const tree = el('ul', null, 'ease-tree');
-    const you = p.actions.length ? p.actions.map(actionLeaf) : [el('li', 'Nothing for you', 'ease-leaf ease-muted')];
+    const you = p.actions.length ? p.actions.map((a) => actionLeaf(a, p.ts)) : [el('li', 'Nothing for you', 'ease-leaf ease-muted')];
     tree.append(branch('Agent', 'ease-agent', p.events.map(eventLeaf)), branch('You', 'ease-you', you));
     const foot = el('p', null, 'ease-muted ease-foot');
     foot.append(link(p.link, 'Slack post'));

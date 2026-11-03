@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { easeData } = require('./ease-api');
+const { easeData, fileTicket, ticketFromDraft } = require('./ease-api');
 const { createMonitor } = require('./server');
 
 const SOURCE = `2026-11-01T09:00:00-0500 skipped 1111.000001: already ticketed as #1
@@ -20,6 +20,18 @@ const SOURCE = `2026-11-01T09:00:00-0500 skipped 1111.000001: already ticketed a
 # Sample ask title
 
 - Priority: **Medium**.
+
+## Paste-ready ticket draft
+
+**Title:** Area - Thing: sample ticket title
+
+### Describe the problem or pain point you are experiencing. Why is this a problem?
+
+Sample problem. https://team-branch.slack.com/archives/C02MK5V05CJ/p2222000002
+
+### Requested By
+
+Member Support
 `;
 
 const map = async () => ({ hosts: [{ workspaces: [
@@ -65,4 +77,62 @@ test('/api/ease serves the reader', async (t) => {
   t.after(() => new Promise((r) => server.close(r)));
   const res = await fetch(`http://127.0.0.1:${server.address().port}/api/ease`);
   assert.equal((await res.json()).posts[0].ts, '1.2');
+});
+
+test('ticketFromDraft takes the title line and the ### fields', () => {
+  const t = ticketFromDraft(SOURCE.split('@@DRAFT todo/ease-2222000002.md\n')[1]);
+  assert.equal(t.title, 'Area - Thing: sample ticket title');
+  assert.match(t.body, /^### Describe the problem/);
+  assert.match(t.body, /### Requested By\n\nMember Support$/);
+  assert.equal(ticketFromDraft('# no ticket section'), null);
+  const plain = ticketFromDraft('# H1 title\n\n## Paste-ready ticket draft (02-stakeholder-request)\n\nTitle: Plain title\n\n### OKR\n\nx\n');
+  assert.deepEqual(plain, { title: 'Plain title', body: '### OKR\n\nx' });
+  const fenced = ticketFromDraft('# H1 title\n\n## Paste-ready ticket draft\n\n```\n### OKR\n\nx\n```\n');
+  assert.deepEqual(fenced, { title: 'H1 title', body: '### OKR\n\nx' });
+});
+
+test('fileTicket files a Story, logs it and drops the todo line', async () => {
+  const calls = [];
+  const run = async (cmd, args) => {
+    calls.push(args);
+    if (args[0] === 'search') return { stdout: '[]' };
+    return { stdout: JSON.stringify({ number: 123, html_url: 'https://github.com/gobranch/branch/issues/123' }) };
+  };
+  let script = '';
+  const result = await fileTicket('2222.000002', { source: async () => SOURCE, host: async (s) => { script = s; }, run });
+  assert.deepEqual(result, { url: 'https://github.com/gobranch/branch/issues/123', number: 123 });
+  const create = calls.find((a) => a[0] === 'api');
+  assert.ok(create.includes('title=Area - Thing: sample ticket title') && create.includes('type=Story'));
+  assert.match(script, /filed 2222\.000002: #123 https:\/\/github\.com\/gobranch\/branch\/issues\/123/);
+  assert.match(script, /grep -v 'todo\/ease-2222000002\\.md' todo\.md/);
+});
+
+test('fileTicket refuses posts already on GitHub, already filed, or without a draft', async () => {
+  const run = async () => ({ stdout: '[{"url":"https://github.com/gobranch/branch/issues/9"}]' });
+  await assert.rejects(fileTicket('2222.000002', { source: async () => SOURCE, host: async () => {}, run }), { status: 409, message: /issues\/9/ });
+  const filed = SOURCE.replace('@@TODO', '2026-11-02T10:00:00-0500 filed 2222.000002: #5 https://github.com/gobranch/branch/issues/5\n@@TODO');
+  await assert.rejects(fileTicket('2222.000002', { source: async () => filed, run }), { status: 409 });
+  await assert.rejects(fileTicket('4444.000004', { source: async () => SOURCE, run }), { status: 404 });
+  await assert.rejects(fileTicket('x; rm -rf ~', { source: async () => SOURCE, run }), { status: 400 });
+});
+
+test('a filed ticket closes the decide action', async () => {
+  const filed = SOURCE.replace('@@TODO', '2026-11-02T10:00:00-0500 filed 2222.000002: #5 https://github.com/gobranch/branch/issues/5\n@@TODO');
+  const data = await easeData({ source: async () => filed, prStates: async () => ({}) });
+  const action = data.posts.find((p) => p.ts === '2222.000002').actions[0];
+  assert.equal(action.state, 'done');
+  assert.equal(action.url, 'https://github.com/gobranch/branch/issues/5');
+});
+
+test('/api/ease/file requires the monitor header and files once', async (t) => {
+  const filed = [];
+  const server = createMonitor({ jobs: [], readMap: async () => ({ hosts: [] }), readEase: async () => ({ posts: [] }), fileEase: async (ts) => { filed.push(ts); return { number: 1 }; } });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server.close(r)));
+  const url = `http://127.0.0.1:${server.address().port}/api/ease/file`;
+  const body = JSON.stringify({ ts: '1.2' });
+  assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).status, 403);
+  assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1', Origin: 'https://evil.example' }, body })).status, 403);
+  assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body })).status, 201);
+  assert.deepEqual(filed, ['1.2']);
 });

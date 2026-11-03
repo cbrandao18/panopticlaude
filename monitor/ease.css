@@ -38,3 +38,6 @@
 #ease .ease-panel > .ease-muted { margin: 8px 0 0; }
 #ease .ease-draft { margin: 4px 0 0 54px; }
 #ease .ease-draft summary { font-size: 12px; }
+#ease .ease-file { display: block; margin: 6px 0 0 54px; }
+#ease .ease-file-button { font-size: 13px; padding: 6px 12px; }
+#ease .ease-file .ease-error { font-size: 13px; }
