@@ -10,6 +10,7 @@ const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader } = require('./map-api');
+const { createEaseReader } = require('./ease-api');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -58,6 +59,8 @@ const assets = {
   '/app.js': ['app.js', 'text/javascript'],
   '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
   '/ticket-work.css': ['ticket-work.css', 'text/css'],
+  '/ease.js': ['ease.js', 'text/javascript'],
+  '/ease.css': ['ease.css', 'text/css'],
   '/map': ['map.html', 'text/html'],
   '/map.js': ['map.js', 'text/javascript'],
   '/map.css': ['map.css', 'text/css'],
@@ -226,6 +229,7 @@ function createMonitor({
   readTickets = ticketData,
   refreshTickets = startRefresh,
   readMap = createMapReader(),
+  readEase = createEaseReader({ readMap }),
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
@@ -265,6 +269,9 @@ function createMonitor({
         req.resume();
         const started = refreshTickets();
         return send(202, { started, message: started ? 'Refresh started.' : 'Refresh already running.' });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/ease') {
+        return send(200, await readEase());
       }
       if (req.method === 'GET' && url.pathname === '/api/map') {
         return send(200, await readMap());

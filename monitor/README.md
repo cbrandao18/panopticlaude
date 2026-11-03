@@ -17,6 +17,7 @@ Orca jobs read their schedule, enabled state, run history, saved output, and err
 
 ## What the page tells you
 
+- **Ease & effort** lists each #ease-and-effort post the `ease-effort-watch` automation handled, as a tree: the agent's logged steps, then your next moves (decide a ticket draft, dev deploy and mark a PR ready, send the saved Slack reply). It reads `ease.log`, `todo.md` and `todo/ease-*.md` in `~/orca/projects/daily-brief` on the VM over `coder ssh branch-ec2.main` (or locally when the log is on this host), joins Orca workspace names and `gh` PR state, and refreshes every minute. A ticket draft counts as decided once its line leaves `todo.md`; whether you sent the Slack reply isn't tracked.
 - **Run finished** means Orca marked the latest run completed, including manual test runs. Read its saved output or the run log to confirm the work succeeded. Active runs take precedence over a paused schedule; paused jobs have no next run.
 - **Exit 0** means launchd reports a successful process exit. It doesn’t prove the bot completed its intended work. Read the run history or agent output for that.
 - **Last log activity** comes from the run log’s modification time, not a recorded start or finish event. **Log overdue** means it hasn’t changed since the latest scheduled run, with a 15-minute grace period.

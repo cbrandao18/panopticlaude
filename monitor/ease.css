@@ -1,0 +1,40 @@
+#ease { margin: 32px 0; border-top: 1px solid var(--border); padding-top: 24px; }
+#ease .ease-panel > summary { cursor: pointer; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
+#ease .ease-panel > summary h2 { margin: 0; font-size: 22px; }
+#ease summary:focus-visible { outline: 2px solid #cae7d2; outline-offset: 4px; }
+#ease .ease-muted { color: var(--muted); font-size: 13px; line-height: 1.6; }
+#ease .ease-error { color: #f2cf91; font-size: 14px; }
+#ease .ease-posts { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 12px; }
+#ease .ease-post > details { background: #181f1b; border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; overflow-wrap: anywhere; }
+#ease .ease-post.ease-you > details { border-color: #6b5a33; }
+#ease .ease-post > details > summary { cursor: pointer; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+#ease .ease-title { font-weight: 600; font-size: 15px; }
+#ease .ease-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 8px; background: #26302a; color: var(--muted); }
+#ease .ease-you .ease-badge { background: #4a3d1f; color: #f2cf91; }
+#ease .ease-agent .ease-badge { background: #1f3a2a; color: var(--green); }
+
+/* Tree: each nested list hangs off a vertical rule, each item off a short horizontal tick. */
+#ease .ease-tree, #ease .ease-tree ul { list-style: none; margin: 0; padding-left: 18px; }
+#ease .ease-tree { margin-top: 12px; padding-left: 4px; }
+#ease .ease-tree li { position: relative; padding: 3px 0 3px 14px; border-left: 1px solid var(--border); font-size: 13px; line-height: 1.55; }
+#ease .ease-tree li:last-child { border-left-color: transparent; }
+#ease .ease-tree li::before { content: ''; position: absolute; left: -1px; top: 0; width: 10px; height: 14px; border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); border-bottom-left-radius: 4px; }
+#ease .ease-branch-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+#ease .ease-you > .ease-branch-label { color: #f2cf91; }
+#ease .ease-time { color: var(--muted); margin-right: 8px; font-variant-numeric: tabular-nums; }
+#ease .ease-state { display: inline-block; min-width: 46px; margin-right: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+#ease .ease-open .ease-state { color: #f2cf91; }
+#ease .ease-done { color: var(--muted); }
+#ease .ease-done .ease-state { color: var(--green); }
+#ease .ease-draft { margin-top: 6px; }
+#ease .ease-draft summary { cursor: pointer; color: #c3d1c8; }
+#ease .ease-draft pre { white-space: pre-wrap; background: #121814; border: 1px solid var(--border); border-radius: 7px; padding: 12px; margin: 8px 0 0; max-height: 420px; overflow: auto; font-size: 12px; }
+#ease .ease-foot { margin: 10px 0 0; }
+#ease a { color: var(--green); }
+#ease a:focus-visible { outline: 2px solid #cae7d2; outline-offset: 2px; }
+/* Override the page-wide details/summary spacing and muted color. */
+#ease details { margin-top: 0; }
+#ease summary { margin-bottom: 0; color: inherit; font-size: inherit; }
+#ease .ease-panel > .ease-muted { margin: 8px 0 0; }
+#ease .ease-draft { margin: 4px 0 0 54px; }
+#ease .ease-draft summary { font-size: 12px; }

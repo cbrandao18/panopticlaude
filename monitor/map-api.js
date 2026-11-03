@@ -30,6 +30,7 @@ function workspace(host, w) {
   return {
     key: `${host}|${w.worktreeId}`,
     host,
+    path: w.path,
     name: w.displayName || w.branch?.replace('refs/heads/', '') || w.path,
     branch: w.branch?.replace('refs/heads/', '') || '',
     repo: w.repo,
