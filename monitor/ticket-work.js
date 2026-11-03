@@ -96,7 +96,8 @@
     const refresh = el('button','Refresh GitHub','secondary'); refresh.type = 'button';
     heading.append(title,refresh);
     const health = el('p',null,'tw-health'); health.setAttribute('role','status');
-    const priorityPanel = el('section',null,'tw-priority'); priorityPanel.setAttribute('aria-label','Review first');
+    const priorityPanel = el('details',null,'tw-priority'); priorityPanel.open = true; priorityPanel.setAttribute('aria-label','Review first');
+    priorityPanel.append(el('summary','Review first'));
     const filters = el('div',null,'tw-filters');
     const controls = {};
     function control(name,label,options) {
@@ -130,7 +131,7 @@
       if (priorityKey === key || priorityPanel.contains(document.activeElement)) return;
       priorityKey = key;
       const openDetails = [...priorityPanel.querySelectorAll('details')].map(d => d.open);
-      const title = el('h3','Review first');
+      const title = el('summary','Review first');
       const description = el('p','Best value to move forward now: customer impact, urgency, scope and remaining work. Judgment-based; not the board priority score. Drafts still need verification.','tw-meta');
       const status = el('p',data?.priorityError || (data?.stale ? 'GitHub status is stale. Refresh before acting.' : 'Live CI and requested changes move blocked PRs out of the first five.'),'tw-meta');
       function cards(rows, numbered = false) {
@@ -169,7 +170,7 @@
       refresh.textContent = refresh.disabled ? 'Refreshing…' : 'Refresh GitHub';
       health.classList.toggle('tw-warning',!!data?.stale || !!data?.health?.error || !snapshot);
       health.textContent = [snapshot ? `Last successful refresh: ${date(snapshot.refreshedAt)}.` : 'Unavailable — no successful snapshot.',data?.stale ? 'Data needs a successful refresh.' : '',data?.health?.error ? `Refresh failed: ${data.health.error}` : '',data?.health?.running ? 'Refresh in progress.' : '',data?.health?.lastAttemptAt ? `Last attempt: ${date(data.health.lastAttemptAt)}.` : ''].filter(Boolean).join(' ');
-      if (!snapshot) { priorityPanel.replaceChildren(el('p','PR recommendations unavailable until ticket status loads.')); priorityKey = ''; summary.textContent = 'Ticket counts unavailable.'; count.textContent = ''; list.replaceChildren(); more.hidden = true; return; }
+      if (!snapshot) { priorityPanel.replaceChildren(el('summary','Review first'),el('p','PR recommendations unavailable until ticket status loads.')); priorityKey = ''; summary.textContent = 'Ticket counts unavailable.'; count.textContent = ''; list.replaceChildren(); more.hidden = true; return; }
       updateOptions('category',snapshot.tickets.map(t => t.category || 'Unknown'),'All categories');
       updateOptions('owner',snapshot.tickets.map(t => t.owner || 'Owner needed'),'All owners');
       const selected = Object.fromEntries(Object.entries(controls).map(([key,node]) => [key,node.value]));
