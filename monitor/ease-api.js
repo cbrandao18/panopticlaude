@@ -47,13 +47,13 @@ function parse(text) {
 
 const prNumber = (url) => Number(/\/pull\/(\d+)/.exec(url || '')?.[1]) || null;
 
-function buildPost(ts, events, { todo, drafts }, ws, prStates) {
+function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
   const id = ts.replace('.', '');
   const outcomeEvent = [...events].reverse().find((e) => !['started', 'drafted'].includes(e.kind)) || events.at(-1);
   const prEvents = events.filter((e) => ['pr', 'clear', 'blocked'].includes(e.kind));
   const last = prEvents.at(-1);
   const prUrl = last && /https:\/\/github\.com\/gobranch\/branch\/pull\/\d+/.exec(last.text)?.[0];
-  const pr = prUrl ? prStates[prNumber(prUrl)] : null;
+  const pr = prUrl ? ghStates[prNumber(prUrl)] : null;
   const todoLine = todo.find((l) => l.includes(id));
   const draft = drafts[id] || null;
   const actions = [];
@@ -66,9 +66,15 @@ function buildPost(ts, events, { todo, drafts }, ws, prStates) {
     else if (last.kind === 'clear') actions.push({ text: 'Dev deploy and live check, then mark the PR ready', state: 'open', url: prUrl });
     else actions.push({ text: 'Agent is running the Devlo review and CI', state: 'waiting', url: prUrl });
   }
-  const filed = events.findLast((e) => e.kind === 'filed');
+  // A filed line reads "#<n> <issue url>"; show it as "Filed <issue title>".
+  const filedLink = (e) => {
+    const url = /https:\/\/github\.com\/gobranch\/branch\/issues\/(\d+)/.exec(e.text);
+    return url && { url: url[0], title: ghStates[Number(url[1])]?.title || `#${url[1]}` };
+  };
+  const filed = events.findLast((e) => e.kind === 'filed' && filedLink(e));
   if (filed) {
-    actions.push({ text: `Ticket filed: ${filed.text}`, state: 'done', url: /https:\/\/github\.com\/\S+/.exec(filed.text)?.[0] });
+    const { url, title } = filedLink(filed);
+    actions.push({ text: `Filed ${title}`, state: 'done', url });
   } else if (events.some((e) => e.kind === 'not-easy')) {
     actions.push(todoLine
       ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', ...(ticketFromDraft(draft) ? { ticket: ticketFromDraft(draft) } : { draft }) }
@@ -93,7 +99,7 @@ function buildPost(ts, events, { todo, drafts }, ws, prStates) {
     whose: open ? 'you' : working ? 'agent' : 'closed',
     updatedAt: events.at(-1).time,
     workspace: ws ? { name: ws.name, comment } : null,
-    events: events.map(({ time, kind, text }) => ({ time, kind, text })),
+    events: events.map(({ time, kind, text }) => (kind === 'filed' && filedLink({ text }) ? { time, kind, text: '', link: filedLink({ text }) } : { time, kind, text })),
     actions
   };
 }
@@ -138,10 +144,12 @@ async function fileTicket(ts, { source = readSource, host = runOnHost, run = exe
   return { url, number: issue.number };
 }
 
-async function readPrStates(numbers, run = exec) {
+// The issues endpoint answers for both PRs and issues.
+async function readGithubStates(numbers, run = exec) {
   const entries = await Promise.all(numbers.map(async (n) => {
     try {
-      const { stdout } = await run('/opt/homebrew/bin/gh', ['pr', 'view', String(n), '--repo', 'gobranch/branch', '--json', 'state,isDraft,title'], { timeout: 15000 });
+      const { stdout } = await run('/opt/homebrew/bin/gh', ['api', `repos/gobranch/branch/issues/${n}`, '-q',
+        '{state: (if .pull_request.merged_at then "MERGED" else (.state | ascii_upcase) end), isDraft: (.draft // false), title}'], { timeout: 15000 });
       return [n, JSON.parse(stdout)];
     } catch {
       return [n, null];
@@ -150,14 +158,15 @@ async function readPrStates(numbers, run = exec) {
   return Object.fromEntries(entries);
 }
 
-async function easeData({ source = readSource, readMap, prStates = readPrStates } = {}) {
+async function easeData({ source = readSource, readMap, ghStates = readGithubStates } = {}) {
   const parsed = parse(await source());
   const byTs = new Map();
   for (const e of parsed.events) byTs.set(e.ts, [...(byTs.get(e.ts) || []), e]);
   const map = readMap ? await readMap().catch(() => null) : null;
   const workspaces = (map?.hosts || []).flatMap((h) => h.workspaces);
-  const prs = [...new Set(parsed.events.filter((e) => ['pr', 'clear', 'blocked'].includes(e.kind)).map((e) => prNumber(e.text)).filter(Boolean))];
-  const states = await prStates(prs);
+  const numbers = parsed.events.filter((e) => ['pr', 'clear', 'blocked', 'filed'].includes(e.kind))
+    .map((e) => Number(/github\.com\/gobranch\/branch\/(?:pull|issues)\/(\d+)/.exec(e.text)?.[1])).filter(Boolean);
+  const states = await ghStates([...new Set(numbers)]);
   const posts = [...byTs].map(([ts, events]) =>
     buildPost(ts, events, parsed, workspaces.find((w) => w.path?.endsWith(`/ease-${ts.replace('.', '')}`)), states));
   const order = { you: 0, agent: 1, closed: 2 };

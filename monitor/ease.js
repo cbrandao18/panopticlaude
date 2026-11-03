@@ -4,7 +4,7 @@
   const root = document.getElementById('ease');
   if (!root) return;
   const LABELS = {
-    started: 'Started a workspace', filed: 'You filed the ticket', skipped: 'Skipped', 'not-easy': 'Not an easy win', pr: 'Opened a draft PR',
+    started: 'Started a workspace', filed: 'Filed', skipped: 'Skipped', 'not-easy': 'Not an easy win', pr: 'Opened a draft PR',
     clear: 'Devlo clear, CI green', blocked: 'Blocked', drafted: 'Saved a Slack reply draft', 'dry-run': 'Dry run'
   };
   const WHOSE = { you: 'Needs you', agent: 'Agent working', closed: 'Closed' };
@@ -14,9 +14,23 @@
     if (className) node.className = className;
     return node;
   };
+  // Opens in the Mac's default browser through the server; falls back to a new tab.
   const link = (href, text) => {
     const a = el('a', text);
     a.href = href; a.target = '_blank'; a.rel = 'noreferrer';
+    a.addEventListener('click', async (event) => {
+      event.preventDefault();
+      try {
+        const res = await fetch('/api/open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
+          body: JSON.stringify({ url: href })
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        window.open(href, '_blank', 'noreferrer');
+      }
+    });
     return a;
   };
   const time = (ms) => new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -34,6 +48,10 @@
   function eventLeaf(e) {
     const li = el('li', null, `ease-leaf ease-${e.kind}`);
     li.append(el('span', time(e.time), 'ease-time'), el('strong', LABELS[e.kind] || e.kind));
+    if (e.link) {
+      li.append(document.createTextNode(' '), link(e.link.url, e.link.title));
+      return li;
+    }
     const text = e.text.replace(/^ease-\d+ \((live|dry-run)\)$/, '$1 run');
     if (text) li.append(document.createTextNode(`: ${text}`));
     return li;

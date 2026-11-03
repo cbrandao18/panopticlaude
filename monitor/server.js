@@ -231,6 +231,7 @@ function createMonitor({
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
   fileEase = fileTicket,
+  openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
@@ -274,6 +275,28 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/ease') {
         return send(200, await readEase());
+      }
+      // Opens GitHub and Slack links in the Mac's default browser, outside whatever is showing this page.
+      if (req.method === 'POST' && url.pathname === '/api/open') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Open requests must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 2048) return send(413, { error: 'Request is too large.' });
+        }
+        let target;
+        try {
+          target = new URL(JSON.parse(body).url);
+        } catch {
+          return send(400, { error: 'Invalid link.' });
+        }
+        if (target.protocol !== 'https:' || target.port || target.username || !['github.com', 'team-branch.slack.com'].includes(target.hostname)) {
+          return send(400, { error: 'Only GitHub and Slack links open this way.' });
+        }
+        await openUrl(target.href);
+        return send(200, { opened: true });
       }
       if (req.method === 'POST' && url.pathname === '/api/ease/file') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {

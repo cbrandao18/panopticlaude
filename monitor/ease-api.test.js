@@ -40,7 +40,7 @@ const map = async () => ({ hosts: [{ workspaces: [
 ] }] });
 
 test('builds one tree per post with whose move it is', async () => {
-  const data = await easeData({ source: async () => SOURCE, readMap: map, prStates: async () => ({ 90: { state: 'OPEN', isDraft: true } }) });
+  const data = await easeData({ source: async () => SOURCE, readMap: map, ghStates: async () => ({ 90: { state: 'OPEN', isDraft: true } }) });
   const by = Object.fromEntries(data.posts.map((p) => [p.ts, p]));
 
   assert.equal(by['1111.000001'].outcome, 'skipped');
@@ -66,7 +66,7 @@ test('builds one tree per post with whose move it is', async () => {
 });
 
 test('merged PRs close the post', async () => {
-  const data = await easeData({ source: async () => SOURCE, prStates: async () => ({ 90: { state: 'MERGED', isDraft: false } }) });
+  const data = await easeData({ source: async () => SOURCE, ghStates: async () => ({ 90: { state: 'MERGED', isDraft: false } }) });
   const post = data.posts.find((p) => p.ts === '3333.000003');
   assert.equal(post.actions[0].state, 'done');
   assert.equal(post.whose, 'closed');
@@ -119,10 +119,10 @@ test('fileTicket refuses posts already on GitHub, already filed, or without a dr
 
 test('a filed ticket closes the decide action', async () => {
   const filed = SOURCE.replace('@@TODO', '2026-11-02T10:00:00-0500 filed 2222.000002: #5 https://github.com/gobranch/branch/issues/5\n@@TODO');
-  const data = await easeData({ source: async () => filed, prStates: async () => ({}) });
-  const action = data.posts.find((p) => p.ts === '2222.000002').actions[0];
-  assert.equal(action.state, 'done');
-  assert.equal(action.url, 'https://github.com/gobranch/branch/issues/5');
+  const data = await easeData({ source: async () => filed, ghStates: async () => ({ 5: { state: 'OPEN', title: 'Area - Thing: sample ticket title' } }) });
+  const post = data.posts.find((p) => p.ts === '2222.000002');
+  assert.deepEqual(post.actions[0], { text: 'Filed Area - Thing: sample ticket title', state: 'done', url: 'https://github.com/gobranch/branch/issues/5' });
+  assert.deepEqual(post.events.find((e) => e.kind === 'filed').link, { url: 'https://github.com/gobranch/branch/issues/5', title: 'Area - Thing: sample ticket title' });
 });
 
 test('/api/ease/file requires the monitor header and files once', async (t) => {
@@ -136,4 +136,21 @@ test('/api/ease/file requires the monitor header and files once', async (t) => {
   assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1', Origin: 'https://evil.example' }, body })).status, 403);
   assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body })).status, 201);
   assert.deepEqual(filed, ['1.2']);
+});
+
+test('/api/open opens only GitHub and Slack https links', async (t) => {
+  const opened = [];
+  const server = createMonitor({ jobs: [], readMap: async () => ({ hosts: [] }), readEase: async () => ({ posts: [] }), openUrl: async (u) => { opened.push(u); } });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server.close(r)));
+  const post = (url, headers = { 'X-Panopticlaude': '1' }) => fetch(`http://127.0.0.1:${server.address().port}/api/open`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ url })
+  }).then((r) => r.status);
+  assert.equal(await post('https://github.com/gobranch/branch/issues/5'), 200);
+  assert.equal(await post('https://team-branch.slack.com/archives/C1/p1'), 200);
+  assert.equal(await post('https://github.com/x', {}), 403);
+  assert.equal(await post('file:///etc/passwd'), 400);
+  assert.equal(await post('https://evil.example/github.com'), 400);
+  assert.equal(await post('-a Calculator'), 400);
+  assert.deepEqual(opened, ['https://github.com/gobranch/branch/issues/5', 'https://team-branch.slack.com/archives/C1/p1']);
 });
