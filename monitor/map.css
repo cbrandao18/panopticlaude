@@ -137,9 +137,11 @@
   padding: 0 11px 11px;
 }
 .ws-comment {
-  margin: 6px 0 0;
+  flex-basis: 100%;
+  font-size: 12px;
   color: #d2dad5;
 }
+.chip.pinned { color: #172b1e; background: #b6d9fa; border-color: transparent; }
 .agents {
   list-style: none;
   margin: 8px 0 0;

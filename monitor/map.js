@@ -33,7 +33,8 @@
   }
   const runActive = (run) => run.tasks.some((t) => !FINISHED.has(t.state));
   const runFailed = (run) => run.tasks.some((t) => t.state === 'failed');
-  const needsYou = (ws) => ws.agents.some((a) => !['working', 'done'].includes(a.state));
+  const needsYou = (ws) => /^You:/i.test(ws.comment) || ws.agents.some((a) => !['working', 'done'].includes(a.state));
+  const working = (ws) => ws.agents.some((a) => a.state === 'working');
 
   function visible() {
     const showIdle = $('show-idle').checked;
@@ -42,16 +43,21 @@
     const runs = data.hosts.flatMap((h) => h.runs)
       .filter((r) => $('show-done').checked || runActive(r) || r.tasks.some((t) => recent.has(t.workspace)));
     const linked = new Set(runs.flatMap((r) => r.tasks.map((t) => t.workspace)));
-    const shown = all.filter((ws) =>
-      showIdle || linked.has(ws.key) || Date.now() - ws.lastActivityAt < 7 * DAY || ws.agents.some((a) => a.state === 'working'));
-    return { runs, workspaces: shown, hidden: all.length - shown.length };
+    const pinned = new Set(all.filter((ws) => ws.pinned).map((ws) => ws.key));
+    const shown = $('focus').checked
+      ? all.filter((ws) => pinned.has(ws.key) || pinned.has(ws.parent) || needsYou(ws) || working(ws))
+      : all.filter((ws) => showIdle || linked.has(ws.key) || Date.now() - ws.lastActivityAt < 7 * DAY || working(ws));
+    const keys = new Set(shown.map((ws) => ws.key));
+    const focused = $('focus').checked ? runs.filter((r) => runActive(r) || r.tasks.some((t) => keys.has(t.workspace))) : runs;
+    return { runs: focused, workspaces: shown, hidden: all.length - shown.length };
   }
 
   function card(ws) {
-    const working = ws.agents.filter((a) => a.state === 'working').length;
+    const busy = ws.agents.filter((a) => a.state === 'working').length;
     const idle = Date.now() - ws.lastActivityAt > DAY;
     const chips = [
-      working > 0 && el('span', { class: 'chip working' }, `${working} working`),
+      ws.pinned && el('span', { class: 'chip pinned' }, 'pinned'),
+      busy > 0 && el('span', { class: 'chip working' }, `${busy} working`),
       needsYou(ws) && el('span', { class: 'chip attention' }, 'needs you'),
       ws.pr && el('a', { class: 'chip', href: ws.pr.url, target: '_blank', rel: 'noopener' }, `PR #${ws.pr.number}`),
       ws.issue && !ws.pr && (ws.repo === 'branch'
@@ -70,10 +76,10 @@
       el('summary', null,
         el('span', { class: 'ws-name' }, ws.name),
         el('span', { class: 'ws-meta' }, ago(ws.lastActivityAt)),
+        ws.comment && el('span', { class: 'ws-comment' }, ws.comment),
         el('span', { class: 'chips' }, chips)),
       el('div', { class: 'ws-body' },
         el('p', { class: 'ws-line' }, `${ws.repo} · ${ws.branch || 'no branch'} · ${STATUSES[ws.status] || ws.status}`),
-        ws.comment && el('p', { class: 'ws-comment' }, ws.comment),
         agents.length ? el('ul', { class: 'agents' }, agents) : el('p', { class: 'ws-line' }, 'No agents recorded.')));
   }
 
@@ -85,7 +91,7 @@
       if (ws.parent && byKey.has(ws.parent)) (kids.get(ws.parent) || kids.set(ws.parent, []).get(ws.parent)).push(ws);
       else roots.push(ws);
     }
-    const newest = (a, b) => b.lastActivityAt - a.lastActivityAt;
+    const newest = (a, b) => b.pinned - a.pinned || b.lastActivityAt - a.lastActivityAt;
     const branch = (ws) => {
       const children = (kids.get(ws.key) || []).sort(newest);
       return el('div', { class: 'node' }, card(ws), children.length > 0 && el('div', { class: 'children' }, children.map(branch)));
@@ -146,12 +152,12 @@
       const mine = workspaces.filter((ws) => ws.host === host.id);
       body.replaceChildren(
         host.error ? el('p', { class: 'error' }, `Couldn't read the ${host.label}: ${host.error}`) : '',
-        ...(mine.length ? tree(mine) : [el('p', { class: 'ws-line' }, 'No recent workspaces.')]));
+        ...(mine.length ? tree(mine) : [el('p', { class: 'ws-line' }, $('focus').checked ? 'Nothing pinned, working or waiting on you.' : 'No recent workspaces.')]));
     }
     document.querySelector('#lane-runs .lane-body').replaceChildren(
       ...(runs.length ? runs.map(runCard) : [el('p', { class: 'ws-line' }, 'No recent Runs. Workspaces started with agent launch have no Run.')]));
     const counts = data.hosts.map((h) => `${h.label} ${h.workspaces.length}`).join(' · ');
-    $('connection').textContent = `Read ${ago(data.refreshedAt)} · ${counts} workspaces${hidden ? ` · ${hidden} idle hidden` : ''}`;
+    $('connection').textContent = `Read ${ago(data.refreshedAt)} · ${counts} workspaces${hidden ? ` · ${hidden} hidden` : ''}`;
     drawLinks(runs);
   }
 
@@ -174,6 +180,7 @@
   }
 
   $('legend').replaceChildren(...Object.entries(STATUSES).map(([id, label]) => el('span', { class: `swatch ${id}` }, label)));
+  $('focus').addEventListener('change', render);
   $('show-idle').addEventListener('change', render);
   $('show-done').addEventListener('change', render);
   $('refresh').addEventListener('click', load);

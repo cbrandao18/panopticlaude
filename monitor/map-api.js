@@ -36,6 +36,7 @@ function workspace(host, w) {
     status: w.workspaceStatus,
     parent: w.parentWorktreeId ? `${host}|${w.parentWorktreeId}` : null,
     comment: w.comment || '',
+    pinned: Boolean(w.isPinned),
     lastActivityAt: w.lastActivityAt || w.createdAt || 0,
     live: w.liveTerminalCount || 0,
     pr: pr ? { number: pr.number, url: pr.url, state: pr.state } : null,
