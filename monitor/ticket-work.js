@@ -91,10 +91,11 @@
       const parsed = new Date(value);
       return value && Number.isFinite(parsed.getTime()) ? parsed.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).replace(/\s?(AM|PM)/g, (_, period) => period.toLowerCase()) : 'Unknown';
     };
-    const heading = el('div',null,'tw-heading');
+    const disclosure = el('details',null,'tw-project'); disclosure.open = true;
+    const heading = el('summary');
     const title = el('h2','GitHub ticket work');
     const refresh = el('button','Refresh GitHub','secondary'); refresh.type = 'button';
-    heading.append(title,refresh);
+    heading.append(title);
     const health = el('p',null,'tw-health'); health.setAttribute('role','status');
     const priorityPanel = el('details',null,'tw-priority'); priorityPanel.open = true; priorityPanel.setAttribute('aria-label','Review first');
     priorityPanel.append(el('summary','Review first'));
@@ -121,7 +122,9 @@
     const more = el('button','Show all records','secondary'); more.type = 'button';
     more.addEventListener('click',() => { showAll = !showAll; render(); });
     const note = el('p','Merged PRs do not confirm production deployment or full issue resolution.','tw-note');
-    root.append(heading,health,priorityPanel,el('h3','All ticket next actions'),filters,summary,count,list,more,note);
+    const toolbar = el('div',null,'tw-heading'); toolbar.append(health,refresh);
+    disclosure.append(heading,toolbar,priorityPanel,el('h3','All ticket next actions'),filters,summary,count,list,more,note);
+    root.append(disclosure);
     let data = null, showAll = false, fetching = false, lastRecords = '', pendingRender = false;
     const expanded = new Set();
     let priorityKey = '';
