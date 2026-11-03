@@ -50,7 +50,8 @@ test('builds one tree per post with whose move it is', async () => {
   assert.equal(by['2222.000002'].title, 'Sample ask title');
   assert.equal(by['2222.000002'].priority, 'Medium');
   assert.deepEqual(by['2222.000002'].actions.map((a) => a.state), ['open', 'unknown']);
-  assert.match(by['2222.000002'].actions[0].draft, /Sample ask title/);
+  assert.equal(by['2222.000002'].actions[0].ticket.title, 'Area - Thing: sample ticket title');
+  assert.doesNotMatch(by['2222.000002'].actions[0].ticket.body, /Sample ask title|Priority/);
 
   assert.equal(by['3333.000003'].title, '#90 Sample fix');
   assert.equal(by['3333.000003'].actions[0].text, 'Dev deploy and live check, then mark the PR ready');

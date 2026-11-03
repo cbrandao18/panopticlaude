@@ -78,10 +78,15 @@
     li.append(el('span', { open: 'To do', done: 'Done', waiting: 'Agent', unknown: 'Check' }[a.state], 'ease-state'));
     li.append(a.url ? link(a.url, a.text) : el('span', a.text));
     if (a.state === 'unknown') li.append(el('span', ' (sent status isn’t tracked)', 'ease-muted'));
-    if (a.canFile) li.append(fileButton(ts));
-    if (a.draft) {
+    if (a.ticket) {
+      li.append(fileButton(ts));
       const d = el('details', null, 'ease-draft');
-      d.append(el('summary', 'Read the ticket draft'), el('pre', a.draft));
+      d.append(el('summary', 'Preview what will be filed'), el('p', 'Title', 'ease-preview-label'), el('pre', a.ticket.title),
+        el('p', 'Body', 'ease-preview-label'), el('pre', a.ticket.body));
+      li.append(d);
+    } else if (a.draft) {
+      const d = el('details', null, 'ease-draft');
+      d.append(el('summary', 'Read the draft (no fileable ticket section found)'), el('pre', a.draft));
       li.append(d);
     }
     return li;

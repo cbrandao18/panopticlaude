@@ -71,7 +71,7 @@ function buildPost(ts, events, { todo, drafts }, ws, prStates) {
     actions.push({ text: `Ticket filed: ${filed.text}`, state: 'done', url: /https:\/\/github\.com\/\S+/.exec(filed.text)?.[0] });
   } else if (events.some((e) => e.kind === 'not-easy')) {
     actions.push(todoLine
-      ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', draft, canFile: Boolean(ticketFromDraft(draft)) }
+      ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', ...(ticketFromDraft(draft) ? { ticket: ticketFromDraft(draft) } : { draft }) }
       : { text: 'Ticket draft decided (removed from todo.md)', state: 'done' });
   }
   if (events.some((e) => e.kind === 'drafted')) {
