@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const DAY = 86400000;
+  const NEEDS_SHOWN = 5;
   const STATUSES = {
     'status-5': 'Daily process',
     'status-6': 'Fixes',
@@ -9,9 +10,11 @@
     'status-8': 'Automations',
     'in-progress': 'Unsorted'
   };
+  const HOSTS = { mac: 'Mac', vm: 'VM' };
   const FINISHED = new Set(['succeeded', 'completed', 'failed', 'stopped', 'cancelled', 'abandoned', 'released']);
   const $ = (id) => document.getElementById(id);
   let data = null;
+  let showAllNeeds = false;
 
   function el(tag, attrs, ...children) {
     const node = document.createElement(tag);
@@ -31,34 +34,49 @@
     if (mins < 1440) return `${Math.round(mins / 60)}h ago`;
     return `${Math.round(mins / 1440)}d ago`;
   }
+  const focusView = () => document.querySelector('input[name="view"]:checked').value === 'focus';
   const runActive = (run) => run.tasks.some((t) => !FINISHED.has(t.state));
-  const runFailed = (run) => run.tasks.some((t) => t.state === 'failed');
-  const needsYou = (ws) => /^You:/i.test(ws.comment) || ws.agents.some((a) => !['working', 'done'].includes(a.state));
+  const runState = (run) => (runActive(run) ? 'active' : run.tasks.some((t) => t.state === 'failed') ? 'failed' : 'done');
+  const needsYou = (ws) => /^You:/i.test(ws.comment);
+  const unclear = (ws) => ws.agents.some((a) => !['working', 'done'].includes(a.state));
   const working = (ws) => ws.agents.some((a) => a.state === 'working');
+  const newest = (a, b) => b.lastActivityAt - a.lastActivityAt;
+  const short = (text) => (text.length > 80 ? `${text.slice(0, 80)}…` : text);
 
   function visible() {
-    const showIdle = $('show-idle').checked;
     const all = data.hosts.flatMap((h) => h.workspaces);
-    const recent = new Set(all.filter((ws) => Date.now() - ws.lastActivityAt < 7 * DAY).map((ws) => ws.key));
-    const runs = data.hosts.flatMap((h) => h.runs)
-      .filter((r) => $('show-done').checked || runActive(r) || r.tasks.some((t) => recent.has(t.workspace)));
-    const linked = new Set(runs.flatMap((r) => r.tasks.map((t) => t.workspace)));
-    const pinned = new Set(all.filter((ws) => ws.pinned).map((ws) => ws.key));
-    const shown = $('focus').checked
-      ? all.filter((ws) => pinned.has(ws.key) || pinned.has(ws.parent) || needsYou(ws) || working(ws))
-      : all.filter((ws) => showIdle || linked.has(ws.key) || Date.now() - ws.lastActivityAt < 7 * DAY || working(ws));
-    const keys = new Set(shown.map((ws) => ws.key));
-    const focused = $('focus').checked ? runs.filter((r) => runActive(r) || r.tasks.some((t) => keys.has(t.workspace))) : runs;
-    return { runs: focused, workspaces: shown, hidden: all.length - shown.length };
+    const allRuns = data.hosts.flatMap((h) => h.runs);
+    const runs = allRuns.filter((r) => $('show-done').checked || runActive(r));
+    const needs = all.filter(needsYou).sort(newest);
+    let lanes;
+    if (focusView()) {
+      const pinned = new Set(all.filter((ws) => ws.pinned).map((ws) => ws.key));
+      const linked = new Set(runs.filter(runActive).flatMap((r) => r.tasks.map((t) => t.workspace)));
+      lanes = all.filter((ws) => !needsYou(ws) && (pinned.has(ws.key) || pinned.has(ws.parent) || working(ws) || unclear(ws) || linked.has(ws.key)));
+    } else {
+      const linked = new Set(runs.flatMap((r) => r.tasks.map((t) => t.workspace)));
+      lanes = all.filter((ws) => $('show-idle').checked || linked.has(ws.key) || Date.now() - ws.lastActivityAt < 7 * DAY || working(ws));
+    }
+    const shownKeys = new Set([...needs, ...lanes].map((ws) => ws.key));
+    return { all, allRuns, runs, needs, lanes, hidden: all.filter((ws) => !shownKeys.has(ws.key)).length };
   }
 
-  function card(ws) {
+  // The newest Run whose workers used this workspace, if any.
+  function coordinator(ws, allRuns) {
+    const runs = allRuns.filter((r) => r.tasks.some((t) => t.workspace === ws.key));
+    return runs.find(runActive) || runs[0] || null;
+  }
+
+  function card(ws, ctx, { withHost = false } = {}) {
     const busy = ws.agents.filter((a) => a.state === 'working').length;
     const idle = Date.now() - ws.lastActivityAt > DAY;
+    const run = coordinator(ws, ctx.allRuns);
+    const parent = ws.parent && ctx.byKey.get(ws.parent);
     const chips = [
+      withHost && el('span', { class: 'chip' }, HOSTS[ws.host]),
       ws.pinned && el('span', { class: 'chip pinned' }, 'pinned'),
       busy > 0 && el('span', { class: 'chip working' }, `${busy} working`),
-      needsYou(ws) && el('span', { class: 'chip attention' }, 'needs you'),
+      unclear(ws) && el('span', { class: 'chip attention' }, 'check status'),
       ws.pr && el('a', { class: 'chip', href: ws.pr.url, target: '_blank', rel: 'noopener' }, `PR #${ws.pr.number}`),
       ws.issue && !ws.pr && (ws.repo === 'branch'
         ? el('a', { class: 'chip', href: `https://github.com/gobranch/branch/issues/${ws.issue}`, target: '_blank', rel: 'noopener' }, `#${ws.issue}`)
@@ -72,18 +90,23 @@
         el('p', { class: 'agent-head' }, `${a.type} · ${a.state} · ${ago(a.updatedAt)}`),
         a.title && el('p', { class: 'agent-title' }, a.title),
         a.last && el('p', { class: 'agent-last' }, a.last)));
-    return el('details', { class: `ws ${ws.status}${idle ? ' idle' : ''}`, 'data-key': ws.key },
+    return el('details', { class: `ws ${ws.status}${needsYou(ws) ? ' needs-you' : ''}`, 'data-key': ws.key },
       el('summary', null,
         el('span', { class: 'ws-name' }, ws.name),
-        el('span', { class: 'ws-meta' }, ago(ws.lastActivityAt)),
+        el('span', { class: `ws-meta${idle ? ' stale' : ''}` }, ago(ws.lastActivityAt)),
         ws.comment && el('span', { class: 'ws-comment' }, ws.comment),
+        parent && withHost && el('span', { class: 'ws-relation' }, `Under ${parent.name}`),
+        run && runActive(run) && el('span', { class: 'ws-relation' }, `Worker for: ${short(run.objective)} · ${HOSTS[run.host]}`),
         el('span', { class: 'chips' }, chips)),
       el('div', { class: 'ws-body' },
-        el('p', { class: 'ws-line' }, `${ws.repo} · ${ws.branch || 'no branch'} · ${STATUSES[ws.status] || ws.status}`),
+        el('p', { class: 'ws-line' }, `${STATUSES[ws.status] || ws.status} · ${ws.repo} · ${ws.branch || 'no branch'}`),
+        el('p', { class: 'ws-line' }, !run ? 'No coordinator recorded.'
+          : runActive(run) ? `Coordinator: ${run.objective} · ${HOSTS[run.host]}`
+          : `Last coordinator (${runState(run)}): ${run.objective} · ${HOSTS[run.host]}`),
         agents.length ? el('ul', { class: 'agents' }, agents) : el('p', { class: 'ws-line' }, 'No agents recorded.')));
   }
 
-  function tree(workspaces) {
+  function tree(workspaces, ctx) {
     const byKey = new Map(workspaces.map((ws) => [ws.key, ws]));
     const kids = new Map();
     const roots = [];
@@ -91,12 +114,12 @@
       if (ws.parent && byKey.has(ws.parent)) (kids.get(ws.parent) || kids.set(ws.parent, []).get(ws.parent)).push(ws);
       else roots.push(ws);
     }
-    const newest = (a, b) => b.pinned - a.pinned || b.lastActivityAt - a.lastActivityAt;
+    const order = (a, b) => b.pinned - a.pinned || newest(a, b);
     const branch = (ws) => {
-      const children = (kids.get(ws.key) || []).sort(newest);
-      return el('div', { class: 'node' }, card(ws), children.length > 0 && el('div', { class: 'children' }, children.map(branch)));
+      const children = (kids.get(ws.key) || []).sort(order);
+      return el('div', { class: 'node' }, card(ws, ctx), children.length > 0 && el('div', { class: 'children' }, children.map(branch)));
     };
-    return roots.sort(newest).map(branch);
+    return roots.sort(order).map(branch);
   }
 
   function runCard(run) {
@@ -105,11 +128,11 @@
       const key = t.workspace || 'none';
       groups.set(key, [...(groups.get(key) || []), t]);
     }
-    const state = runActive(run) ? 'active' : runFailed(run) ? 'failed' : 'done';
+    const state = runState(run);
     return el('details', { class: `run ${state}`, 'data-key': run.key },
       el('summary', null,
         el('span', { class: 'ws-name' }, run.objective),
-        el('span', { class: 'ws-meta' }, `on ${run.host === 'mac' ? 'Mac' : 'VM'} · ${run.tasks.length} workers · ${state}`)),
+        el('span', { class: 'ws-meta' }, `on ${HOSTS[run.host]} · ${run.tasks.length} workers · ${state}`)),
       el('ul', { class: 'agents' }, [...groups].map(([key, tasks]) => el('li', null,
         el('p', { class: 'agent-head' }, key === 'none' ? 'no workspace' : key.split('/').pop()),
         tasks.map((t) => el('p', { class: 'agent-title' }, `${t.title || 'untitled task'} · ${t.state}`))))));
@@ -125,9 +148,8 @@
       const from = document.querySelector(`.run[data-key="${CSS.escape(run.key)}"]`);
       if (!from) continue;
       const a = from.getBoundingClientRect();
-      const state = runActive(run) ? 'active' : runFailed(run) ? 'failed' : 'done';
       for (const key of new Set(run.tasks.map((t) => t.workspace).filter(Boolean))) {
-        const to = document.querySelector(`.ws[data-key="${CSS.escape(key)}"]`);
+        const to = document.querySelector(`.lane .ws[data-key="${CSS.escape(key)}"]`);
         if (!to) continue;
         const b = to.getBoundingClientRect();
         const left = b.left < a.left;
@@ -138,30 +160,57 @@
         const mid = (x1 + x2) / 2;
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`);
-        path.setAttribute('class', `link ${state}`);
+        path.setAttribute('class', `link ${runState(run)}`);
         svg.append(path);
       }
     }
   }
 
+  function renderNeeds(needs, ctx) {
+    const shown = showAllNeeds ? needs : needs.slice(0, NEEDS_SHOWN);
+    $('needs-title').textContent = `Needs you (${needs.length})`;
+    document.querySelector('#needs .needs-body').replaceChildren(
+      ...(needs.length ? shown.map((ws) => card(ws, ctx, { withHost: true })) : [el('p', { class: 'ws-line' }, 'Nothing is waiting on you. Agents mark a workspace here with a "You:" comment.')]),
+      needs.length > NEEDS_SHOWN && el('button', { class: 'text', id: 'needs-more', type: 'button' },
+        showAllNeeds ? 'Show fewer' : `Show all ${needs.length}`));
+  }
+
   function render() {
     if (!data) return;
-    const { runs, workspaces, hidden } = visible();
+    const v = visible();
+    const ctx = { allRuns: v.allRuns, byKey: new Map(v.all.map((ws) => [ws.key, ws])) };
+    renderNeeds(v.needs, ctx);
     for (const host of data.hosts) {
-      const body = document.querySelector(`#lane-${host.id} .lane-body`);
-      const mine = workspaces.filter((ws) => ws.host === host.id);
-      body.replaceChildren(
-        host.error ? el('p', { class: 'error' }, `Couldn't read the ${host.label}: ${host.error}`) : '',
-        ...(mine.length ? tree(mine) : [el('p', { class: 'ws-line' }, $('focus').checked ? 'Nothing pinned, working or waiting on you.' : 'No recent workspaces.')]));
+      const mine = v.lanes.filter((ws) => ws.host === host.id);
+      const empty = focusView() ? 'Nothing pinned or running here.' : 'No recent workspaces.';
+      document.querySelector(`#lane-${host.id} .lane-body`).replaceChildren(
+        host.error ? el('p', { class: 'error' }, `Couldn't read the ${host.label}: ${host.error}. Use Refresh to retry.`) : '',
+        ...(mine.length ? tree(mine, ctx) : [el('p', { class: 'ws-line' }, empty)]));
     }
-    document.querySelector('#lane-runs .lane-body').replaceChildren(
-      ...(runs.length ? runs.map(runCard) : [el('p', { class: 'ws-line' }, 'No recent Runs. Workspaces started with agent launch have no Run.')]));
+    $('map').classList.toggle('no-runs', !v.runs.length);
+    document.querySelector('#lane-runs .lane-body').replaceChildren(...v.runs.map(runCard));
+    $('show-idle-label').hidden = focusView();
+    $('view-note').textContent = focusView()
+      ? 'Focus shows what needs you, then pinned work, running agents and active Runs.'
+      : 'All workspaces active in the last 7 days.';
     const counts = data.hosts.map((h) => `${h.label} ${h.workspaces.length}`).join(' · ');
-    $('connection').textContent = `Read ${ago(data.refreshedAt)} · ${counts} workspaces${hidden ? ` · ${hidden} hidden` : ''}`;
-    drawLinks(runs);
+    $('connection').textContent = `Read ${ago(data.refreshedAt)} · ${counts} workspaces${v.hidden ? ` · ${v.hidden} hidden` : ''}`;
+    drawLinks(v.runs);
+  }
+
+  // Re-render without losing which cards are open or which card has keyboard focus.
+  function rerender() {
+    const open = new Set([...document.querySelectorAll('details[open]')].map((d) => d.dataset.key));
+    const focused = document.activeElement?.closest('details')?.dataset.key;
+    const inNeeds = Boolean(document.activeElement?.closest('#needs'));
+    render();
+    for (const d of document.querySelectorAll('details')) if (open.has(d.dataset.key)) d.open = true;
+    if (focused) document.querySelector(`${inNeeds ? '#needs' : '#map'} details[data-key="${CSS.escape(focused)}"] summary`)?.focus();
+    if (open.size && data) drawLinks(visible().runs);
   }
 
   async function load() {
+    $('refresh').disabled = true;
     try {
       const res = await fetch('/api/map');
       const body = await res.json();
@@ -169,20 +218,21 @@
       data = body;
       $('error').hidden = true;
     } catch (e) {
-      $('error').textContent = `Couldn't load the map: ${e.message}`;
+      $('error').textContent = `Couldn't load the map: ${e.message}. Use Refresh to retry.`;
       $('error').hidden = false;
+    } finally {
+      $('refresh').disabled = false;
     }
-    // Keep open cards open across refreshes.
-    const open = new Set([...document.querySelectorAll('details[open]')].map((d) => d.dataset.key));
-    render();
-    for (const d of document.querySelectorAll('details')) if (open.has(d.dataset.key)) d.open = true;
-    if (open.size) drawLinks(visible().runs);
+    rerender();
   }
 
-  $('legend').replaceChildren(...Object.entries(STATUSES).map(([id, label]) => el('span', { class: `swatch ${id}` }, label)));
-  $('focus').addEventListener('change', render);
-  $('show-idle').addEventListener('change', render);
-  $('show-done').addEventListener('change', render);
+  for (const input of document.querySelectorAll('input[name="view"], #show-idle, #show-done')) input.addEventListener('change', rerender);
+  $('needs').addEventListener('click', (e) => {
+    if (e.target.id !== 'needs-more') return;
+    showAllNeeds = !showAllNeeds;
+    rerender();
+    $('needs-more')?.focus();
+  });
   $('refresh').addEventListener('click', load);
   $('map').addEventListener('toggle', () => data && drawLinks(visible().runs), true);
   window.addEventListener('resize', () => data && drawLinks(visible().runs));

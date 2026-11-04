@@ -18,19 +18,27 @@
       <section class="heading">
         <div><p class="eyebrow">ORCA WORKSPACES</p><h1>Workspace map</h1><p class="subtitle">Who's working on what, on the Mac and the VM.</p></div>
         <div class="map-controls">
-          <label><input type="checkbox" id="focus" checked> Only pinned and needs you</label>
-          <label><input type="checkbox" id="show-idle"> Show idle over 7 days</label>
-          <label><input type="checkbox" id="show-done"> Show older Runs</label>
+          <fieldset class="view-toggle">
+            <legend class="visually-hidden">View</legend>
+            <label><input type="radio" name="view" value="focus" checked> Focus</label>
+            <label><input type="radio" name="view" value="all"> All workspaces</label>
+          </fieldset>
+          <label id="show-idle-label" hidden><input type="checkbox" id="show-idle"> Include idle over 7 days</label>
+          <label><input type="checkbox" id="show-done"> Show finished Runs</label>
           <button id="refresh" class="secondary">Refresh</button>
         </div>
       </section>
-      <div class="connection"><span id="connection" role="status">Reading Orca…</span><span class="legend" id="legend"></span></div>
+      <div class="connection"><span id="connection" role="status">Reading Orca on the Mac and the VM…</span><span id="view-note"></span></div>
       <p id="error" class="error" role="alert" hidden></p>
+      <section id="needs" class="needs" aria-labelledby="needs-title">
+        <h2 id="needs-title">Needs you</h2>
+        <div class="needs-body"><p class="ws-line loading">Loading…</p></div>
+      </section>
       <section id="map" class="map" aria-label="Workspace map">
         <svg id="links" class="links" aria-hidden="true"></svg>
-        <div class="lane" id="lane-mac"><h2>Mac</h2><div class="lane-body"></div></div>
+        <div class="lane" id="lane-mac"><h2>Mac</h2><div class="lane-body"><p class="ws-line loading">Loading…</p></div></div>
         <div class="lane runs" id="lane-runs"><h2>Coordinators (Runs)</h2><div class="lane-body"></div></div>
-        <div class="lane" id="lane-vm"><h2>VM</h2><div class="lane-body"></div></div>
+        <div class="lane" id="lane-vm"><h2>VM</h2><div class="lane-body"><p class="ws-line loading">Loading…</p></div></div>
       </section>
       <footer><span>Read-only. Lines join a Run to the workspaces its workers ran in.</span><span>Refreshes every 30 seconds</span></footer>
     </main>
