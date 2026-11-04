@@ -62,6 +62,7 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
   if (prUrl) {
     if (pr?.state === 'MERGED') actions.push({ text: 'PR merged', state: 'done', url: prUrl });
     else if (pr?.state === 'CLOSED') actions.push({ text: 'PR closed without merging', state: 'done', url: prUrl });
+    else if (pr?.staff === false) actions.push({ text: 'PR is outside Staff: hand it to the owning team', state: 'done', url: prUrl });
     else if (pr && !pr.isDraft) actions.push({ text: 'PR marked ready: waiting on review and merge', state: 'done', url: prUrl });
     else if (last.kind === 'blocked') actions.push({ text: `Unblock the PR: ${last.text.replace(prUrl, '').trim()}`, state: 'open', url: prUrl });
     else if (last.kind === 'clear') actions.push({ text: 'Dev deploy and live check, then mark the PR ready', state: 'open', url: prUrl });
@@ -100,7 +101,8 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
   const heading = draft && /^# (.+)$/m.exec(draft)?.[1];
   const priority = /ease-and-effort \((High|Medium|Low)\)/.exec(todoLine || '')?.[1] || /\*\*(High|Medium|Low)\*\*/.exec(draft || '')?.[1] || null;
   const comment = ws?.comment || '';
-  const open = actions.some((a) => a.state === 'open') || /^You:/.test(comment);
+  // Your job stops at the ticket; only an unfiled draft or a Staff PR is yours. The workspace's "You:" comment doesn't count.
+  const open = actions.some((a) => a.state === 'open');
   const working = !open && (outcomeEvent.kind === 'started' || actions.some((a) => a.state === 'waiting'));
   return {
     ts,
@@ -159,13 +161,22 @@ async function fileTicket(ts, { source = readSource, host = runOnHost, run = exe
   return { url, number: issue.number };
 }
 
+// A PR is Staff when it changes staff-* packages and no other app package; shared files (packages/, lockfile, docs) don't count.
+const OTHER_APP = /^(?!staff-)[^/]+-(fe|be)\/|^(accountmobile|ember-mobile)\//;
+const isStaffPr = (files) => files.some((f) => f.startsWith('staff-')) && !files.some((f) => OTHER_APP.test(f));
+
 // The issues endpoint answers for both PRs and issues.
 async function readGithubStates(numbers, run = exec) {
   const entries = await Promise.all(numbers.map(async (n) => {
     try {
       const { stdout } = await run('/opt/homebrew/bin/gh', ['api', `repos/gobranch/branch/issues/${n}`, '-q',
-        '{state: (if .pull_request.merged_at then "MERGED" else (.state | ascii_upcase) end), isDraft: (.draft // false), title}'], { timeout: 15000 });
-      return [n, JSON.parse(stdout)];
+        '{state: (if .pull_request.merged_at then "MERGED" else (.state | ascii_upcase) end), isDraft: (.draft // false), title, isPull: (.pull_request != null)}'], { timeout: 15000 });
+      const info = JSON.parse(stdout);
+      if (info.isPull) {
+        const files = await run('/opt/homebrew/bin/gh', ['api', `repos/gobranch/branch/pulls/${n}/files`, '--paginate', '-q', '.[].filename'], { timeout: 30000 });
+        info.staff = isStaffPr(files.stdout.split('\n').filter(Boolean));
+      }
+      return [n, info];
     } catch {
       return [n, null];
     }
@@ -204,4 +215,4 @@ function createEaseReader(options = {}, ttl = 60000) {
   return read;
 }
 
-module.exports = { parse, buildPost, easeData, createEaseReader, ticketFromDraft, fileTicket };
+module.exports = { isStaffPr, readGithubStates, parse, buildPost, easeData, createEaseReader, ticketFromDraft, fileTicket };

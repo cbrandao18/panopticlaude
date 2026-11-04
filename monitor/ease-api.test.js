@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { easeData, fileTicket, ticketFromDraft } = require('./ease-api');
+const { easeData, fileTicket, ticketFromDraft, isStaffPr, readGithubStates } = require('./ease-api');
 const { createMonitor } = require('./server');
 
 const SOURCE = `2026-11-01T09:00:00-0500 skipped 1111.000001: already ticketed as #1
@@ -172,4 +172,22 @@ test('/api/open opens only GitHub and Slack https links', async (t) => {
   assert.equal(await post('https://evil.example/github.com'), 400);
   assert.equal(await post('-a Calculator'), 400);
   assert.deepEqual(opened, ['https://github.com/gobranch/branch/issues/5', 'https://team-branch.slack.com/archives/C1/p1']);
+});
+
+test('a Staff PR is yours, a PR in another app is handed off, and "You:" comments no longer count', async () => {
+  assert.equal(isStaffPr(['staff-fe/a.ts', 'packages/x.ts', 'yarn.lock']), true);
+  assert.equal(isStaffPr(['staff-fe/a.ts', 'account-fe/b.ts']), false);
+  assert.equal(isStaffPr(['packages/x.ts']), false);
+  const log = '2026-11-01T11:00:00-0500 started 3333.000003: x\n2026-11-01T11:20:00-0500 clear 3333.000003: https://github.com/gobranch/branch/pull/90\n';
+  const mapWith = async () => ({ hosts: [{ workspaces: [{ path: '/w/ease-3333000003', name: 'x', comment: 'You: do something' }] }] });
+  const read = (staff) => easeData({ source: async () => log, readMap: mapWith, ghStates: async () => ({ 90: { state: 'OPEN', isDraft: true, staff } }) }).then((d) => d.posts[0]);
+  assert.equal((await read(true)).whose, 'you');
+  const other = await read(false);
+  assert.equal(other.whose, 'closed');
+  assert.match(other.actions[0].text, /outside Staff/);
+});
+
+test('readGithubStates marks PRs as Staff from their changed files', async () => {
+  const run = async (cmd, args) => ({ stdout: args[1].endsWith('/files') ? 'staff-fe/a.ts\nyarn.lock\n' : JSON.stringify({ state: 'OPEN', isDraft: true, title: 't', isPull: true }) });
+  assert.equal((await readGithubStates([90], run))[90].staff, true);
 });
