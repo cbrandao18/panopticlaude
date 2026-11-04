@@ -109,6 +109,17 @@
     }
     return li;
   }
+  const VERDICTS = { easy: 'Easy win', 'not-easy': 'Not easy', skipped: 'Skipped' };
+  function summaryLine(p) {
+    const { requester, verdict, reason, replyDraft } = p.summary || {};
+    if (!verdict && !requester && !replyDraft) return null;
+    const row = el('p', null, 'ease-facts');
+    if (verdict) row.append(el('span', VERDICTS[verdict], `ease-verdict ease-verdict-${verdict}`));
+    if (reason) row.append(document.createTextNode(` ${reason}`));
+    const meta = [requester && `Requested by ${requester}`, replyDraft && 'Slack reply: draft saved (sent status isn’t tracked)'].filter(Boolean);
+    if (meta.length) row.append(el('span', meta.join(' · '), 'ease-muted ease-facts-meta'));
+    return row;
+  }
   function post(p) {
     const li = el('li', null, `ease-post ease-${p.whose}`);
     const d = el('details');
@@ -117,13 +128,14 @@
     const s = el('summary');
     s.append(el('span', WHOSE[p.whose], 'ease-badge'), el('span', p.title, 'ease-title'));
     s.append(el('span', [p.priority, time(p.updatedAt)].filter(Boolean).join(' · '), 'ease-muted'));
+    const facts = summaryLine(p);
     const tree = el('ul', null, 'ease-tree');
     const you = p.actions.length ? p.actions.map((a) => actionLeaf(a, p.ts)) : [el('li', 'Nothing for you', 'ease-leaf ease-muted')];
     tree.append(branch('Agent', 'ease-agent', p.events.map(eventLeaf)), branch('You', 'ease-you', you));
     const foot = el('p', null, 'ease-muted ease-foot');
     foot.append(link(p.link, 'Slack post'));
     if (p.workspace) foot.append(document.createTextNode(` · Workspace “${p.workspace.name}”${p.workspace.comment ? ` · ${p.workspace.comment}` : ''}`));
-    d.append(s, tree, foot);
+    d.append(s, ...(facts ? [facts] : []), tree, foot);
     li.append(d);
     return li;
   }

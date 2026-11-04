@@ -19,6 +19,7 @@ const SOURCE = `2026-11-01T09:00:00-0500 skipped 1111.000001: already ticketed a
 @@DRAFT todo/ease-2222000002.md
 # Sample ask title
 
+- Requester: Pat Example, Support Lead (Member Support)
 - Priority: **Medium**.
 
 ## Paste-ready ticket draft
@@ -63,6 +64,22 @@ test('builds one tree per post with whose move it is', async () => {
   assert.match(by['5555.000005'].title, /^Suggestion posted /);
 
   assert.deepEqual(data.posts.map((p) => p.whose).slice(0, 2), ['you', 'you']);
+});
+
+test('summary carries verdict, reason without the file path, requester and reply status', async () => {
+  const data = await easeData({ source: async () => SOURCE, ghStates: async () => ({}) });
+  const by = Object.fromEntries(data.posts.map((p) => [p.ts, p.summary]));
+  assert.deepEqual(by['2222.000002'], { requester: 'Pat Example, Support Lead (Member Support)', verdict: 'not-easy', reason: 'needs a product call', replyDraft: 'saved' });
+  assert.equal(by['3333.000003'].verdict, 'easy');
+  assert.equal(by['1111.000001'].verdict, 'skipped');
+  assert.equal(by['1111.000001'].reason, 'already ticketed as #1');
+  assert.equal(by['1111.000001'].requester, null);
+});
+
+test('parse keeps the first draft when todo.md has no ease lines', () => {
+  const { drafts, todo } = require('./ease-api').parse('2026-11-01T09:00:00-0500 started 1.2: x\n@@TODO\n@@DRAFT todo/ease-12.md\n# T\n- Requester: A\n');
+  assert.deepEqual(todo, []);
+  assert.match(drafts['12'], /Requester: A/);
 });
 
 test('merged PRs close the post', async () => {

@@ -34,7 +34,8 @@ function parse(text) {
     const m = /^(\S+) ([a-z-]+) (\d+\.\d+): (.*)$/.exec(line.trim());
     if (m && Number.isFinite(Date.parse(m[1]))) events.push({ time: Date.parse(m[1]), kind: m[2], ts: m[3], text: m[4] });
   }
-  const [todoPart, ...draftParts] = rest.split('\n@@DRAFT ');
+  // With no todo.md lines the first marker has no newline before it.
+  const [todoPart, ...draftParts] = `\n${rest}`.split('\n@@DRAFT ');
   const drafts = {};
   for (const part of draftParts) {
     const newline = part.indexOf('\n');
@@ -84,6 +85,17 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
     actions.push({ text: 'Send your saved Slack reply in the thread', state: 'unknown', url: slackLink(ts) });
   }
 
+  // One-line summary: the verdict from the log, the reason without the todo/ file path, and the draft's requester line.
+  const verdictEvent = events.findLast((e) => e.kind === 'not-easy');
+  const verdict = events.some((e) => e.kind === 'pr') ? 'easy' : verdictEvent ? 'not-easy' : null;
+  const skipEvent = events.findLast((e) => e.kind === 'skipped');
+  const reasonText = (verdict === 'not-easy' ? verdictEvent : verdict ? null : skipEvent)?.text;
+  const summary = {
+    requester: /^- Requester: (.+)$/m.exec(draft || '')?.[1].trim() || null,
+    verdict: verdict || (skipEvent ? 'skipped' : null),
+    reason: reasonText ? reasonText.replace(/\s*\(todo\/ease-\d+\.md\)\s*$/, '').trim() : null,
+    replyDraft: events.some((e) => e.kind === 'drafted') ? 'saved' : null
+  };
   const name = ws?.name && !/^Ease · \d+\.\d+$/.test(ws.name) ? ws.name.replace(/^Ease · /, '') : null;
   const heading = draft && /^# (.+)$/m.exec(draft)?.[1];
   const priority = /ease-and-effort \((High|Medium|Low)\)/.exec(todoLine || '')?.[1] || /\*\*(High|Medium|Low)\*\*/.exec(draft || '')?.[1] || null;
@@ -95,6 +107,7 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
     link: slackLink(ts),
     title: name || heading || pr?.title || `Suggestion posted ${new Date(Number(ts) * 1000).toISOString().slice(0, 10)}`,
     priority,
+    summary,
     outcome: outcomeEvent.kind,
     whose: open ? 'you' : working ? 'agent' : 'closed',
     updatedAt: events.at(-1).time,

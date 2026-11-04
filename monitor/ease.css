@@ -43,3 +43,8 @@
 #ease .ease-file .ease-error { font-size: 13px; }
 #ease .ease-preview-label { margin: 10px 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 #ease .ease-draft .ease-preview-label + pre { margin-top: 4px; }
+#ease .ease-facts { margin: 10px 0 0; font-size: 13px; line-height: 1.55; }
+#ease .ease-verdict { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 8px; margin-right: 4px; background: #26302a; color: var(--muted); }
+#ease .ease-verdict-easy { background: #1f3a2a; color: var(--green); }
+#ease .ease-verdict-not-easy { background: #4a3d1f; color: #f2cf91; }
+#ease .ease-facts-meta { display: block; }
