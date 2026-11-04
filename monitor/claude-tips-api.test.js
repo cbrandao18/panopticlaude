@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { parseTips } = require('./claude-tips-api');
+const { parseTips, frontMatter } = require('./claude-tips-api');
 
 test('parses the tip shapes the minified CLI uses and skips runtime-only ones', () => {
   const src = [
@@ -23,4 +23,11 @@ test('parses the tip shapes the minified CLI uses and skips runtime-only ones', 
     { id: 'key', text: 'Use ctrl+v to paste' },
     { id: 'term', text: 'Shift+Enter' }
   ]);
+});
+
+test('reads skill front matter in plain, quoted and folded forms', () => {
+  assert.deepStrictEqual(frontMatter("---\nname: a\ndescription: 'It''s here. More.'\n---\nbody"), { name: 'a', description: "It's here. More." });
+  assert.deepStrictEqual(frontMatter('---\nname: b\ndescription: "Say \\"hi\\" now."\n---'), { name: 'b', description: 'Say "hi" now.' });
+  assert.deepStrictEqual(frontMatter('---\nname: c\ndescription: >-\n  Folded line one\n  and two.\nlicense: MIT\n---'), { name: 'c', description: 'Folded line one and two.' });
+  assert.deepStrictEqual(frontMatter('no front matter'), { name: null, description: null });
 });

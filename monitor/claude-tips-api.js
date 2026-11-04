@@ -43,20 +43,50 @@ function parseTips(text) {
   return [...tips].map(([id, tip]) => ({ id, text: tip }));
 }
 
+// `name` and `description` from a SKILL.md front matter: plain, quoted, or folded (>-) values.
+function frontMatter(md) {
+  const fm = md.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
+  const field = (key) => {
+    const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)\\n?((?:[ \\t]+.*\\n?)*)`, 'm'));
+    if (!m) return null;
+    const [, first, rest] = m;
+    if (/^[>|]-?$/.test(first)) return rest.trim().split(/\s*\n\s*/).join(' ');
+    const v = [first, ...rest.trim().split(/\s*\n\s*/)].join(' ').trim();
+    if (v.startsWith("'")) return v.slice(1, -1).replace(/''/g, "'");
+    if (v.startsWith('"')) return v.slice(1, -1).replace(/\\"/g, '"');
+    return v;
+  };
+  return { name: field('name'), description: field('description') };
+}
+
+// The user's own skills as tips: how to call each one, and its first sentence.
+async function readSkills(dir) {
+  const entries = await fs.promises.readdir(dir).catch(() => []);
+  const skills = await Promise.all(entries.map(async (entry) => {
+    const md = await fs.promises.readFile(path.join(dir, entry, 'SKILL.md'), 'utf8').catch(() => null);
+    const { name, description } = md ? frontMatter(md) : {};
+    if (!name || !description) return null;
+    const first = description.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? description;
+    return { id: `skill:${name}`, kind: 'skill', text: `Say “use ${name}”: ${first}` };
+  }));
+  return skills.filter(Boolean);
+}
+
 // shortcut: reads the whole ~300 MB binary once per Claude Code version; stream it if memory ever matters.
-function createTipsReader(bin = path.join(os.homedir(), '.local/bin/claude')) {
+function createTipsReader(bin = path.join(os.homedir(), '.local/bin/claude'), skillsDir = path.join(os.homedir(), '.claude/skills')) {
   let cache = { real: null, data: null };
   return async () => {
-    const real = await fs.promises.realpath(bin);
-    if (cache.real !== real) {
+    const real = await fs.promises.realpath(bin).catch(() => null);
+    if (real && cache.real !== real) {
       const buf = await fs.promises.readFile(real);
       const start = buf.indexOf('cooldownSessions:');
       const end = buf.lastIndexOf('cooldownSessions:');
       const tips = start < 0 ? [] : parseTips(buf.toString('latin1', Math.max(0, start - 2000), end + 20));
       cache = { real, data: { version: path.basename(real), tips } };
     }
-    return cache.data;
+    const skills = await readSkills(skillsDir);
+    return { version: cache.data?.version ?? null, tips: [...(cache.data?.tips ?? []), ...skills] };
   };
 }
 
-module.exports = { createTipsReader, parseTips, tipText };
+module.exports = { createTipsReader, parseTips, tipText, frontMatter };

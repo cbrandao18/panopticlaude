@@ -1,4 +1,4 @@
-/* One Claude Code tip at a time, pulled from the installed CLI. */
+/* One tip at a time: Claude Code's own tips from the installed CLI, plus your local skills. */
 (function () {
   'use strict';
   const root = document.getElementById('claude-tips');
@@ -7,11 +7,12 @@
     if (!data?.tips?.length) return;
     const { tips } = data;
     let i = Math.floor(Math.random() * tips.length);
-    root.innerHTML = '<span class="tip-label">Claude Code tip</span><span class="tip-text" aria-live="polite"></span>' +
+    root.innerHTML = '<span class="tip-label"></span><span class="tip-text" aria-live="polite"></span>' +
       '<span class="tip-meta"></span><button type="button" class="secondary">Next tip</button>';
     const show = () => {
+      root.querySelector('.tip-label').textContent = tips[i].kind === 'skill' ? 'Your skill' : 'Claude Code tip';
       root.querySelector('.tip-text').textContent = tips[i].text;
-      root.querySelector('.tip-meta').textContent = `${i + 1} of ${tips.length} · v${data.version}`;
+      root.querySelector('.tip-meta').textContent = `${i + 1} of ${tips.length}${data.version ? ` · v${data.version}` : ''}`;
     };
     root.querySelector('button').addEventListener('click', () => { i = (i + 1) % tips.length; show(); });
     show();
