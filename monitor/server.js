@@ -11,6 +11,7 @@ const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader } = require('./map-api');
 const { createEaseReader, fileTicket } = require('./ease-api');
+const { createSecurityReader } = require('./security-api');
 const { createTipsReader } = require('./claude-tips-api');
 
 const exec = promisify(execFile);
@@ -62,6 +63,8 @@ const assets = {
   '/ticket-work.css': ['ticket-work.css', 'text/css'],
   '/ease.js': ['ease.js', 'text/javascript'],
   '/ease.css': ['ease.css', 'text/css'],
+  '/security.js': ['security.js', 'text/javascript'],
+  '/security.css': ['security.css', 'text/css'],
   '/claude-tips.js': ['claude-tips.js', 'text/javascript'],
   '/claude-tips.css': ['claude-tips.css', 'text/css'],
   '/map': ['map.html', 'text/html'],
@@ -233,6 +236,7 @@ function createMonitor({
   refreshTickets = startRefresh,
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
+  readSecurity = createSecurityReader({ readMap }),
   fileEase = fileTicket,
   readTips = createTipsReader(),
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
@@ -279,6 +283,9 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/claude-tips') {
         return send(200, await readTips());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/security') {
+        return send(200, await readSecurity());
       }
       if (req.method === 'GET' && url.pathname === '/api/ease') {
         return send(200, await readEase());
