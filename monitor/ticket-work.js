@@ -112,6 +112,7 @@
     control('project','Sub-project',[['needs-triage','Needs Triage'],['backlog','Backlog'],['needs-refinement','Needs Refinement'],['','All sub-projects']]);
     control('category','Category',[['','All categories']]);
     control('owner','Action owner',[['','All owners']]);
+    control('source','Source',[['','All sources'],['ease','Ease & effort requests']]);
     control('stage','PR stage',[['active','Next actions'],['all','All records'],['archive','Merged / closed history'],...['No PR','Draft PR','Open PR','Merged PR','Closed PR','Closed issue'].map(s => [s,s])]);
     const searchLabel = el('label','Search tickets');
     controls.search = el('input'); controls.search.type = 'search'; controls.search.placeholder = 'Issue number or title'; controls.search.id = 'tw-search';
@@ -128,9 +129,34 @@
     let data = null, showAll = false, fetching = false, lastRecords = '', pendingRender = false;
     const expanded = new Set();
     let priorityKey = '';
+    // Issues and PRs that came from #ease-and-effort posts, by number, from /api/ease.
+    let easeByNumber = new Map(), easeKey = '';
+    const isEase = ticket => easeByNumber.has(ticket.number) || (ticket.prs || []).some(pr => easeByNumber.has(pr.number));
+    function easeBadge(...numbers) {
+      const post = numbers.map(n => easeByNumber.get(n)).find(Boolean);
+      if (!post) return null;
+      const badge = el('a','Ease & effort request','tw-ease');
+      badge.href = post.link; badge.target = '_blank'; badge.rel = 'noopener noreferrer';
+      badge.title = 'Open the #ease-and-effort post in Slack';
+      badge.addEventListener('click',async event => {
+        event.preventDefault();
+        try {
+          const res = await fetch('/api/open',{method:'POST',headers:{'Content-Type':'application/json','X-Panopticlaude':'1'},body:JSON.stringify({url:post.link})});
+          if (!res.ok) throw new Error();
+        } catch { window.open(post.link,'_blank','noreferrer'); }
+      });
+      return badge;
+    }
+    async function loadEase() {
+      try {
+        const posts = (await (await fetch('/api/ease')).json()).posts || [];
+        easeByNumber = new Map(posts.flatMap(p => [p.issue,p.pr].filter(Boolean).map(n => [n,p])));
+        easeKey = JSON.stringify([...easeByNumber.keys()]);
+      } catch { /* keep the last known set */ }
+    }
     function renderPriorities(tickets) {
       const queue = reviewQueue(tickets, data?.priorities || []);
-      const key = JSON.stringify([queue,data?.priorityError,data?.stale,controls.project.value]);
+      const key = JSON.stringify([queue,data?.priorityError,data?.stale,controls.project.value,easeKey]);
       if (priorityKey === key || priorityPanel.contains(document.activeElement)) return;
       priorityKey = key;
       const openDetails = [...priorityPanel.querySelectorAll('details')].map(d => d.open);
@@ -139,9 +165,10 @@
       const status = el('p',data?.priorityError || (data?.stale ? 'GitHub status is stale. Refresh before acting.' : 'Live CI and requested changes move blocked PRs out of the first five.'),'tw-meta');
       function cards(rows, numbered = false) {
         const out = el(numbered ? 'ol' : 'ul',null,'tw-review-list');
-        for (const {pr,judgment,blocker} of rows) {
+        for (const {pr,ticket,judgment,blocker} of rows) {
           const item = el('li');
           item.append(link(`#${pr.number} ${pr.title}`,pr.url));
+          const fromEase = easeBadge(pr.number,ticket.number); if (fromEase) item.append(document.createTextNode(' '),fromEase);
           if (judgment) item.append(el('p',judgment.reason,'tw-review-why'));
           item.append(el('p',blocker || `Next: ${judgment?.nextAction || 'Assess the PR.'}`,'tw-action'));
           if (blocker && judgment) item.append(el('p',`Next: ${judgment.nextAction}`,'tw-meta'));
@@ -182,11 +209,11 @@
       renderPriorities(projectTickets);
       const totals = summarize(projectTickets);
       summary.textContent = project && !project.assessed ? `${project.name}: Not assessed. Assessment and implementation have not been run.` : `${totals.tickets} tickets · ${totals.assessed} assessed · ${totals.unassessed} unassessed · ${totals.openPRTickets} tickets with open PRs · ${totals.mergedPRs} merged PRs · ${totals.decisions} awaiting decisions`;
-      const matches = filterTickets(snapshot.tickets,selected);
+      const matches = filterTickets(snapshot.tickets,selected).filter(t => !selected.source || isEase(t));
       const visible = showAll ? matches : matches.slice(0,5);
       count.textContent = matches.length ? `Showing ${visible.length} of ${matches.length} matching tickets` : project && !project.assessed ? 'Not assessed — no assessment results to show.' : 'No tickets match these filters.';
       more.hidden = matches.length <= 5; more.textContent = showAll ? 'Show first five' : `Show all ${matches.length} matching tickets`;
-      const recordKey = JSON.stringify(visible);
+      const recordKey = JSON.stringify([visible,easeKey]);
       if (recordKey === lastRecords) return;
       if (list.contains(document.activeElement)) { pendingRender = true; return; }
       lastRecords = recordKey; pendingRender = false;
@@ -194,6 +221,7 @@
         const key = `${ticket.repo}#${ticket.number}`;
         const row = el('article',null,'tw-ticket');
         const heading = el('h3'); heading.append(link(`#${ticket.number} ${ticket.title}`,ticket.url));
+        const fromEase = easeBadge(ticket.number,...(ticket.prs || []).map(pr => pr.number)); if (fromEase) heading.append(document.createTextNode(' '),fromEase);
         const meta = el('p',`${ticket.category || 'Needs assessment'} · ${stage(ticket)}`,'tw-meta');
         const action = el('p',actionText(ticket),'tw-action');
         const owner = el('p',`Action owner: ${ticket.owner || openActions(ticket)[0]?.owner || 'Owner needed'}`,'tw-meta');
@@ -225,7 +253,7 @@
       try {
         const response = await fetch('/api/ticket-work',{cache:'no-store'});
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        data = await response.json(); render();
+        data = await response.json(); await loadEase(); render();
       } catch {
         health.textContent = 'Ticket service unavailable. Displaying the last received records, if any.';
         health.classList.add('tw-warning');

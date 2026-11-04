@@ -71,6 +71,8 @@ test('summary carries verdict, reason without the file path, requester and reply
   const by = Object.fromEntries(data.posts.map((p) => [p.ts, p.summary]));
   assert.deepEqual(by['2222.000002'], { requester: 'Pat Example, Support Lead (Member Support)', verdict: 'not-easy', reason: 'needs a product call', replyDraft: 'saved' });
   assert.equal(by['3333.000003'].verdict, 'easy');
+  assert.equal(data.posts.find((p) => p.ts === '3333.000003').pr, 90);
+  assert.equal(data.posts.find((p) => p.ts === '1111.000001').issue, null);
   assert.equal(by['1111.000001'].verdict, 'skipped');
   assert.equal(by['1111.000001'].reason, 'already ticketed as #1');
   assert.equal(by['1111.000001'].requester, null);

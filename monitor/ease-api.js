@@ -108,6 +108,8 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
     title: name || heading || pr?.title || `Suggestion posted ${new Date(Number(ts) * 1000).toISOString().slice(0, 10)}`,
     priority,
     summary,
+    issue: Number(/\/issues\/(\d+)/.exec(filed ? filedLink(filed).url : '')?.[1]) || null,
+    pr: prNumber(prUrl),
     outcome: outcomeEvent.kind,
     whose: open ? 'you' : working ? 'agent' : 'closed',
     updatedAt: events.at(-1).time,
