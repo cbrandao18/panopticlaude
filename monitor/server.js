@@ -12,6 +12,7 @@ const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader, openWorkspace } = require('./map-api');
 const { createEaseReader, fileTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
+const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
 const { createTipsReader } = require('./claude-tips-api');
@@ -82,6 +83,8 @@ const assets = {
   '/ease.css': ['ease.css', 'text/css'],
   '/security.js': ['security.js', 'text/javascript'],
   '/security.css': ['security.css', 'text/css'],
+  '/deploys.js': ['deploys.js', 'text/javascript'],
+  '/deploys.css': ['deploys.css', 'text/css'],
   '/merge.js': ['merge.js', 'text/javascript'],
   '/merge.css': ['merge.css', 'text/css'],
   '/brief.js': ['brief.js', 'text/javascript'],
@@ -264,6 +267,7 @@ function createMonitor({
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
   readSecurity = createSecurityReader({ readMap }),
+  readDeploys = createDeploysReader({ root: process.env.DEPLOYS_ROOT || DEFAULT_ROOT }),
   readMerge = createMergeReader(),
   readBrief = createBriefReader({ render: renderGithubMarkdown }),
   fileEase = fileTicket,
@@ -332,6 +336,9 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/security') {
         return send(200, await readSecurity());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/deploys') {
+        return send(200, await readDeploys());
       }
       if (req.method === 'GET' && url.pathname === '/api/merge') {
         return send(200, await readMerge());
@@ -699,7 +706,10 @@ if (require.main === module) {
     console.error(error.message);
     process.exitCode = 1;
   });
-  server.listen(port, '127.0.0.1', () => console.log(`Roost monitor: http://localhost:${port}`));
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Roost monitor: http://localhost:${port}`);
+    startHeartbeatTimer({ root: process.env.DEPLOYS_ROOT || DEFAULT_ROOT, statePath: process.env.DEPLOYS_STATE_PATH || DEFAULT_STATE_PATH });
+  });
 }
 
 module.exports = { loadJobs, inboxFiles, jobStatus, createMonitor };
