@@ -243,7 +243,8 @@ function sweepDown(findings) {
   const down = [];
   const sources = findings.lastRun?.sources || {};
   for (const [source, state] of Object.entries(sources)) {
-    if (state !== 'ok') down.push({ kind: 'sweep', title: `Bug sweep couldn't read ${source}`, detail: String(state), since: Date.parse(findings.lastRun.at) || null });
+    // A `partial: <reason>` source was read with reduced coverage; only `failed: <reason>` means unreadable.
+    if (String(state).startsWith('failed')) down.push({ kind: 'sweep', title: `Bug sweep couldn't read ${source}`, detail: String(state), since: Date.parse(findings.lastRun.at) || null });
   }
   // Borderline findings sit below the sweep's filing bar on purpose; only fresh, filing-grade ones are urgent.
   const fresh = Date.now() - 3 * 86400000;

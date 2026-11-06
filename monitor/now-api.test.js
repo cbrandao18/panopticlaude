@@ -38,7 +38,7 @@ test('parseTriageLog reads counts and failures', () => {
 
 test('sweepDown flags unreadable sources and unticketed prod errors only', () => {
   const down = sweepDown({
-    lastRun: { at: '2026-11-05T17:00:00Z', sources: { datadog: 'ok', sentry: 'error: 401' } },
+    lastRun: { at: '2026-11-05T17:00:00Z', sources: { datadog: 'ok', sentry: 'failed: 401', logrocket: 'partial: 8 of ~20 sessions' } },
     findings: {
       a: { title: 'Ticketed', ticket: 1, env: 'production' },
       b: { title: 'New one', ticket: null, env: 'production', sources: [{ url: 'u', lastSeen: new Date().toISOString() }] },
