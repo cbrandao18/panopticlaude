@@ -95,7 +95,7 @@ function Column({ col, showQuiet, rank }) {
   const visible = col.roots.filter((ws) => showQuiet || rank(ws) < RANK.quiet);
   const quiet = col.roots.length - visible.length;
   return html`
-    <section class="column" aria-labelledby=${`col-${col.id}`}>
+    <section class=${`column c-${col.id}`} aria-labelledby=${`col-${col.id}`}>
       <h2 id=${`col-${col.id}`}>${col.label} <span class="count">${col.roots.length}</span></h2>
       ${visible.length ? html`<ul class="tree">${visible.map((ws) => html`<${Node} key=${ws.key} ws=${ws} showQuiet=${showQuiet} rank=${rank} />`)}</ul>` : html`<p class="now-muted empty"><${Bird} state="quiet" />Nothing active.</p>`}
       ${quiet > 0 && html`<p class="now-muted quiet-note">${quiet} quiet for ${QUIET_AFTER / DAY}+ days</p>`}

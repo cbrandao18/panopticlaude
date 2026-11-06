@@ -160,7 +160,7 @@ function Spark({ nights }) {
 
 function Releases({ data }) {
   return html`
-    <${Section} id="releases" title="Release watch" note="Weeks, not hours. Signal: feedback the project's watcher triages each night.">
+    <${Section} id="releases" title="Release watch" tone="info" note="Weeks, not hours. Signal: feedback the project's watcher triages each night.">
       <ul class="rows releases">
         ${data.releases.map((r) => html`
           <li key=${r.name}>
@@ -187,7 +187,7 @@ function Automations({ data }) {
   const rows = data.automations.filter((a) => showPaused || a.status !== 'paused');
   const paused = data.automations.length - data.automations.filter((a) => a.status !== 'paused').length;
   return html`
-    <${Section} id="automations" title="Automations" count=${rows.length}
+    <${Section} id="automations" title="Automations" tone="lilac" count=${rows.length}
       note=${html`Run finished means Orca marked it complete, not that the work succeeded. <a href="/work#jobs">Logs</a>`}>
       <table class="autos">
         <thead><tr><th scope="col">Status</th><th scope="col">Automation</th><th scope="col">Where</th><th scope="col">Last run</th><th scope="col">Next run</th></tr></thead>
