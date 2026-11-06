@@ -33,6 +33,7 @@ test('parseTriageLog reads counts and failures', () => {
   assert.equal(nights.length, 2);
   assert.equal(nights[0].failed, true);
   assert.deepEqual([nights[1].ticket, nights[1].fixes, nights[1].design, nights[1].fixer], [38078, 3, 5, 'started']);
+  assert.deepEqual(parseTriageLog('2026-11-06 7:05pm chats=4 bad=1')[0].counts, { chats: 4, bad: 1 });
 });
 
 test('sweepDown flags unreadable sources and unticketed prod errors only', () => {

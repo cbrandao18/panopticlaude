@@ -147,14 +147,18 @@ function Blocked({ data }) {
     </${Section}>`;
 }
 
-function Spark({ nights }) {
-  const last = nights.slice(-14);
+// A release's own `spark` count, or the feedback watcher's total.
+const nightTotal = (r, n) => (r.spark ? n.counts?.[r.spark] || 0 : n.fixes + n.design + n.vague);
+
+function Spark({ release }) {
+  const last = release.nights.slice(-14);
   if (last.length < 2) return null;
-  const max = Math.max(1, ...last.map((n) => n.fixes + n.design + n.vague));
+  const total = (n) => nightTotal(release, n);
+  const max = Math.max(1, ...last.map(total));
   const w = 120;
   const step = w / (last.length - 1);
-  const points = last.map((n, i) => `${(i * step).toFixed(1)},${(22 - ((n.fixes + n.design + n.vague) / max) * 20).toFixed(1)}`).join(' ');
-  return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label="Feedback per night, last ${last.length} nights"><polyline points=${points} /></svg>`;
+  const points = last.map((n, i) => `${(i * step).toFixed(1)},${(22 - (total(n) / max) * 20).toFixed(1)}`).join(' ');
+  return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label="${release.spark ? `Chats ${release.metrics.find(([k]) => k === release.spark)?.[1] || release.spark}` : 'Feedback'} per night, last ${last.length} nights"><polyline points=${points} /></svg>`;
 }
 
 function Releases({ data }) {
@@ -164,12 +168,14 @@ function Releases({ data }) {
         ${data.releases.map((r) => html`
           <li key=${r.name}>
             <span class="title">${r.name}</span>
-            <${Spark} nights=${r.nights} />
+            <${Spark} release=${r} />
             <span class="detail">
               ${r.last
                 ? r.last.failed
                   ? `Watcher failed ${day(r.last.date)}`
-                  : html`${day(r.last.date)}: ${r.last.fixes} fixes, ${r.last.design} design calls, ${r.last.vague} vague${r.last.ticket ? html` → <a href=${`https://github.com/gobranch/branch/issues/${r.last.ticket}`}>#${r.last.ticket}</a>` : ''}`
+                  : r.metrics
+                    ? `${day(r.last.date)}: ${r.metrics.map(([key, label]) => `${r.last.counts?.[key] ?? 0} ${label}`).join(', ')}`
+                    : html`${day(r.last.date)}: ${r.last.fixes} fixes, ${r.last.design} design calls, ${r.last.vague} vague${r.last.ticket ? html` → <a href=${`https://github.com/gobranch/branch/issues/${r.last.ticket}`}>#${r.last.ticket}</a>` : ''}`
                 : `No nights logged yet in ${r.channel}`}
             </span>
             ${r.epic && html`<span class="epic"><a href=${r.epic.url}>#${r.epic.number}</a> ${r.epic.completed} of ${r.epic.total} done

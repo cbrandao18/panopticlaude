@@ -55,6 +55,14 @@ const RELEASES = [
     channel: '#staff-usability-feedback',
     log: '~/branch-workshop/staff-feedback-bot/logs/triage.log',
     epic: 37723
+  },
+  {
+    name: 'Staff Tools Tool help',
+    channel: 'Indemn Staff Tools Assist chats',
+    log: '~/branch-workshop/tool-help-watch/triage.log',
+    // Shown instead of fixes / design calls / vague; the spark plots `spark`.
+    metrics: [['chats', 'chats'], ['bad', 'not working well']],
+    spark: 'bad'
   }
 ];
 
@@ -211,6 +219,7 @@ function parseTriageLog(text) {
       design: counts.design || 0,
       vague: counts.vague || 0,
       fixer: counts.fixer || null,
+      counts,
       text: clip(m[2].trim(), 200)
     });
   }
@@ -220,7 +229,7 @@ function parseTriageLog(text) {
 async function readRelease(release, { host = runOnHost, run = exec } = {}) {
   const [logText, epic] = await Promise.all([
     host(`tail -n 60 ${release.log} 2>/dev/null || true`),
-    readEpic(release.epic, run).catch(() => null)
+    release.epic ? readEpic(release.epic, run).catch(() => null) : null
   ]);
   const nights = parseTriageLog(logText);
   const last = nights.at(-1) || null;

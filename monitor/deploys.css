@@ -1,0 +1,38 @@
+/* The Work page isn't themed yet, so its dark look is the fallback; when a data-theme is set, its variables win. */
+#deploys {
+  --d-surface: var(--surface, #181f1b); --d-text: var(--text, #e7e9e8); --d-muted: var(--muted, #a0aaa5); --d-border: var(--border, #303a34);
+  --d-link: var(--link, #a8d6b5); --d-focus: var(--focus, #cae7d2); --d-radius: var(--radius, 9px);
+  --d-ok-bg: var(--go-bg, #2a3010); --d-ok-ink: var(--go-ink, #d6e26a); --d-ok: var(--accent, #afbe2d);
+  --d-warn-bg: var(--you-bg, #3d2a0e); --d-warn-ink: var(--you-ink, #f8b25a); --d-warn: var(--you-border, #f89521); --d-warn-text: var(--you, #f89521);
+  --d-bad-bg: var(--alarm-chip, #5a2723); --d-bad-ink: var(--alarm-ink, #ffd9d4); --d-bad-border: var(--alarm-border, #7a3a35);
+  --d-chip-bg: var(--chip-bg, #26302b); --d-chip-ink: var(--chip-ink, #d2dad5);
+  margin: 32px 0; border-top: 1px solid var(--d-border); padding-top: 24px;
+}
+#deploys .deploys-panel > summary { cursor: pointer; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
+#deploys .deploys-panel > summary h2 { margin: 0; font-size: 22px; }
+#deploys summary:focus-visible, #deploys a:focus-visible { outline: 2px solid var(--d-focus); outline-offset: 3px; }
+#deploys .deploys-muted { color: var(--d-muted); font-size: 13px; line-height: 1.6; }
+#deploys .deploys-error { color: var(--d-warn-text); font-size: 14px; }
+#deploys .deploys-banner { margin: 14px 0 0; padding: 10px 14px; border-radius: 7px; background: var(--d-bad-bg); color: var(--d-bad-ink); border: 1px solid var(--d-bad-border); border-left-width: 4px; font-size: 14px; line-height: 1.5; }
+#deploys .deploys-banner p { margin: 0; }
+#deploys .deploys-banner p + p { margin-top: 4px; }
+#deploys .deploys-cards { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+#deploys .deploys-card { background: var(--d-surface); color: var(--d-text); border: 1px solid var(--d-border); border-radius: var(--d-radius); box-shadow: var(--shadow, none); padding: 14px 16px; overflow-wrap: anywhere; }
+#deploys .deploys-card-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-size: 15px; }
+#deploys .deploys-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 14px; margin: 12px 0 0; }
+#deploys .deploys-facts dt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--d-muted); }
+#deploys .deploys-facts dd { margin: 2px 0 0; font-size: 13px; }
+#deploys .deploys-entries { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+#deploys .deploys-entry { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
+#deploys .deploys-pill { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+#deploys .deploys-ok { background: var(--d-ok-bg); color: var(--d-ok-ink); box-shadow: inset 0 0 0 1px var(--d-ok); }
+#deploys .deploys-warn { background: var(--d-warn-bg); color: var(--d-warn-ink); box-shadow: inset 0 0 0 1px var(--d-warn); }
+#deploys .deploys-bad { background: var(--d-bad-bg); color: var(--d-bad-ink); box-shadow: inset 0 0 0 1px var(--d-bad-border); }
+#deploys .deploys-done { background: var(--d-chip-bg); color: var(--d-chip-ink); }
+#deploys a { color: var(--d-link); font-weight: 600; }
+#deploys .deploys-log ul { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--d-muted); }
+/* Override the page-wide details/summary spacing and muted color. */
+#deploys details { margin-top: 0; }
+#deploys .deploys-log { margin-top: 12px; }
+#deploys summary { margin-bottom: 0; color: inherit; font-size: inherit; }
+#deploys .deploys-log summary { cursor: pointer; font-size: 13px; color: var(--d-muted); }
