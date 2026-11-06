@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-themable>
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/security.css">
     <link rel="stylesheet" href="/merge.css">
     <link rel="stylesheet" href="/claude-tips.css">
+    <script type="module" src="/work-roost.js"></script>
     <script src="/claude-tips.js" defer></script>
     <script src="/ease.js" defer></script>
     <script src="/brief.js" defer></script>
@@ -23,12 +24,14 @@
     <script src="/app.js" defer></script>
   </head>
   <body>
+    <div id="roost-sprite"></div>
     <main>
       <header class="masthead">
         <div class="brand"><span class="brand-mark" data-brand-mark></span> <span class="brand-name" data-brand-name>ROOST</span></div>
-        <nav class="tabs" aria-label="Pages"><a href="/">Now</a><a href="/map">Map</a><a aria-current="page" href="/work">Work</a></nav>
+        <nav class="tabs" aria-label="Pages"><a href="/">Now</a><a href="/map">Map</a><a aria-current="page" href="/work"><span class="tab-bird"><svg class="bird you" aria-hidden="true"><use href="#b-call"></use></svg></span>Work</a></nav>
         <span class="local"><span class="dot"></span> On your Mac</span>
       </header>
+      <div id="roost-wire"></div>
       <aside id="claude-tips" aria-label="Tip" hidden></aside>
       <section class="heading">
         <div><p class="eyebrow">WORK</p><h1>Tickets, Ease, Security and drafts</h1><p class="subtitle">Moving to the PM agent. Drafts go once assess-assumptions auto-posts.</p></div>

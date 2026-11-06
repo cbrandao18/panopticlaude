@@ -71,6 +71,7 @@ html[data-theme='roost'] {
   --bird-failed: #ff8566; --bird-failed-wing: #c4301a; --bird-quiet: #93a5e6; --bird-quiet-wing: #6b80cc;
   --belly: #fff6e0; --leg: #fff6e0; --eye: #1b2347; --beak: #ff8a3d;
   --panel: rgba(255, 255, 255, .08); --panel-you: rgba(255, 201, 51, .16); --panel-go: rgba(155, 232, 184, .15); --panel-info: rgba(159, 208, 255, .15); --panel-lilac: rgba(215, 168, 255, .15);
+  --inset: rgba(0, 0, 0, .22); --alert-bg: #8c2114; --alert-border: #e46f58; --green: #9be8b8;
   --wire: #b5c3f5; --nest: #2a43a3; --nest-line: #ffd75e; --egg: #fff6e0; --leaf: #9be8b8;
 }
 
@@ -299,6 +300,15 @@ html[data-theme='roost'] {
   .epic meter { accent-color: var(--accent); }
   button { font-weight: 700; border-radius: 3px; }
   button.text, button.more { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  /* Work page */
+  #brief, #merge, #security, #ease, #ticket-work, #jobs { margin: 0 0 18px; padding: 24px 28px 26px; border: 0; border-radius: 6px; background: var(--panel); }
+  #merge { background: var(--panel-go); } #security { background: var(--panel-lilac); } #ease { background: var(--panel-you); } #ticket-work { background: var(--panel-info); }
+  #brief { margin-top: 18px; }
+  .heading .eyebrow { display: none; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0; }
+  #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2 { font-family: var(--display); font-weight: 400; font-size: 27px; }
+  #claude-tips { border-radius: 6px; background: var(--panel); border: 0; }
+  .masthead .local { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
   /* Map */
   .summary { margin: 4px 0 26px; gap: 10px; }
   .summary .badge { padding: 4px 11px; font-size: 14px; }

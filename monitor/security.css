@@ -1,25 +1,25 @@
 #security { margin: 32px 0; border-top: 1px solid var(--border); padding-top: 24px; }
 #security .security-panel > summary { cursor: pointer; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
 #security .security-panel > summary h2 { margin: 0; font-size: 22px; }
-#security summary:focus-visible, #security a:focus-visible { outline: 2px solid #cae7d2; outline-offset: 3px; }
+#security summary:focus-visible, #security a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 #security .security-muted { color: var(--muted); font-size: 13px; line-height: 1.6; }
 #security .security-note { margin: 8px 0 0; }
-#security .security-error { color: #f2cf91; font-size: 14px; }
+#security .security-error { color: var(--you); font-size: 14px; }
 #security .security-cards { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 12px; }
-#security .security-card { background: #181f1b; border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; overflow-wrap: anywhere; }
+#security .security-card { background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; overflow-wrap: anywhere; }
 #security .security-card-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-weight: 600; font-size: 15px; }
 #security .security-rows { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
 #security .security-row { display: grid; grid-template-columns: 78px 1fr; column-gap: 10px; font-size: 13px; line-height: 1.55; }
-#security .security-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #f2cf91; padding-top: 2px; }
-#security .security-in-review .security-state, #security .security-draft-pr .security-state { color: #9fc7e8; }
+#security .security-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--you); padding-top: 2px; }
+#security .security-in-review .security-state, #security .security-draft-pr .security-state { color: var(--info); }
 #security .security-done .security-state, #security .security-merged .security-state { color: var(--green); }
 #security .security-dropped .security-state { color: var(--muted); }
 #security .security-done .security-main, #security .security-dropped .security-main { color: var(--muted); }
 #security .security-fields { grid-column: 2; margin: 2px 0 0; }
-#security .security-fields summary { cursor: pointer; font-size: 12px; color: #c3d1c8; }
+#security .security-fields summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 #security .security-fields ul { margin: 4px 0 0; padding-left: 18px; columns: 2 240px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
 #security a { color: var(--green); }
 /* Override the page-wide details/summary spacing and muted color. */
 #security details { margin-top: 0; }
 #security summary { margin-bottom: 0; color: inherit; font-size: inherit; }
-#security .security-fields summary { color: #c3d1c8; font-size: 12px; }
+#security .security-fields summary { color: var(--muted); font-size: 12px; }

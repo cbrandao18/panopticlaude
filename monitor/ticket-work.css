@@ -2,20 +2,20 @@
 #ticket-work .tw-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 #ticket-work h2 { margin: 0; font-size: 22px; }
 #ticket-work .tw-health, #ticket-work .tw-summary, #ticket-work .tw-note, #ticket-work .tw-count { font-size: 13px; color: var(--muted); line-height: 1.6; }
-#ticket-work .tw-warning { color: #f2cf91; }
+#ticket-work .tw-warning { color: var(--you); }
 #ticket-work .tw-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
 #ticket-work label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
 #ticket-work label:last-child { grid-column: 1 / -1; }
-#ticket-work select, #ticket-work input { width: 100%; min-width: 0; min-height: 40px; border: 1px solid var(--border); border-radius: 7px; background: #1a211d; color: #e7e9e8; padding: 9px; font: inherit; font-size: 14px; }
-#ticket-work select:focus-visible, #ticket-work input:focus-visible { outline: 2px solid #cae7d2; outline-offset: 3px; }
+#ticket-work select, #ticket-work input { width: 100%; min-width: 0; min-height: 40px; border: 1px solid var(--border); border-radius: 7px; background: var(--inset); color: var(--text); padding: 9px; font: inherit; font-size: 14px; }
+#ticket-work select:focus-visible, #ticket-work input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 #ticket-work .tw-list { display: grid; gap: 12px; margin-bottom: 14px; }
-#ticket-work .tw-ticket { background: #181f1b; border: 1px solid var(--border); border-radius: 9px; padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+#ticket-work .tw-ticket { background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 16px; min-width: 0; overflow-wrap: anywhere; }
 #ticket-work h3 { font-size: 16px; line-height: 1.5; margin: 0 0 8px; }
 #ticket-work .tw-meta { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 6px 0; }
 #ticket-work .tw-action { margin: 10px 0 6px; line-height: 1.5; font-weight: 550; }
 #ticket-work .tw-prs { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; margin: 8px 0; }
 #ticket-work details { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; font-size: 13px; line-height: 1.6; }
-#ticket-work summary { cursor: pointer; color: #c3d1c8; }
+#ticket-work summary { cursor: pointer; color: var(--muted); }
 #ticket-work li { margin-bottom: 10px; }
 #ticket-work [hidden] { display: none; }
 @media (max-width: 650px) {
@@ -24,7 +24,7 @@
   #ticket-work h2 { font-size: 19px; }
   #ticket-work .tw-ticket { padding: 12px; }
 }
-#ticket-work .tw-priority { border: 1px solid var(--border); border-radius: 9px; padding: 16px; margin: 18px 0; background: #141d18; }
+#ticket-work .tw-priority { border: 1px solid var(--border); border-radius: 9px; padding: 16px; margin: 18px 0; background: var(--panel); }
 #ticket-work .tw-review-list { padding-left: 24px; margin: 12px 0 0; }
 #ticket-work .tw-review-list > li { padding: 10px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
 #ticket-work .tw-review-list > li > a { font-weight: 600; }
@@ -32,11 +32,11 @@
 #ticket-work .tw-review-list .tw-action { font-size: 13px; margin: 4px 0; }
 
 #ticket-work .tw-priority > summary { font-size: 16px; font-weight: 600; }
-#ticket-work .tw-priority > summary:focus-visible { outline: 2px solid #cae7d2; outline-offset: 4px; }
+#ticket-work .tw-priority > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 
 #ticket-work .tw-project { border: 0; margin: 0; padding: 0; font-size: inherit; }
 #ticket-work .tw-project > summary { color: inherit; }
 #ticket-work .tw-project > summary h2 { display: inline; }
-#ticket-work .tw-project > summary:focus-visible { outline: 2px solid #cae7d2; outline-offset: 4px; }
+#ticket-work .tw-project > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 
-.tw-ease { display: inline-block; vertical-align: middle; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 8px; background: #1f3a2a; color: var(--green); text-decoration: none; }
+.tw-ease { display: inline-block; vertical-align: middle; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 999px; padding: 2px 8px; background: var(--go-bg); color: var(--go); text-decoration: none; }

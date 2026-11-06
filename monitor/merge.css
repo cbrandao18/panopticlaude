@@ -2,11 +2,11 @@
 #merge .merge-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; }
 #merge .merge-head h2 { margin: 0; font-size: 22px; }
 #merge .merge-muted { color: var(--muted); font-size: 13px; line-height: 1.6; }
-#merge .merge-error { color: #f2cf91; font-size: 14px; }
+#merge .merge-error { color: var(--you); font-size: 14px; }
 #merge .merge-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
 #merge .merge-row { font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
 #merge a { color: var(--green); font-weight: 600; }
-#merge a:focus-visible, #merge summary:focus-visible { outline: 2px solid #cae7d2; outline-offset: 3px; }
+#merge a:focus-visible, #merge summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 /* Override the page-wide details/summary spacing and muted color. */
 #merge details { margin-top: 12px; }
-#merge summary { cursor: pointer; margin-bottom: 0; color: #c3d1c8; font-size: 13px; }
+#merge summary { cursor: pointer; margin-bottom: 0; color: var(--muted); font-size: 13px; }
