@@ -17,7 +17,7 @@ Success: one daily sweep turns all three sources into tickets in #ai-created-iss
   - LogRocket, for staff-fe sessions, screenshots and friction signals
 - Cross-correlate the three sources, so one defect gets one ticket listing every source that saw it.
 - Catch UI problems that throw no error, by having Claude review LogRocket screenshots.
-- Show results on the panopticlaude dashboard: every finding, its sources, counts, ticket, fix status and a screenshot.
+- Show results on the Roost dashboard: every finding, its sources, counts, ticket, fix status and a screenshot.
 - After each run, fix simple bugs from any source through the hotfix flow: PR, Devlo loop, CI, never merged.
 
 ## Non-goals

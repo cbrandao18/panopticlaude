@@ -346,7 +346,7 @@ test('postedBanner: convention line with comment ids and NOT-posted tail', () =>
     [{ n: 1, issue: 34213 }],
     new Date(2026, 7, 19).getTime()
   );
-  assert.match(banner, /^> \*\*POSTED 2026-08-19\*\* — drafts 2 posted via panopticlaude: #34211 \(issuecomment-5346607568\)\./);
+  assert.match(banner, /^> \*\*POSTED 2026-08-19\*\* — drafts 2 posted via Roost: #34211 \(issuecomment-5346607568\)\./);
   assert.match(banner, /Drafts 1 \(#34213\) NOT posted — don't post later without asking\. Do not re-post\.$/);
   const noSkips = lib.postedBanner([{ n: 3, issue: 1, commentUrl: 'x#issuecomment-9' }], [], 0);
   assert.ok(!noSkips.includes('NOT posted'));

@@ -1,6 +1,6 @@
 {
   "name": "panopticlaude",
-  "displayName": "Panopticlaude",
+  "displayName": "Roost",
   "description": "Mission control for Claude Code sessions and cron bots. One sidebar. All your Claudes. Nowhere to hide.",
   "version": "0.7.0",
   "publisher": "cbrandao18",
@@ -24,7 +24,7 @@
       "activitybar": [
         {
           "id": "panopticlaude",
-          "title": "Panopticlaude",
+          "title": "Roost",
           "icon": "media/eye.svg"
         }
       ]
@@ -69,22 +69,22 @@
     "commands": [
       {
         "command": "panopticlaude.refresh",
-        "title": "Panopticlaude: Refresh",
+        "title": "Roost: Refresh",
         "icon": "$(refresh)"
       },
       {
         "command": "panopticlaude.showGui",
-        "title": "Panopticlaude: Switch to GUI View",
+        "title": "Roost: Switch to GUI View",
         "icon": "$(preview)"
       },
       {
         "command": "panopticlaude.showTree",
-        "title": "Panopticlaude: Switch to Tree View",
+        "title": "Roost: Switch to Tree View",
         "icon": "$(list-tree)"
       },
       {
         "command": "panopticlaude.installHooks",
-        "title": "Panopticlaude: Install Claude Code Hooks"
+        "title": "Roost: Install Claude Code Hooks"
       },
       {
         "command": "panopticlaude.markInboxReviewed",
@@ -93,7 +93,7 @@
       },
       {
         "command": "panopticlaude.cleanWorktrees",
-        "title": "Panopticlaude: Clean Up Worktrees",
+        "title": "Roost: Clean Up Worktrees",
         "icon": "$(trash)"
       },
       {
@@ -167,7 +167,7 @@
       }
     ],
     "configuration": {
-      "title": "Panopticlaude",
+      "title": "Roost",
       "properties": {
         "panopticlaude.repos": {
           "type": "array",

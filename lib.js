@@ -1,4 +1,4 @@
-// Data layer for panopticlaude. No vscode import: `node --test` runs against this,
+// Data layer for Roost. No vscode import: `node --test` runs against this,
 // and scripts/live-check.js prints real rows outside the extension host.
 const fs = require('fs');
 const os = require('os');
@@ -598,7 +598,7 @@ function postedBanner(posted, notPosted, nowMs = Date.now()) {
   const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const nums = posted.map((p) => p.n).join(', ');
   const refs = posted.map((p) => `#${p.issue} (issuecomment-${commentIdFromUrl(p.commentUrl) || '?'})`).join(', ');
-  let line = `> **POSTED ${date}** — drafts ${nums} posted via panopticlaude: ${refs}.`;
+  let line = `> **POSTED ${date}** — drafts ${nums} posted via Roost: ${refs}.`;
   if (notPosted.length) {
     line += ` Drafts ${notPosted.map((p) => `${p.n} (#${p.issue})`).join(', ')} NOT posted — don't post later without asking.`;
   }

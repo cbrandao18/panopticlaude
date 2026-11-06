@@ -589,7 +589,7 @@ async function renderView(view) {
     content.push(
       element(
         'p',
-        'New and changed files stay unread until you mark them reviewed. Review status is shared with Panopticlaude in VS Code.',
+        'New and changed files stay unread until you mark them reviewed. Review status is shared with the Roost VS Code extension.',
         'note'
       )
     );

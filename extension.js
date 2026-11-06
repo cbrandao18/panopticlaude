@@ -1,4 +1,4 @@
-// panopticlaude: VSCode glue. All parsing lives in lib.js; this file collects row data
+// Roost: VSCode glue. All parsing lives in lib.js; this file collects row data
 // (git/gh spawns, cached), renders it as either native trees or the webview GUI (the
 // user toggles between them; the context key panopticlaude.gui picks which views show),
 // and installs the Claude Code hooks.
@@ -251,7 +251,7 @@ async function cleanWorktrees() {
   worktreeCache.t = 0;
   const rows = await collectWorktreeRows();
   if (!rows.length) {
-    vscode.window.showInformationMessage('panopticlaude: no extra worktrees to clean.');
+    vscode.window.showInformationMessage('Roost: no extra worktrees to clean.');
     return;
   }
   const picks = rows
@@ -285,11 +285,11 @@ async function cleanWorktrees() {
     if (btn === 'Force Remove') {
       const second = await removeWorktrees(first.refused, true);
       removed += second.removed;
-      for (const c of second.refused) vscode.window.showErrorMessage(`panopticlaude: ${c.label}: ${c.err.message}`);
+      for (const c of second.refused) vscode.window.showErrorMessage(`Roost: ${c.label}: ${c.err.message}`);
     }
   }
   vscode.window.showInformationMessage(
-    `panopticlaude: removed ${removed} worktree(s)${prunable.length ? `, pruned ${prunable.length}` : ''}.`
+    `Roost: removed ${removed} worktree(s)${prunable.length ? `, pruned ${prunable.length}` : ''}.`
   );
   vscode.commands.executeCommand('panopticlaude.refresh');
 }
@@ -347,7 +347,7 @@ function resolveDraftFile(inboxDir) {
 async function openTodayDraft(inboxDir) {
   const file = resolveDraftFile(inboxDir);
   if (!file) {
-    vscode.window.showInformationMessage('panopticlaude: no DRAFTS-*.md files in ' + inboxDir);
+    vscode.window.showInformationMessage('Roost: no DRAFTS-*.md files in ' + inboxDir);
     return;
   }
   await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(file));
@@ -383,19 +383,19 @@ async function mintBotToken() {
 async function postDrafts(inboxDir, repo) {
   const file = resolveDraftFile(inboxDir);
   if (!file) {
-    vscode.window.showErrorMessage('panopticlaude: no DRAFTS-*.md files in ' + inboxDir);
+    vscode.window.showErrorMessage('Roost: no DRAFTS-*.md files in ' + inboxDir);
     return;
   }
   const fileName = path.basename(file);
   const { posted, drafts } = lib.parseDraftsFile(fs.readFileSync(file, 'utf8'));
   if (posted) {
     vscode.window.showErrorMessage(
-      `panopticlaude: ${fileName} already has a POSTED banner — post leftovers from a Claude session instead.`
+      `Roost: ${fileName} already has a POSTED banner — post leftovers from a Claude session instead.`
     );
     return;
   }
   if (!drafts.length) {
-    vscode.window.showErrorMessage(`panopticlaude: no drafts found in ${fileName}.`);
+    vscode.window.showErrorMessage(`Roost: no drafts found in ${fileName}.`);
     return;
   }
   const byN = new Map(drafts.map((d) => [d.n, d]));
@@ -440,7 +440,7 @@ async function postDrafts(inboxDir, repo) {
   );
   if (!postable.length) {
     vscode.window.showWarningMessage(
-      'panopticlaude: nothing to post. ' + skipped.map((s) => `#${s.issue}: ${s.reason}`).join('; ')
+      'Roost: nothing to post. ' + skipped.map((s) => `#${s.issue}: ${s.reason}`).join('; ')
     );
     return;
   }
@@ -459,7 +459,7 @@ async function postDrafts(inboxDir, repo) {
     botToken = await mintBotToken();
   } catch (err) {
     vscode.window.showErrorMessage(
-      'panopticlaude: could not mint ticket-automation bot token — nothing posted (will not post as you). ' +
+      'Roost: could not mint ticket-automation bot token — nothing posted (will not post as you). ' +
         err.message.split('\n')[0]
     );
     return;
@@ -499,11 +499,11 @@ async function postDrafts(inboxDir, repo) {
   }
   if (failed.length) {
     vscode.window.showErrorMessage(
-      `panopticlaude: ${failed.length} post(s) failed: ` + failed.map((f) => `#${f.issue} (${f.err})`).join(', ')
+      `Roost: ${failed.length} post(s) failed: ` + failed.map((f) => `#${f.issue} (${f.err})`).join(', ')
     );
   }
   vscode.window.showInformationMessage(
-    `panopticlaude: posted ${postedOk.length} comment(s) to ${repo}` +
+    `Roost: posted ${postedOk.length} comment(s) to ${repo}` +
       (skipped.length ? `, skipped ${skipped.length}` : '') +
       '.'
   );
@@ -956,11 +956,11 @@ function installHooks(context) {
     fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
     vscode.window.showInformationMessage(
       added
-        ? `panopticlaude: hooks added for ${added} event(s). New Claude Code sessions will report state; running ones keep the mtime heuristic until restarted.`
-        : 'panopticlaude: hooks already installed.'
+        ? `Roost: hooks added for ${added} event(s). New Claude Code sessions will report state; running ones keep the mtime heuristic until restarted.`
+        : 'Roost: hooks already installed.'
     );
   } catch (err) {
-    vscode.window.showErrorMessage(`panopticlaude: hook install failed: ${err.message}`);
+    vscode.window.showErrorMessage(`Roost: hook install failed: ${err.message}`);
   }
 }
 

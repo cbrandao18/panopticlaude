@@ -194,7 +194,7 @@ Expected: `Updated HH:MM` appears, and the Calendar and PRs sections are unchang
 
 - [ ] **Step 6: Commit**
 
-The skill lives outside a repo. Note its path in the panopticlaude repo instead:
+The skill lives outside a repo. Note its path in the Roost repo instead:
 
 ```bash
 cd ~/projects/panopticlaude-orca-monitor && git add docs/superpowers && git commit -m "Daily brief: record skill location and render decision"
