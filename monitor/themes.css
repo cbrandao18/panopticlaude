@@ -50,6 +50,46 @@ html[data-theme='branch'] {
   --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
 }
 
+/* Roost: Branch's beige, green, lime and orange, with birds. Light. */
+html[data-theme='roost'] {
+  color-scheme: light;
+  --bg: #f7f3ef; --surface: #ffffff; --surface-2: #eae2d6; --raised: #f3ede4; --border: #ddd3c4; --line: #ece5da;
+  --text: #1b2514; --muted: #5c654f; --link: #343b1b; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #343b1b;
+  --go: #7a8f1f; --go-bg: #eef2cf; --go-ink: #3f4a0f;
+  --you: #f89521; --you-bg: #fde6cc; --you-ink: #7d4204; --you-border: #f3b673;
+  --alarm: #b53a29; --alarm-bg: #fbeae6; --alarm-chip: #b53a29; --alarm-ink: #ffffff; --alarm-border: #e8b0a6;
+  --info: #2f6f9f; --info-bg: #e3eef7; --info-ink: #1f4d70; --info-border: #b5d0e6;
+  --stuck: #8a4f9e; --stuck-bg: #f1e6f5; --stuck-ink: #5e2f70; --stuck-border: #d8bfe2;
+  --chip-bg: #eae2d6; --chip-ink: #343b1b; --idle: #a9a294;
+  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 2px rgba(52, 59, 27, .08), 0 6px 16px rgba(52, 59, 27, .05);
+  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
+  --bird-ok: #7a8f1f; --bird-ok-wing: #3f4a0f; --bird-you: #f89521; --bird-you-wing: #c4700f;
+  --bird-working: #2f6f9f; --bird-working-wing: #1f4d70; --bird-stuck: #8a4f9e; --bird-stuck-wing: #5e2f70;
+  --bird-failed: #c2412f; --bird-failed-wing: #8f2d20; --bird-quiet: #8e8a7c; --bird-quiet-wing: #6f6b5e;
+  --belly: #f7f3ef; --leg: #343b1b; --eye: #1b2514; --beak: #f89521;
+  --twig: #343b1b; --leaf: #afbe2d; --berry: #f89521; --nest: #eae2d6; --nest-line: #7a6a4f; --egg: #fffdf8;
+}
+
+/* Roost Dusk: the same birds on Branch dark green. */
+html[data-theme='dusk'] {
+  color-scheme: dark;
+  --bg: #1b2514; --surface: #243019; --surface-2: #343b1b; --raised: #2d3a20; --border: #3d4b2a; --line: #34412a;
+  --text: #f7f3ef; --muted: #bcc3aa; --link: #afbe2d; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #f7f3ef;
+  --go: #afbe2d; --go-bg: #34411a; --go-ink: #dfe9a0;
+  --you: #f89521; --you-bg: #4a3412; --you-ink: #ffd59a; --you-border: #a8651a;
+  --alarm: #ff9c8c; --alarm-bg: #3b1d19; --alarm-chip: #c9402c; --alarm-ink: #ffffff; --alarm-border: #7a3a35;
+  --info: #8cc2f0; --info-bg: #1e3346; --info-ink: #b6d9fa; --info-border: #2f4f6b;
+  --stuck: #d9a4ec; --stuck-bg: #4a2a58; --stuck-ink: #f0d4fa; --stuck-border: #6d4580;
+  --chip-bg: #3d4b2a; --chip-ink: #eae2d6; --idle: #8a9378;
+  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 0 rgba(0, 0, 0, .2);
+  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
+  --bird-ok: #afbe2d; --bird-ok-wing: #7d8a3a; --bird-you: #f89521; --bird-you-wing: #c4700f;
+  --bird-working: #6ea8d8; --bird-working-wing: #3d79ad; --bird-stuck: #c28bd6; --bird-stuck-wing: #8a4f9e;
+  --bird-failed: #ef6a56; --bird-failed-wing: #b8402f; --bird-quiet: #9aa089; --bird-quiet-wing: #6f7662;
+  --belly: #f7f3ef; --leg: #afbe2d; --eye: #1b2514; --beak: #f89521;
+  --twig: #7d8a3a; --leaf: #afbe2d; --berry: #f89521; --nest: #2d3a20; --nest-line: #a08a62; --egg: #f7f3ef;
+}
+
 /* Shared chrome on themed pages. */
 html[data-theme] body { font-family: var(--font); }
 html[data-theme] a { color: var(--link); }
@@ -89,6 +129,75 @@ html[data-theme='lounge'] .tier { border: 0; box-shadow: var(--shadow); }
 html[data-theme='lounge'] .tier.you h2 .count, html[data-theme='lounge'] .tier.alarm h2 .count { background: var(--alarm-chip); color: var(--alarm-ink); }
 html[data-theme='lounge'] .presence { display: inline-block; }
 @media (prefers-reduced-motion: reduce) { html[data-theme='lounge'] .tabs a { transition: none; } }
+
+/* Roost birds and branch: markup is always rendered, shown only in the Roost themes. Decoration never carries data;
+   every state also has its word, colour or count. */
+.sprite-host { position: absolute; width: 0; height: 0; overflow: hidden; }
+.bird, .egg, .nest, .roost-branch, .perched { display: none; }
+.bd-body { fill: var(--b); } .bd-tail, .bd-wing { fill: var(--bw); } .bd-wing.back { fill: var(--b); }
+.bd-belly { fill: var(--belly); } .bd-beak { fill: var(--beak); } .bd-eye { fill: var(--eye); }
+.bd-leg { fill: none; stroke: var(--leg); stroke-width: 2; stroke-linecap: round; }
+.bd-sound { fill: none; stroke: var(--beak); stroke-width: 2.4; stroke-linecap: round; }
+.bd-eyeline, .bd-x { fill: none; stroke: var(--eye); stroke-width: 2; stroke-linecap: round; }
+.bd-z { fill: none; stroke: var(--b); stroke-width: 2; stroke-linejoin: round; } .bd-dot { fill: var(--b); }
+.eg-shell { fill: var(--egg); stroke: var(--leg); stroke-width: 2; } .eg-spot { fill: var(--leaf); }
+.ns-back { fill: var(--nest); stroke: var(--nest-line); stroke-width: 3; stroke-linecap: round; }
+.ns-twig { fill: none; stroke: var(--nest-line); stroke-width: 2; stroke-linecap: round; }
+.br-twig { fill: none; stroke: var(--twig); stroke-width: 3; stroke-linecap: round; } .br-leaf { fill: var(--leaf); } .br-berry { fill: var(--berry); }
+
+html:is([data-theme='roost'], [data-theme='dusk']) {
+  .bird { display: inline-block; flex: none; width: 34px; height: 34px; align-self: center; }
+  .bird.ok { --b: var(--bird-ok); --bw: var(--bird-ok-wing); } .bird.you { --b: var(--bird-you); --bw: var(--bird-you-wing); }
+  .bird.working { --b: var(--bird-working); --bw: var(--bird-working-wing); } .bird.stuck { --b: var(--bird-stuck); --bw: var(--bird-stuck-wing); }
+  .bird.failed { --b: var(--bird-failed); --bw: var(--bird-failed-wing); } .bird.quiet { --b: var(--bird-quiet); --bw: var(--bird-quiet-wing); }
+  .bird.idle { --b: var(--bird-ok); --bw: var(--bird-ok-wing); }
+  .egg { display: inline-block; flex: none; width: 24px; height: 24px; margin-right: 4px; vertical-align: middle; align-self: center; }
+  .nest { display: block; flex: none; width: 76px; height: 52px; }
+  .nest:not(.n-empty) { margin-top: 4px; }
+  .roost-branch { display: block; width: 100%; height: 30px; margin: -6px 0 6px; }
+  .brand-mark svg { stroke: none; width: 44px; height: 44px; }
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: -.01em; gap: 8px; }
+  .masthead { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; align-items: flex-end; }
+  .brand-mark { margin-bottom: -2px; }
+  .tabs { margin-bottom: 4px; }
+  .tabs a { border-radius: 999px; font-weight: 700; padding: 6px 14px; }
+  .tabs a[aria-current='page'] { background: var(--accent); color: var(--accent-ink); }
+  .masthead [role='status'] { margin-bottom: 8px; }
+  .wordmark { display: block; margin: 0 0 18px; font-size: 13.5px; } .wordmark strong { display: none; }
+  a { text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .tier { border-radius: var(--radius); box-shadow: var(--shadow); }
+  .tier h2 { font-size: 19px; font-weight: 700; letter-spacing: -.005em; }
+  .tier.you, .tier.go { border-left-width: 5px; }
+  .tier.you h2 .count { background: var(--you-bg); color: var(--you-ink); }
+  .tier.alarm h2 { color: var(--alarm); }
+  .tier.calm { position: relative; margin-top: 46px; }
+  .tier.calm .dot { display: none; }
+  .perched { display: block; position: absolute; right: 26px; top: -39px; }
+  .perched .bird { width: 46px; height: 46px; }
+  .rows li .bird { margin: -4px 0; }
+  .empty { display: flex; align-items: center; gap: 8px; }
+  .empty .bird { width: 28px; height: 28px; opacity: .85; }
+  .empty-nest { display: flex; align-items: center; gap: 14px; }
+  .autos .dot { display: none; }
+  .autos td:first-child .bird, .autos td:first-child .egg { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
+  .autos tr.overdue td:first-child { color: var(--you-ink); }
+  .node.quiet > .card { opacity: 1; background: var(--raised); border-style: dashed; }
+  .presence { display: none; }
+  .card { border-radius: var(--radius-sm) 12px; }
+  .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
+  .badge { border-radius: 999px; padding: 2px 10px; }
+  .summary .badge { padding: 4px 12px; font-size: 12px; }
+  button { font-weight: 700; }
+  .toggle { font-weight: 600; }
+}
+html:is([data-theme='roost'], [data-theme='dusk']) .tier.alarm .count { background: var(--alarm-chip); color: var(--alarm-ink); }
+html[data-theme='dusk'] body { background-image: radial-gradient(circle at 8% 4%, rgba(175, 190, 45, .16) 0 2px, transparent 3px), radial-gradient(circle at 91% 11%, rgba(248, 149, 33, .16) 0 2px, transparent 3px), radial-gradient(circle at 58% 2%, rgba(247, 243, 239, .14) 0 1.5px, transparent 3px), radial-gradient(circle at 24% 14%, rgba(247, 243, 239, .1) 0 1.5px, transparent 3px); background-repeat: no-repeat; }
+@media (prefers-reduced-motion: no-preference) {
+  html:is([data-theme='roost'], [data-theme='dusk']) .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
+  html:is([data-theme='roost'], [data-theme='dusk']) .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
+}
+@keyframes roost-call { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes roost-fly { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(2px, -3px) rotate(-5deg); } }
 
 /* Presence dots: shown in Lounge only. */
 .presence { display: none; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--idle); box-shadow: 0 0 0 3px var(--surface); align-self: center; }

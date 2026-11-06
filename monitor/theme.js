@@ -2,7 +2,10 @@
 // Pages opt in to theming with data-themable on <html>; the Work page keeps its original look but takes the name.
 (function () {
   'use strict';
-  const THEMES = { lounge: 'Lounge', branch: 'Branch', classic: 'Classic' };
+  const THEMES = { roost: 'Roost', dusk: 'Roost Dusk', lounge: 'Lounge', branch: 'Branch', classic: 'Classic' };
+  const ROOST_THEMES = ['roost', 'dusk'];
+  // The Roost themes get a full-colour bird on a leafy branch; everything else gets the line mark.
+  const ROOST_MARK = '<svg aria-hidden="true" viewBox="0 0 48 48"><path d="M2 45c10-3 24 1 34-1l10-2v3c-9 3-24 1-34 3z" fill="currentColor"/><path d="M33 44c3-7 9-8 14-6-1 6-7 8-14 6z" fill="#afbe2d"/><path d="M13 30L2 37l13 1z" fill="currentColor"/><ellipse cx="23" cy="29" rx="14" ry="11" fill="#7a8f1f"/><circle cx="32" cy="18" r="9" fill="#7a8f1f"/><ellipse cx="28" cy="33" rx="8" ry="5.5" fill="#f7f3ef"/><path d="M11 27c5-7 16-5 19 3-7 6-17 5-19-3z" fill="currentColor"/><path d="M40 16l7 3.5-7 3z" fill="#f89521"/><circle cx="35" cy="16" r="1.8" fill="#1b2514"/><rect x="21" y="38" width="2.2" height="6" rx="1" fill="currentColor"/><rect x="28" y="38" width="2.2" height="6" rx="1" fill="currentColor"/></svg>';
   const svg = (body) => `<svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
   const BRANDS = {
     roost: {
@@ -61,7 +64,7 @@
   };
   const root = document.documentElement;
   const themable = root.hasAttribute('data-themable');
-  const state = { theme: read('pano.theme', 'lounge', THEMES), brand: read('pano.brand', 'roost', BRANDS) };
+  const state = { theme: read('pano.theme', 'roost', THEMES), brand: read('pano.brand', 'roost', BRANDS) };
   // ?theme=branch&name=crew opens a variant directly (handy for comparing in two tabs). It isn't saved.
   const params = new URLSearchParams(location.search);
   if (params.get('theme') in THEMES) state.theme = params.get('theme');
@@ -69,7 +72,7 @@
 
   function apply() {
     if (themable) root.dataset.theme = state.theme;
-    const brand = BRANDS[state.brand];
+    const brand = window.pano.brand();
     document.title = document.title.replace(/^[^·]*·/, `${brand.name} ·`);
     // Static pages mark their brand slots; the Preact pages listen for pano:change instead.
     for (const node of document.querySelectorAll('[data-brand-name]')) node.textContent = brand.name;
@@ -113,7 +116,10 @@
     document.body.append(box);
   }
 
-  window.pano = { brand: () => BRANDS[state.brand], theme: () => state.theme };
+  window.pano = {
+    brand: () => (themable && state.brand === 'roost' && ROOST_THEMES.includes(state.theme) ? { ...BRANDS.roost, mark: ROOST_MARK } : BRANDS[state.brand]),
+    theme: () => state.theme
+  };
   if (themable) root.dataset.theme = state.theme;
   document.addEventListener('DOMContentLoaded', () => {
     apply();

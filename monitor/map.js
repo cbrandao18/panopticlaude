@@ -4,6 +4,7 @@ import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca } from './ui.js';
+import { Bird } from './roost.js';
 
 const html = htm.bind(h);
 const DAY = 86400000;
@@ -75,7 +76,7 @@ function Node({ ws, showQuiet, rank }) {
     <li class=${`node ${ws.state}`}>
       <div class="card" title=${ws.path}>
         <div class="card-top">
-          <span class=${`presence ${ws.state}`} aria-hidden="true"></span><button class="name open-ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>
+          <span class=${`presence ${ws.state}`} aria-hidden="true"></span><${Bird} state=${ws.state} /><button class="name open-ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>
           <span class="host">${ws.host === 'vm' ? 'VM' : 'Mac'}</span>
         </div>
         ${LABEL[ws.state] && html`<span class=${`badge ${ws.state}`}>${LABEL[ws.state]}</span>`}
@@ -96,7 +97,7 @@ function Column({ col, showQuiet, rank }) {
   return html`
     <section class="column" aria-labelledby=${`col-${col.id}`}>
       <h2 id=${`col-${col.id}`}>${col.label} <span class="count">${col.roots.length}</span></h2>
-      ${visible.length ? html`<ul class="tree">${visible.map((ws) => html`<${Node} key=${ws.key} ws=${ws} showQuiet=${showQuiet} rank=${rank} />`)}</ul>` : html`<p class="now-muted">Nothing active.</p>`}
+      ${visible.length ? html`<ul class="tree">${visible.map((ws) => html`<${Node} key=${ws.key} ws=${ws} showQuiet=${showQuiet} rank=${rank} />`)}</ul>` : html`<p class="now-muted empty"><${Bird} state="quiet" />Nothing active.</p>`}
       ${quiet > 0 && html`<p class="now-muted quiet-note">${quiet} quiet for ${QUIET_AFTER / DAY}+ days</p>`}
     </section>`;
 }

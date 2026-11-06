@@ -2,6 +2,7 @@
 import { h } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
+import { Branch, Sprite } from './roost.js';
 
 const html = htm.bind(h);
 
@@ -26,6 +27,8 @@ export function Masthead({ page, status }) {
       <nav class="tabs" aria-label="Pages">${PAGES.map(([href, label]) => html`<a href=${href} aria-current=${page === href ? 'page' : null}>${label}</a>`)}</nav>
       <span class="now-muted" role="status">${status}</span>
     </header>
+    <${Sprite} />
+    <${Branch} />
     <div class="wordmark"><strong>${brand.name}</strong><span class="now-muted">${brand.tagline}</span></div>`;
 }
 

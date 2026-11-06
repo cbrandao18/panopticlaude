@@ -64,6 +64,7 @@ const assets = {
   '/now.js': ['now.js', 'text/javascript'],
   '/now.css': ['now.css', 'text/css'],
   '/ui.js': ['ui.js', 'text/javascript'],
+  '/roost.js': ['roost.js', 'text/javascript'],
   '/theme.js': ['theme.js', 'text/javascript'],
   '/themes.css': ['themes.css', 'text/css'],
   '/vendor/cabin-latin-400-normal.woff2': ['vendor/cabin-latin-400-normal.woff2', 'font/woff2'],

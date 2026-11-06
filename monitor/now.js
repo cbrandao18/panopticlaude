@@ -3,6 +3,7 @@ import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca } from './ui.js';
+import { Bird, Nest, StatusBird } from './roost.js';
 
 const html = htm.bind(h);
 const SHOWN = 5;
@@ -80,6 +81,7 @@ function Down({ data }) {
   if (!down.length) {
     return html`
       <section class="tier calm" aria-label="Down">
+        <span class="perched"><${Bird} state="ok" /></span>
         <p><span class="dot ok" aria-hidden="true"></span><strong>Nothing is down.</strong>
         <span class="now-muted"> ${vendors.length} vendors, ${automations.length} automations and the bug sweep checked at ${clock(data.refreshedAt)}.</span></p>
         ${vendorPills}
@@ -89,6 +91,7 @@ function Down({ data }) {
     <${Section} id="down" title="Down" count=${down.length} tone="alarm">
       <${More} items=${down} row=${(d, i) => html`
         <li key=${`${d.kind}${i}${d.title}`}>
+          <${Bird} state="failed" />
           <span class=${`chip ${d.kind}`}>${{ vendor: 'Status', automation: 'Automation', sweep: 'Bug sweep', error: 'Prod error' }[d.kind] || d.kind}</span>
           <span class="title"><${Link} href=${d.url}>${d.title}</${Link}></span>
           ${d.detail && html`<span class="detail">${d.detail}</span>`}
@@ -110,7 +113,8 @@ function Ready({ data }) {
               <span class="title"><a href=${pr.url}>#${pr.number} ${pr.title}</a></span>
               ${pr.unstable && html`<span class="detail">an optional check is failing</span>`}
             </li>`} />`
-        : html`<p class="now-muted">None of your PRs can merge right now.</p>`}
+        : html`<p class="now-muted empty-nest"><${Nest} eggs=${0} />None of your PRs can merge right now.</p>`}
+      ${ready.length > 0 && html`<${Nest} eggs=${ready.length} />`}
     </${Section}>`;
 }
 
@@ -118,7 +122,7 @@ function Group({ label, items, row, empty }) {
   return html`
     <div class="group">
       <h3>${label} <span class="count">${items.length}</span></h3>
-      ${items.length ? html`<${More} items=${items} row=${row} />` : html`<p class="now-muted">${empty}</p>`}
+      ${items.length ? html`<${More} items=${items} row=${row} />` : html`<p class="now-muted empty"><${Bird} state="idle" />${empty}</p>`}
     </div>`;
 }
 
@@ -129,7 +133,7 @@ function Blocked({ data }) {
     <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''}>
       <div class="groups">
         <${Group} label="Agents waiting" items=${agents} empty="No agent is waiting on you."
-          row=${(a) => html`<li key=${a.key}><span class="presence you" aria-hidden="true"></span><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
+          row=${(a) => html`<li key=${a.key}><span class="presence you" aria-hidden="true"></span><${Bird} state="you" /><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
             <button class="text open" type="button" onClick=${() => openInOrca(a.key, a.name)}>Open in Orca</button></li>`} />
         <${Group} label="Reviews requested" items=${reviews} empty="No reviews requested."
           row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>#${r.number} ${r.title}</a> <span class="detail">· ${r.author}</span></span></li>`} />
@@ -187,7 +191,7 @@ function Automations({ data }) {
         <tbody>
           ${rows.map((a) => html`
             <tr key=${a.key} class=${a.status}>
-              <td><span class=${`dot ${a.status}`} aria-hidden="true"></span>${STATUS[a.status] || a.status}</td>
+              <td><span class=${`dot ${a.status}`} aria-hidden="true"></span><${StatusBird} status=${a.status} />${STATUS[a.status] || a.status}</td>
               <td>${a.name}${a.error && html`<div class="detail">${a.error}</div>`}</td>
               <td>${hostLabel(a.host)}</td>
               <td>${a.lastRunAt ? ago(a.lastRunAt) : '—'}</td>
