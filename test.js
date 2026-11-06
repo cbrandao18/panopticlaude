@@ -314,6 +314,14 @@ test('parseDraftsFile: POSTED banner detected', () => {
   assert.equal(lib.parseDraftsFile(banner).posted, true);
 });
 
+test('parseDraftsFile: auto-posted comment URL read from the Posted line', () => {
+  const url = 'https://github.com/o/r/issues/34213#issuecomment-1';
+  const text = DRAFT_FIXTURE.replace(/^(## Draft 1 [^\n]*\n)/m, `$1\n**Posted:** ${url}\n`);
+  const { drafts } = lib.parseDraftsFile(text);
+  assert.equal(drafts[0].postedUrl, url);
+  assert.equal(drafts[1].postedUrl, null);
+});
+
 test('expandRelativeLinks: only repo-relative links get the blob prefix', () => {
   const body = lib.parseDraftsFile(DRAFT_FIXTURE).drafts[0].body;
   const out = lib.expandRelativeLinks(body, 'gobranch/branch');

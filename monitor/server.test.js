@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
-const { createMonitor, jobStatus } = require('./server');
+const { createMonitor, jobStatus, inboxFiles } = require('./server');
 
-async function fixture(t, options = {}) {
+async function fixture(t, options = {}, withFindings = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'panopticlaude-monitor-'));
   const inbox = path.join(dir, 'drafts');
   fs.mkdirSync(inbox);
@@ -16,6 +16,11 @@ async function fixture(t, options = {}) {
   fs.writeFileSync(path.join(dir, 'cron.out'), 'Fixture agent output.');
   fs.writeFileSync(path.join(dir, 'launchd.err'), '');
   const job = { label: 'com.example.fixture', log: path.join(dir, 'runs.log'), inbox, repo: 'owner/repo' };
+  const shots = path.join(dir, 'bot', 'shots');
+  if (withFindings) {
+    fs.mkdirSync(shots, { recursive: true });
+    job.findings = path.join(dir, 'bot', 'findings.json');
+  }
   const seen = {};
   const run = async (command) => ({
     stdout:
@@ -25,6 +30,7 @@ async function fixture(t, options = {}) {
   });
   const server = createMonitor({
     jobs: [job],
+    pilotDir: path.join(dir, "pilot"),
     run,
     renderMarkdown: async (text) => `<p>${text}</p>`,
     readSeen: () => seen,
@@ -51,8 +57,25 @@ async function fixture(t, options = {}) {
         body: JSON.stringify({ files })
       }
     );
-  return { job, get, review, name, inbox, run, seen, base };
+  return { job, get, review, name, inbox, run, seen, base, dir, shots };
 }
+
+test('shared reader exposes its local comparison and reports missing or malformed state', async (t) => {
+  const f = await fixture(t);
+  let data = await (await f.get('shared-reader')).json();
+  assert.equal(data.status, 'unavailable');
+  const pilot = path.join(f.dir, 'pilot');
+  fs.mkdirSync(pilot);
+  fs.writeFileSync(path.join(pilot, 'controller.json'), JSON.stringify({ started_at: '2026-11-01T16:51:57Z', attempts: {} }));
+  fs.writeFileSync(path.join(pilot, 'report.md'), 'Synthetic comparison\nWeek-two repeats recorded: 0 of 4.');
+  data = await (await f.get('shared-reader')).json();
+  assert.equal(data.status, 'active');
+  assert.equal(data.startedAt, '2026-11-01T16:51:57Z');
+  assert.match(data.report, /0 of 4/);
+  fs.writeFileSync(path.join(pilot, 'controller.json'), '{broken');
+  data = await (await f.get('shared-reader')).json();
+  assert.equal(data.status, 'unavailable');
+});
 
 test('posting uses the server draft, rejects stale previews, and protects writes', async (t) => {
   const posted = [];
@@ -299,4 +322,81 @@ test('skip feedback validates reasons, saves per draft, and comes back with the 
   assert.equal(saved.issue, 123);
   assert.equal(saved.file, f.name);
   assert.equal(fs.readdirSync(path.join(f.inbox, '.monitor-feedback')).length, 1);
+});
+
+test('inbox files sort newest first by the date in the name, across prefixes', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'panopticlaude-inbox-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const name of ['DRAFTS-2026-08-17.md', 'AUTO-POSTED-2026-10-12.md', 'notes.md', 'AUTO-POSTED-2026-10-14.md']) {
+    fs.writeFileSync(path.join(dir, name), '');
+  }
+  assert.deepEqual(
+    inboxFiles(dir).map((file) => file.name),
+    ['AUTO-POSTED-2026-10-14.md', 'AUTO-POSTED-2026-10-12.md', 'DRAFTS-2026-08-17.md', 'notes.md']
+  );
+});
+
+const finding = (key, lastSeen) => ({
+  key,
+  title: key,
+  sources: [{ type: 'sentry', url: 'https://example.com', count: 2, countLabel: 'users', firstSeen: lastSeen, lastSeen }]
+});
+
+test('findings route returns sorted findings and lastRun, empty when missing', async (t) => {
+  const f = await fixture(t, {}, true);
+  assert.equal((await fixture(t).then((plain) => plain.get('findings'))).status, 404);
+  assert.deepEqual(await (await f.get('findings')).json(), { lastRun: null, findings: [] });
+  const lastRun = { at: '2026-10-22T16:04:00Z', mode: 'file', sources: { datadog: 'ok', sentry: 'failed: 403' } };
+  fs.writeFileSync(
+    f.job.findings,
+    JSON.stringify({
+      version: 1,
+      lastRun,
+      findings: { old: finding('old', '2026-10-20T00:00:00Z'), new: finding('new', '2026-10-22T00:00:00Z') }
+    })
+  );
+  const body = await (await f.get('findings')).json();
+  assert.deepEqual(
+    body.findings.map((item) => item.key),
+    ['new', 'old']
+  );
+  assert.equal(body.lastRun.sources.sentry, 'failed: 403');
+  assert.equal((await (await f.get('status')).json()).jobs[0].hasFindings, true);
+  fs.rmSync(f.job.findings);
+  assert.deepEqual(await (await f.get('findings')).json(), { lastRun: null, findings: [] });
+});
+
+test('findings route reports invalid JSON as a readable 500', async (t) => {
+  const f = await fixture(t, {}, true);
+  fs.writeFileSync(f.job.findings, '{"version":1,"findings":{');
+  const response = await f.get('findings');
+  assert.equal(response.status, 500);
+  assert.match((await response.json()).error, /^findings\.json can't be read: /);
+});
+
+test('fix log kind serves fix.log next to the run log', async (t) => {
+  const f = await fixture(t);
+  fs.writeFileSync(path.join(f.dir, 'fix.log'), 'Fixer opened a PR.\n');
+  const body = await (await f.get('log', { kind: 'fix' })).json();
+  assert.equal(body.name, 'fix.log');
+  assert.equal(body.text, 'Fixer opened a PR.\n');
+});
+
+test('shot route serves PNGs from shots/ and rejects traversal, symlinks and other names', async (t) => {
+  const f = await fixture(t, {}, true);
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  fs.writeFileSync(path.join(f.shots, 'a.png'), png);
+  fs.writeFileSync(path.join(f.shots, 'a.txt'), 'text');
+  fs.writeFileSync(f.job.findings, '{}');
+  fs.symlinkSync(f.job.findings, path.join(f.shots, 'b.png'));
+  const ok = await f.get('shot', { name: 'a.png' });
+  assert.equal(ok.status, 200);
+  assert.match(ok.headers.get('content-type'), /^image\/png/);
+  assert.deepEqual(Buffer.from(await ok.arrayBuffer()), png);
+  for (const name of ['../findings.json', 'a.txt', 'b.png', 'missing.png']) {
+    const response = await f.get('shot', { name });
+    assert.equal(response.status, 404, name);
+    assert.deepEqual(await response.json(), { error: 'Screenshot not found.' });
+  }
+  assert.equal((await (await fixture(t)).get('shot', { name: 'a.png' })).status, 404);
 });

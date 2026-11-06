@@ -12,6 +12,7 @@ const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader } = require('./map-api');
 const { createEaseReader, fileTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
+const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
 const { createTipsReader } = require('./claude-tips-api');
 
@@ -22,7 +23,7 @@ async function readOrca(args, run = exec) {
     process.env.ORCA_CLI_COMMAND || '/usr/local/bin/orca',
     ['automations', ...args, '--json'],
     {
-      timeout: 5000,
+      timeout: 15000,
       maxBuffer: 4 * 1024 * 1024
     }
   );
@@ -66,6 +67,8 @@ const assets = {
   '/ease.css': ['ease.css', 'text/css'],
   '/security.js': ['security.js', 'text/javascript'],
   '/security.css': ['security.css', 'text/css'],
+  '/merge.js': ['merge.js', 'text/javascript'],
+  '/merge.css': ['merge.css', 'text/css'],
   '/brief.js': ['brief.js', 'text/javascript'],
   '/brief.css': ['brief.css', 'text/css'],
   '/claude-tips.js': ['claude-tips.js', 'text/javascript'],
@@ -91,7 +94,7 @@ function loadJobs(configPath) {
     if (!job.log || typeof job.log !== 'string') {
       throw new Error(`${job.label} needs a log path.`);
     }
-    return { ...job, log: expand(job.log), inbox: expand(job.inbox) };
+    return { ...job, log: expand(job.log), inbox: expand(job.inbox), findings: expand(job.findings) };
   });
 }
 
@@ -103,7 +106,12 @@ function inboxFiles(dir) {
     .readdirSync(dir, { withFileTypes: true })
     .filter((file) => file.isFile() && !file.name.startsWith('.'))
     .map((file) => ({ name: file.name, mtime: fs.statSync(path.join(dir, file.name)).mtimeMs }))
-    .sort((a, b) => b.name.localeCompare(a.name));
+    .sort((a, b) => fileDate(b.name).localeCompare(fileDate(a.name)) || b.name.localeCompare(a.name));
+}
+
+// Newest first by the YYYY-MM-DD in the name, so prefixes like DRAFTS- and AUTO-POSTED- interleave.
+function fileDate(name) {
+  return name.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '';
 }
 
 async function jobStatus(job, { run = exec, readSeen = lib.loadInboxSeen } = {}) {
@@ -215,6 +223,7 @@ async function jobStatus(job, { run = exec, readSeen = lib.loadInboxSeen } = {})
     status,
     warnings,
     hasInbox: Boolean(job.inbox),
+    hasFindings: Boolean(job.findings),
     files,
     unread: files.filter((file) => file.unread).length,
     latestDraft: lib.latestDraftFile(files.map((file) => file.name)),
@@ -240,20 +249,22 @@ function createMonitor({
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
   readSecurity = createSecurityReader({ readMap }),
+  readMerge = createMergeReader(),
+  readBrief = createBriefReader({ render: renderGithubMarkdown }),
   fileEase = fileTicket,
   readTips = createTipsReader(),
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
+  pilotDir = path.join(os.homedir(), '.local/state/shared-reader-pilot'),
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
-  readBrief = createBriefReader({ render: renderGithubMarkdown }),
   writeSeen = lib.saveInboxSeen
 }) {
   const filing = new Set();
   return http.createServer(async (req, res) => {
     const send = (status, body, type = 'application/json') => {
       res.writeHead(status, {
-        'Content-Type': `${type}; charset=utf-8`,
+        'Content-Type': type.startsWith('image/') ? type : `${type}; charset=utf-8`,
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',
@@ -288,16 +299,19 @@ function createMonitor({
       if (req.method === 'GET' && url.pathname === '/api/claude-tips') {
         return send(200, await readTips());
       }
+      if (req.method === 'GET' && url.pathname === '/api/brief') {
+        return send(200, await readBrief());
+      }
       if (req.method === 'GET' && url.pathname === '/api/security') {
         return send(200, await readSecurity());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/merge') {
+        return send(200, await readMerge());
       }
       if (req.method === 'GET' && url.pathname === '/api/ease') {
         return send(200, await readEase());
       }
       // Opens GitHub and Slack links in the Mac's default browser, outside whatever is showing this page.
-      if (req.method === 'GET' && url.pathname === '/api/brief') {
-        return send(200, await readBrief());
-      }
       if (req.method === 'POST' && url.pathname === '/api/open') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
           return send(403, { error: 'Open requests must come from the monitor.' });
@@ -358,6 +372,22 @@ function createMonitor({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         });
       }
+      if (req.method === 'GET' && url.pathname === '/api/shared-reader') {
+        try {
+          const state = JSON.parse(fs.readFileSync(path.join(pilotDir, 'controller.json'), 'utf8'));
+          const report = fs.readFileSync(path.join(pilotDir, 'report.md'), 'utf8');
+          if (!Number.isFinite(Date.parse(state.started_at))) throw new Error('Invalid start');
+          return send(200, {
+            status: state.finalized_at ? 'finalized' : 'active',
+            startedAt: state.started_at,
+            finalizedAt: state.finalized_at || null,
+            attention: Boolean(state.error || state.telemetry_error || state.cloud_cleanup_error || Object.keys(state.errors || {}).length),
+            report
+          });
+        } catch {
+          return send(200, { status: 'unavailable' });
+        }
+      }
       const job = jobs.find((item) => item.label === url.searchParams.get('job'));
       if (!job) {
         return send(404, { error: 'Job not found.' });
@@ -379,7 +409,8 @@ function createMonitor({
         const logs = {
           runs: job.log,
           output: path.join(path.dirname(job.log), 'cron.out'),
-          errors: path.join(path.dirname(job.log), 'launchd.err')
+          errors: path.join(path.dirname(job.log), 'launchd.err'),
+          fix: path.join(path.dirname(job.log), 'fix.log')
         };
         const file = logs[url.searchParams.get('kind') || 'runs'];
         if (!file) {
@@ -390,6 +421,37 @@ function createMonitor({
           text: lib.readTail(file, 65536),
           truncated: fs.statSync(file).size > 65536
         });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/findings' && job.findings) {
+        let parsed = {};
+        try {
+          parsed = JSON.parse(fs.readFileSync(job.findings, 'utf8'));
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            return send(500, { error: `findings.json can't be read: ${error.message}` });
+          }
+        }
+        const newest = (finding) => Math.max(0, ...(finding.sources || []).map((source) => Date.parse(source.lastSeen) || 0));
+        return send(200, {
+          lastRun: parsed.lastRun ?? null,
+          findings: Object.values(parsed.findings || {}).sort((a, b) => newest(b) - newest(a))
+        });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/shot') {
+        const name = url.searchParams.get('name') || '';
+        try {
+          if (!job.findings || !/^[\w.-]+\.png$/.test(name)) {
+            throw new Error('not a screenshot');
+          }
+          const shots = fs.realpathSync(path.join(path.dirname(job.findings), 'shots'));
+          const file = fs.realpathSync(path.join(shots, name));
+          if (path.dirname(file) !== shots) {
+            throw new Error('outside shots');
+          }
+          return send(200, fs.readFileSync(file), 'image/png');
+        } catch {
+          return send(404, { error: 'Screenshot not found.' });
+        }
       }
       if (req.method === 'GET' && url.pathname === '/api/file') {
         const file = inboxFiles(job.inbox).find((item) => item.name === url.searchParams.get('name'));
@@ -412,7 +474,8 @@ function createMonitor({
               const expanded = { ...draft, body: job.repo ? lib.expandRelativeLinks(draft.body, job.repo) : draft.body };
               // The raw body stays the source of truth; a failed render falls back to it in the page.
               const html = await renderMarkdown(expanded.body, job.repo).catch(() => null);
-              return { ...expanded, html, posting: receipt(job, expanded), skipped: readFeedback(job, expanded) };
+              const posting = receipt(job, expanded) || (draft.postedUrl ? { status: 'posted', commentUrl: draft.postedUrl } : null);
+              return { ...expanded, html, posting, skipped: readFeedback(job, expanded) };
             })
           ),
           skipReasons: SKIP_REASONS

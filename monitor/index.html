@@ -10,11 +10,13 @@
     <link rel="stylesheet" href="/ease.css">
     <link rel="stylesheet" href="/brief.css">
     <link rel="stylesheet" href="/security.css">
+    <link rel="stylesheet" href="/merge.css">
     <link rel="stylesheet" href="/claude-tips.css">
     <script src="/claude-tips.js" defer></script>
     <script src="/ease.js" defer></script>
     <script src="/brief.js" defer></script>
     <script src="/security.js" defer></script>
+    <script src="/merge.js" defer></script>
     <script src="/ticket-work.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
@@ -33,9 +35,11 @@
       <div class="connection"><span id="connection" role="status">Connecting to your jobs…</span><span id="timezone"></span></div>
       <p id="error" class="error" role="alert" hidden></p>
       <section id="brief" aria-label="Daily brief"></section>
+      <section id="merge" aria-label="Ready to merge"></section>
       <section id="security" aria-label="Security tickets"></section>
       <section id="ease" aria-label="Ease and effort"></section>
       <section id="ticket-work" aria-label="GitHub ticket work"></section>
+      <section id="pilot" class="job pilot" aria-label="Shared reader pilot" hidden></section>
       <section id="jobs" class="jobs" aria-label="Scheduled jobs"></section>
       <section id="viewer" class="viewer" hidden aria-label="Job details">
         <header class="viewer-heading"><div><p id="viewer-job" class="eyebrow"></p><h2 id="viewer-title"></h2></div><button id="close" class="secondary">Close</button></header>

@@ -2,7 +2,7 @@
 
 The monitor shows Orca automation or launchd job status, schedules, logs, and a draft inbox in a localhost page. Scheduling stays with Orca or launchd; opening this page does not run a job. Node 20 or later is required; there are no dependencies to install.
 
-Copy `monitor/config.example.json` to `~/.config/panopticlaude/monitor.json` and replace the example with your jobs. Entries use the same `label`, `log`, `inbox`, and `repo` fields as VS Code’s `panopticlaude.crons` setting. Add `automationId` from `orca automations list --json` for an Orca job; omit it for launchd. Keep the original label when migrating so inbox review history stays connected. `inbox` and `repo` are optional. `name` optionally overrides the display name. Keep this machine-specific config outside the repository.
+Copy `monitor/config.example.json` to `~/.config/panopticlaude/monitor.json` and replace the example with your jobs. Entries use the same `label`, `log`, `inbox`, and `repo` fields as VS Code’s `panopticlaude.crons` setting. Add `automationId` from `orca automations list --json` for an Orca job; omit it for launchd. Keep the original label when migrating so inbox review history stays connected. `inbox` and `repo` are optional. `findings` optionally points to a bug sweep `findings.json`; the dashboard serves it at `/api/findings` and the PNGs in the `shots/` folder beside it at `/api/shot`. It also serves `fix.log`, next to the run log, as the `fix` log kind. `name` optionally overrides the display name. Keep this machine-specific config outside the repository.
 
 ```sh
 source "$HOME/.nvm/nvm.sh"

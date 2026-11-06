@@ -572,7 +572,9 @@ function parseDraftsFile(text) {
   for (const m of (text || '').matchAll(re)) {
     const fence = m[4].match(/^```markdown\n([\s\S]*?)^```\s*$/m);
     if (!fence) continue;
-    drafts.push({ n: Number(m[1]), issue: Number(m[2]), title: m[3].trim(), body: fence[1] });
+    // Auto-posted files record the comment as `**Posted:** <url>` above the fence.
+    const postedUrl = m[4].slice(0, fence.index).match(/^\*\*Posted:\*\* (\S+)/m)?.[1] || null;
+    drafts.push({ n: Number(m[1]), issue: Number(m[2]), title: m[3].trim(), body: fence[1], postedUrl });
   }
   return { posted, drafts };
 }
