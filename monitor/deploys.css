@@ -1,4 +1,4 @@
-/* The Work page isn't themed yet, so its dark look is the fallback; when a data-theme is set, its variables win. */
+/* The Work page reads the Roost tokens; the fallbacks keep the card readable without them. */
 #deploys {
   --d-surface: var(--surface, #181f1b); --d-text: var(--text, #e7e9e8); --d-muted: var(--muted, #a0aaa5); --d-border: var(--border, #303a34);
   --d-link: var(--link, #a8d6b5); --d-focus: var(--focus, #cae7d2); --d-radius: var(--radius, 9px);

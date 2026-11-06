@@ -153,12 +153,12 @@ html[data-theme='roost'] {
   button { font-weight: 700; border-radius: 3px; }
   button.text, button.more { background: transparent; color: var(--text); border: 1px solid var(--border); }
   /* Work page */
-  #brief, #merge, #security, #ease, #ticket-work, #jobs { margin: 0 0 18px; padding: 24px 28px 26px; border: 0; border-radius: 6px; background: var(--panel); }
-  #merge { background: var(--panel-go); } #security { background: var(--panel-lilac); } #ease { background: var(--panel-you); } #ticket-work { background: var(--panel-info); }
+  #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { margin: 0 0 18px; padding: 24px 28px 26px; border: 0; border-radius: 6px; background: var(--panel); }
+  #merge { background: var(--panel-go); } #security { background: var(--panel-lilac); } #ease { background: var(--panel-you); } #ticket-work { background: var(--panel-info); } #deploys { background: var(--panel-go); }
   #brief { margin-top: 18px; }
   .heading .eyebrow { display: none; }
   h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0; }
-  #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2 { font-family: var(--display); font-weight: 400; font-size: 27px; }
+  #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2, #deploys h2 { font-family: var(--display); font-weight: 400; font-size: 27px; }
   #claude-tips { border-radius: 6px; background: var(--panel); border: 0; }
   .masthead .local { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
   /* Map */
