@@ -64,6 +64,11 @@ const assets = {
   '/now.js': ['now.js', 'text/javascript'],
   '/now.css': ['now.css', 'text/css'],
   '/ui.js': ['ui.js', 'text/javascript'],
+  '/theme.js': ['theme.js', 'text/javascript'],
+  '/themes.css': ['themes.css', 'text/css'],
+  '/vendor/cabin-latin-400-normal.woff2': ['vendor/cabin-latin-400-normal.woff2', 'font/woff2'],
+  '/vendor/cabin-latin-600-normal.woff2': ['vendor/cabin-latin-600-normal.woff2', 'font/woff2'],
+  '/vendor/cabin-latin-700-normal.woff2': ['vendor/cabin-latin-700-normal.woff2', 'font/woff2'],
   '/vendor/preact.js': ['vendor/preact.js', 'text/javascript'],
   '/vendor/hooks.js': ['vendor/hooks.js', 'text/javascript'],
   '/vendor/htm.js': ['vendor/htm.js', 'text/javascript'],
@@ -282,7 +287,7 @@ function createMonitor({
   return http.createServer(async (req, res) => {
     const send = (status, body, type = 'application/json') => {
       res.writeHead(status, {
-        'Content-Type': type.startsWith('image/') ? type : `${type}; charset=utf-8`,
+        'Content-Type': /^(image|font)\//.test(type) ? type : `${type}; charset=utf-8`,
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'no-referrer',

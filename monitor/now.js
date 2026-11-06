@@ -2,7 +2,7 @@
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
-import { openInOrca } from './ui.js';
+import { Masthead, openInOrca } from './ui.js';
 
 const html = htm.bind(h);
 const SHOWN = 5;
@@ -129,7 +129,7 @@ function Blocked({ data }) {
     <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''}>
       <div class="groups">
         <${Group} label="Agents waiting" items=${agents} empty="No agent is waiting on you."
-          row=${(a) => html`<li key=${a.key}><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
+          row=${(a) => html`<li key=${a.key}><span class="presence you" aria-hidden="true"></span><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
             <button class="text open" type="button" onClick=${() => openInOrca(a.key, a.name)}>Open in Orca</button></li>`} />
         <${Group} label="Reviews requested" items=${reviews} empty="No reviews requested."
           row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>#${r.number} ${r.title}</a> <span class="detail">· ${r.author}</span></span></li>`} />
@@ -212,11 +212,7 @@ function Brief() {
 function App() {
   const { data, error } = usePoll('/api/now', 60000);
   return html`
-    <header class="masthead">
-      <div class="brand"><svg aria-hidden="true" viewBox="0 0 32 32"><path d="M3 16s5-9 13-9 13 9 13 9-5 9-13 9S3 16 3 16Z"/><circle cx="16" cy="16" r="4"/></svg> PANOPTICLAUDE</div>
-      <nav class="tabs" aria-label="Pages"><a aria-current="page" href="/">Now</a><a href="/map">Map</a><a href="/work">Work</a></nav>
-      <span class="now-muted" role="status">${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'}</span>
-    </header>
+    <${Masthead} page="/" status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
     ${data && html`
       <${Down} data=${data} />
       <${Ready} data=${data} />

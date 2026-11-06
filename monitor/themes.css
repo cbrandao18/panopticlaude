@@ -1,0 +1,114 @@
+/* Theme tokens for the Now and Map pages. theme.js sets data-theme on <html> before first paint.
+   now.css and map.css use only these variables, so a theme is one block here. */
+
+@font-face { font-family: 'Cabin'; font-weight: 400; font-display: swap; src: url('/vendor/cabin-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Cabin'; font-weight: 600; font-display: swap; src: url('/vendor/cabin-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Cabin'; font-weight: 700; font-display: swap; src: url('/vendor/cabin-latin-700-normal.woff2') format('woff2'); }
+
+/* Classic: the original dark green. */
+html[data-theme] {
+  color-scheme: dark;
+  --bg: #111514; --surface: #151a18; --surface-2: #202823; --raised: #1d2421; --border: #303a34; --line: #222a26;
+  --text: #e7e9e8; --muted: #a0aaa5; --link: #b6d9fa; --accent: #a8d6b5; --accent-ink: #172b1e; --focus: #cae7d2;
+  --go: #a8d6b5; --go-bg: #23402e; --go-ink: #c9ecd3;
+  --you: #f1cf8a; --you-bg: #4a3a1a; --you-ink: #f6dfae; --you-border: #8a6d2c;
+  --alarm: #f2a7a0; --alarm-bg: #2b1716; --alarm-chip: #5a2723; --alarm-ink: #ffd9d4; --alarm-border: #7a3a35;
+  --info: #8cc2f0; --info-bg: #1e3346; --info-ink: #b6d9fa; --info-border: #2f4f6b;
+  --stuck: #e59ac2; --stuck-bg: #4d2a3c; --stuck-ink: #f3c4dc; --stuck-border: #6d3a55;
+  --chip-bg: #26302b; --chip-ink: #d2dad5; --idle: #59645e;
+  --radius: 10px; --radius-sm: 5px; --shadow: none;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); font-family: var(--font);
+}
+
+/* Lounge: a chat-app feel. Charcoal surfaces, coral accent, presence dots, red "for you" pills, a left rail. */
+html[data-theme='lounge'] {
+  --bg: #1c1d23; --surface: #26282f; --surface-2: #31333c; --raised: #2b2d35; --border: #3a3d48; --line: #30323b;
+  --text: #f0f1f4; --muted: #a5a9b6; --link: #7fb2ff; --accent: #ff7a59; --accent-ink: #2a0f06; --focus: #ffb39f;
+  --go: #43d695; --go-bg: #183a2b; --go-ink: #b4f2d4;
+  --you: #ffb547; --you-bg: #47361a; --you-ink: #ffe0ad; --you-border: #8f6a2a;
+  --alarm: #ff5e6c; --alarm-bg: #3a1e24; --alarm-chip: #f2414f; --alarm-ink: #ffffff; --alarm-border: #6b2a33;
+  --info: #6ea8ff; --info-bg: #1d2f4d; --info-ink: #c6dcff; --info-border: #2e4a7a;
+  --stuck: #c792ff; --stuck-bg: #35254d; --stuck-ink: #e3ccff; --stuck-border: #57407d;
+  --chip-bg: #353845; --chip-ink: #dfe1e8; --idle: #6b6f7c;
+  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 0 rgba(0, 0, 0, .25), 0 8px 24px rgba(0, 0, 0, .18);
+  --font: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Branch: the brand palette. Beige, dark green, lime and orange, in Cabin. */
+html[data-theme='branch'] {
+  color-scheme: light;
+  --bg: #f7f3ef; --surface: #ffffff; --surface-2: #eae2d6; --raised: #f1ebe3; --border: #ddd3c4; --line: #ece5da;
+  --text: #1b2514; --muted: #646d58; --link: #343b1b; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #343b1b;
+  --go: #7a8f1f; --go-bg: #eef2cf; --go-ink: #3f4a0f;
+  --you: #f89521; --you-bg: #fde6cc; --you-ink: #8a4a05; --you-border: #f3b673;
+  --alarm: #c2412f; --alarm-bg: #fbeae6; --alarm-chip: #c2412f; --alarm-ink: #ffffff; --alarm-border: #e8b0a6;
+  --info: #2f6f9f; --info-bg: #e3eef7; --info-ink: #1f4d70; --info-border: #b5d0e6;
+  --stuck: #8a4f9e; --stuck-bg: #f1e6f5; --stuck-ink: #5e2f70; --stuck-border: #d8bfe2;
+  --chip-bg: #eae2d6; --chip-ink: #343b1b; --idle: #a9a294;
+  --radius: 12px; --radius-sm: 6px; --shadow: 0 1px 2px rgba(52, 59, 27, .08);
+  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
+}
+
+/* Shared chrome on themed pages. */
+html[data-theme] body { font-family: var(--font); }
+html[data-theme] a { color: var(--link); }
+html[data-theme='branch'] a { text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
+html[data-theme] button { background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-sm); }
+html[data-theme] button.secondary, html[data-theme] button.text { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+html[data-theme] :focus-visible { outline-color: var(--focus); }
+html[data-theme] .masthead { border-bottom-color: var(--border); }
+html[data-theme] .brand { color: var(--text); }
+html[data-theme] .brand svg { stroke: var(--accent); }
+html[data-theme='branch'] .brand svg { stroke: #343b1b; }
+html[data-theme] .tabs a { color: var(--muted); }
+html[data-theme] .tabs a:hover { color: var(--text); background: var(--raised); }
+html[data-theme] .tabs a[aria-current='page'] { color: var(--text); background: var(--surface-2); }
+.wordmark { display: none; }
+
+/* Lounge layout: the masthead becomes a left rail of round page icons; the name moves above the content. */
+html[data-theme='lounge'] body { padding-left: 76px; }
+html[data-theme='lounge'] .masthead {
+  position: fixed; inset: 0 auto 0 0; width: 76px; z-index: 5; margin: 0; padding: 14px 0;
+  flex-direction: column; justify-content: flex-start; gap: 10px; border: 0; background: #15161b;
+}
+html[data-theme='lounge'] .masthead .brand { justify-content: center; width: 48px; height: 48px; border-radius: 16px; background: var(--accent); }
+html[data-theme='lounge'] .masthead .brand svg { stroke: var(--accent-ink); width: 28px; height: 28px; }
+html[data-theme='lounge'] .masthead .brand-name { display: none; }
+html[data-theme='lounge'] .tabs { flex-direction: column; margin: 8px 0 0; padding-top: 10px; border-top: 2px solid var(--surface-2); gap: 8px; }
+html[data-theme='lounge'] .tabs a {
+  position: relative; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%;
+  background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 700; transition: border-radius .15s, background .15s;
+}
+html[data-theme='lounge'] .tabs a:hover, html[data-theme='lounge'] .tabs a[aria-current='page'] { border-radius: 16px; background: var(--accent); color: var(--accent-ink); }
+html[data-theme='lounge'] .tabs a[aria-current='page']::before { content: ''; position: absolute; left: -14px; width: 4px; height: 36px; border-radius: 0 4px 4px 0; background: var(--text); }
+html[data-theme='lounge'] .masthead [role='status'] { margin-top: auto; width: 64px; text-align: center; font-size: 10.5px; line-height: 1.3; }
+html[data-theme='lounge'] .wordmark { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 18px; }
+html[data-theme='lounge'] .wordmark strong { font-size: 26px; letter-spacing: -.01em; }
+html[data-theme='lounge'] .tier { border: 0; box-shadow: var(--shadow); }
+html[data-theme='lounge'] .tier.you h2 .count, html[data-theme='lounge'] .tier.alarm h2 .count { background: var(--alarm-chip); color: var(--alarm-ink); }
+html[data-theme='lounge'] .presence { display: inline-block; }
+@media (prefers-reduced-motion: reduce) { html[data-theme='lounge'] .tabs a { transition: none; } }
+
+/* Presence dots: shown in Lounge only. */
+.presence { display: none; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--idle); box-shadow: 0 0 0 3px var(--surface); align-self: center; }
+.presence.you { background: var(--you); }
+.presence.failed { background: var(--alarm); }
+.presence.stuck { background: var(--stuck); }
+.presence.working { background: var(--go); }
+
+/* The name in the masthead. */
+html[data-theme] .brand-mark { display: inline-flex; }
+html[data-theme='classic'] .brand-name, html:not([data-theme]) .brand-name { text-transform: uppercase; }
+html[data-theme='branch'] .brand { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+html[data-theme='branch'] .masthead { border-bottom: 2px solid var(--accent); }
+
+/* Theme and name picker. */
+.switcher { position: fixed; right: 18px; bottom: 18px; z-index: 10; font-size: 13px; }
+.switcher summary { cursor: pointer; list-style: none; padding: 7px 12px; border-radius: 999px; background: var(--surface-2, #202823); color: var(--text, #e7e9e8); border: 1px solid var(--border, #364139); box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
+.switcher summary::-webkit-details-marker { display: none; }
+.switcher[open] summary { margin-bottom: 8px; }
+.switcher .panel { padding: 12px 14px; border-radius: 12px; background: var(--surface, #151a18); color: var(--text, #e7e9e8); border: 1px solid var(--border, #303a34); box-shadow: 0 10px 30px rgba(0, 0, 0, .3); display: grid; gap: 10px; min-width: 210px; }
+.switcher fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 4px; }
+.switcher legend { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #a0aaa5); margin-bottom: 4px; }
+.switcher label { display: flex; gap: 8px; align-items: center; cursor: pointer; }

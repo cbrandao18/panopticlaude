@@ -1,14 +1,14 @@
-/* Org chart. Builds on style.css and now.css. */
+/* Org chart. Colors come from themes.css. */
 #app.wide { max-width: 1600px; }
 .summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
 .toggle { margin-left: auto; color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
 .error-line { color: var(--alarm); font-size: 13px; }
 
-.badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: #26302b; color: #d2dad5; }
-.badge.you { background: #4a3a1a; color: var(--you); }
-.badge.failed { background: #5a2723; color: #ffd9d4; }
-.badge.stuck { background: #4d2a3c; color: #f3c4dc; }
-.badge.working { background: #1e3346; color: #b6d9fa; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--chip-bg); color: var(--chip-ink); }
+.badge.you { background: var(--you-bg); color: var(--you-ink); }
+.badge.failed { background: var(--alarm-chip); color: var(--alarm-ink); }
+.badge.stuck { background: var(--stuck-bg); color: var(--stuck-ink); }
+.badge.working { background: var(--info-bg); color: var(--info-ink); }
 
 .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; align-items: start; }
 .column h2, .runs h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -17,25 +17,26 @@
 .quiet-note { margin: 8px 0 0; font-size: 12px; }
 
 .tree, .tree ul { list-style: none; margin: 0; padding: 0; }
-.tree ul { margin-left: 14px; padding-left: 12px; border-left: 1px solid #34403a; }
+.tree ul { margin-left: 14px; padding-left: 12px; border-left: 1px solid var(--border); }
 .tree ul > .node { position: relative; }
-.tree ul > .node::before { content: ''; position: absolute; left: -12px; top: 18px; width: 10px; border-top: 1px solid #34403a; }
+.tree ul > .node::before { content: ''; position: absolute; left: -12px; top: 18px; width: 10px; border-top: 1px solid var(--border); }
 .node { margin: 0 0 8px; }
 
-.card { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #151a18; }
-.card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.card { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); }
+.card-top { display: flex; align-items: baseline; gap: 8px; }
+.card-top .host { margin-left: auto; }
 .card .name { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
 .card .host { flex: none; font-size: 11px; color: var(--muted); }
 .card .badge { margin-top: 5px; }
-.card .comment { margin: 5px 0 0; font-size: 12.5px; color: #c3d1c8; overflow-wrap: anywhere; }
+.card .comment { margin: 5px 0 0; font-size: 12.5px; color: var(--text); opacity: .85; overflow-wrap: anywhere; }
 .card .meta { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); }
 
-.node.you > .card { border-color: #8a6d2c; box-shadow: inset 3px 0 0 var(--you); }
-.node.failed > .card { border-color: #7a3a35; box-shadow: inset 3px 0 0 var(--alarm); background: var(--alarm-bg); }
-.node.stuck > .card { border-color: #6d3a55; box-shadow: inset 3px 0 0 #e59ac2; }
-.node.working > .card { border-color: #2f4f6b; box-shadow: inset 3px 0 0 #8cc2f0; }
+.node.you > .card { border-color: var(--you-border); box-shadow: inset 3px 0 0 var(--you); }
+.node.failed > .card { border-color: var(--alarm-border); box-shadow: inset 3px 0 0 var(--alarm); background: var(--alarm-bg); }
+.node.stuck > .card { border-color: var(--stuck-border); box-shadow: inset 3px 0 0 var(--stuck); }
+.node.working > .card { border-color: var(--info-border); box-shadow: inset 3px 0 0 var(--info); }
 .node.quiet > .card { opacity: .6; }
 .run-done { margin: 4px 0 6px 2px; font-size: 12px; color: var(--muted); }
-.card button.open-ws { all: unset; cursor: pointer; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; color: #e7e9e8; }
+.card button.open-ws { all: unset; cursor: pointer; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; color: var(--text); }
 .card button.open-ws:hover { text-decoration: underline; text-underline-offset: 3px; }
-.card button.open-ws:focus-visible { outline: 2px solid #cae7d2; outline-offset: 2px; border-radius: 3px; }
+.card button.open-ws:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }

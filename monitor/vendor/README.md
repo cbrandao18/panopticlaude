@@ -6,6 +6,7 @@ Served by `monitor/server.js` from the same origin, so the page keeps `script-sr
 |---|---|---|---|
 | `preact.js` | preact 11.1.1 (MIT) | `dist/preact.mjs` | `sha512-vpFVfai437pbuLri7XVeslCPfrEZX6Z1S2gV+MOFrA/kji+NKUXvH7y01EnVjA1guLigfkVp77Sqipd4SIllCg==` |
 | `hooks.js` | preact 11.1.1 (MIT) | `hooks/dist/hooks.mjs`, `from"preact"` rewritten to `from"./preact.js"` | same tarball |
+| `cabin-latin-{400,600,700}-normal.woff2` | @fontsource/cabin 5.3.0 (OFL-1.1) | `files/` | `sha512-c2NSbpO6XSqaq6E6ztHqgdNxzCPJCxkNvnSEjkQRidlL3Ycac00sS9XTRT6RfMFeB3+C7V3vgN1S40nM6lthuw==` |
 | `htm.js` | htm 3.1.1 (Apache-2.0) | `dist/htm.mjs` | `sha512-983Vyg8NwUE7JkZ6NmOqpCZ+sh1bKv2iYTlUkzlWmA5JD2acKoxd4KVxbMmxX/85mtfdnDmTFoNKcg5DGAvxNQ==` |
 
 The import is rewritten because the CSP blocks an inline import map. To update: `npm pack preact@<v> htm@<v>`, compare each tarball's sha512 with `npm view <pkg>@<v> dist.integrity`, copy the files above, redo the rewrite, and update this table.

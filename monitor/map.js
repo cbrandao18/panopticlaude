@@ -3,7 +3,7 @@
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
-import { openInOrca } from './ui.js';
+import { Masthead, openInOrca } from './ui.js';
 
 const html = htm.bind(h);
 const DAY = 86400000;
@@ -75,7 +75,7 @@ function Node({ ws, showQuiet, rank }) {
     <li class=${`node ${ws.state}`}>
       <div class="card" title=${ws.path}>
         <div class="card-top">
-          <button class="name open-ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>
+          <span class=${`presence ${ws.state}`} aria-hidden="true"></span><button class="name open-ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>
           <span class="host">${ws.host === 'vm' ? 'VM' : 'Mac'}</span>
         </div>
         ${LABEL[ws.state] && html`<span class=${`badge ${ws.state}`}>${LABEL[ws.state]}</span>`}
@@ -142,11 +142,7 @@ function App() {
   }, []);
   const view = data && build(data);
   return html`
-    <header class="masthead">
-      <div class="brand"><svg aria-hidden="true" viewBox="0 0 32 32"><path d="M3 16s5-9 13-9 13 9 13 9-5 9-13 9S3 16 3 16Z"/><circle cx="16" cy="16" r="4"/></svg> PANOPTICLAUDE</div>
-      <nav class="tabs" aria-label="Pages"><a href="/">Now</a><a aria-current="page" href="/map">Map</a><a href="/work">Work</a></nav>
-      <span class="now-muted" role="status">${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Reading Orca on the Mac and the VM…'}</span>
-    </header>
+    <${Masthead} page="/map" status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Reading Orca on the Mac and the VM…'} />
     ${view && html`
       <div class="summary">
         <span class="badge you">${view.counts.you} need you</span>
