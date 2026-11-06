@@ -12,6 +12,7 @@ const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader } = require('./map-api');
 const { createEaseReader, fileTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
+const { createBriefReader } = require('./brief-api');
 const { createTipsReader } = require('./claude-tips-api');
 
 const exec = promisify(execFile);
@@ -65,6 +66,8 @@ const assets = {
   '/ease.css': ['ease.css', 'text/css'],
   '/security.js': ['security.js', 'text/javascript'],
   '/security.css': ['security.css', 'text/css'],
+  '/brief.js': ['brief.js', 'text/javascript'],
+  '/brief.css': ['brief.css', 'text/css'],
   '/claude-tips.js': ['claude-tips.js', 'text/javascript'],
   '/claude-tips.css': ['claude-tips.css', 'text/css'],
   '/map': ['map.html', 'text/html'],
@@ -243,6 +246,7 @@ function createMonitor({
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
+  readBrief = createBriefReader({ render: renderGithubMarkdown }),
   writeSeen = lib.saveInboxSeen
 }) {
   const filing = new Set();
@@ -291,6 +295,9 @@ function createMonitor({
         return send(200, await readEase());
       }
       // Opens GitHub and Slack links in the Mac's default browser, outside whatever is showing this page.
+      if (req.method === 'GET' && url.pathname === '/api/brief') {
+        return send(200, await readBrief());
+      }
       if (req.method === 'POST' && url.pathname === '/api/open') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
           return send(403, { error: 'Open requests must come from the monitor.' });

@@ -1,0 +1,14 @@
+#brief { margin: 24px 0 32px; background: #181f1b; border: 1px solid var(--border); border-radius: 9px; padding: 16px 20px; overflow-wrap: anywhere; }
+#brief .brief-body > :first-child { margin-top: 0; }
+#brief h1 { font-size: 22px; margin: 0 0 8px; }
+#brief h2 { font-size: 15px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+#brief p, #brief li { font-size: 14px; line-height: 1.6; }
+#brief ol, #brief ul { padding-left: 22px; margin: 8px 0; }
+#brief h2 ~ ul li { font-size: 13px; color: #c3d1c8; }
+#brief del { color: var(--muted); }
+#brief blockquote { margin: 8px 0; padding: 8px 12px; border-left: 4px solid #e01e5a; background: #2a1a1f; color: #f5c2cf; }
+#brief blockquote p { margin: 0; }
+#brief code { font-size: 12px; }
+#brief a { color: var(--green); }
+#brief a:focus-visible { outline: 2px solid #cae7d2; outline-offset: 3px; }
+#brief .brief-muted { color: var(--muted); font-size: 12px; margin: 10px 0 0; }

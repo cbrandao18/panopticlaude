@@ -142,4 +142,4 @@ function createSecurityReader(options = {}, ttl = 120000) {
   return read;
 }
 
-module.exports = { parse, runStatus, fieldsByIssue, ticketStatus, securityData, createSecurityReader };
+module.exports = { parse, runStatus, fieldsByIssue, ticketStatus, securityData, createSecurityReader, runOnHost };
