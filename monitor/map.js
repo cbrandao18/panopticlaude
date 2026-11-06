@@ -4,7 +4,7 @@ import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca } from './ui.js';
-import { Bird, Wire } from './roost.js';
+import { Bird } from './roost.js';
 
 const html = htm.bind(h);
 const DAY = 86400000;
@@ -91,14 +91,12 @@ function Node({ ws, showQuiet, rank }) {
     </li>`;
 }
 
-const flat = (list) => list.flatMap((ws) => [ws, ...flat(ws.children)]);
 function Column({ col, showQuiet, rank }) {
   const visible = col.roots.filter((ws) => showQuiet || rank(ws) < RANK.quiet);
   const quiet = col.roots.length - visible.length;
   return html`
     <section class="column" aria-labelledby=${`col-${col.id}`}>
       <h2 id=${`col-${col.id}`}>${col.label} <span class="count">${col.roots.length}</span></h2>
-      <${Wire} cls="col" width=${340} cap=${8} states=${flat(col.roots).filter((ws) => showQuiet || ws.state !== 'quiet').sort((a, b) => RANK[a.state] - RANK[b.state]).map((ws) => (ws.state === 'idle' ? 'ok' : ws.state))} />
       ${visible.length ? html`<ul class="tree">${visible.map((ws) => html`<${Node} key=${ws.key} ws=${ws} showQuiet=${showQuiet} rank=${rank} />`)}</ul>` : html`<p class="now-muted empty"><${Bird} state="quiet" />Nothing active.</p>`}
       ${quiet > 0 && html`<p class="now-muted quiet-note">${quiet} quiet for ${QUIET_AFTER / DAY}+ days</p>`}
     </section>`;
