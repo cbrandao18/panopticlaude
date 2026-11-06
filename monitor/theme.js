@@ -5,6 +5,11 @@
   const THEMES = { lounge: 'Lounge', branch: 'Branch', classic: 'Classic' };
   const svg = (body) => `<svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
   const BRANDS = {
+    roost: {
+      name: 'Roost',
+      tagline: 'Where your agents check in.',
+      mark: svg('<path d="M3 25h26"/><path d="M9 25c0-6 4.5-10 10-10 2.5 0 4.5 1.6 4.5 3.6l3.5 1-3.5 1c-.4 3-3 4.4-6.5 4.4"/><circle cx="20" cy="18" r="1"/><path d="M13 25v3M18 25v3"/>')
+    },
     aviary: {
       name: 'Aviary',
       tagline: 'All your agents, in one place.',
@@ -24,11 +29,6 @@
       name: 'Herd',
       tagline: 'Keep every agent moving.',
       mark: svg('<path d="M16 5c6 0 11 3.5 11 8s-5 8-11 8S5 17.5 5 13s5-8 11-8z"/><path d="M12 20c-2 3-2 5 0 7M20 21l4 6"/><circle cx="16" cy="13" r="2"/>')
-    },
-    roost: {
-      name: 'Roost',
-      tagline: 'Where your agents check in.',
-      mark: svg('<path d="M3 25h26"/><path d="M9 25c0-6 4.5-10 10-10 2.5 0 4.5 1.6 4.5 3.6l3.5 1-3.5 1c-.4 3-3 4.4-6.5 4.4"/><circle cx="20" cy="18" r="1"/><path d="M13 25v3M18 25v3"/>')
     },
     crowsnest: {
       name: "Crow's Nest",
@@ -61,7 +61,7 @@
   };
   const root = document.documentElement;
   const themable = root.hasAttribute('data-themable');
-  const state = { theme: read('pano.theme', 'lounge', THEMES), brand: read('pano.brand', 'aviary', BRANDS) };
+  const state = { theme: read('pano.theme', 'lounge', THEMES), brand: read('pano.brand', 'roost', BRANDS) };
   // ?theme=branch&name=crew opens a variant directly (handy for comparing in two tabs). It isn't saved.
   const params = new URLSearchParams(location.search);
   if (params.get('theme') in THEMES) state.theme = params.get('theme');
