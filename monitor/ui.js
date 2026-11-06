@@ -2,7 +2,7 @@
 import { h } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
-import { Branch, Sprite } from './roost.js';
+import { Bird, Branch, Sprite } from './roost.js';
 
 const html = htm.bind(h);
 
@@ -24,7 +24,7 @@ export function Masthead({ page, status }) {
   return html`
     <header class="masthead">
       <div class="brand" title=${brand.name}><span class="brand-mark" dangerouslySetInnerHTML=${{ __html: brand.mark }} /><span class="brand-name">${brand.name}</span></div>
-      <nav class="tabs" aria-label="Pages">${PAGES.map(([href, label]) => html`<a href=${href} aria-current=${page === href ? 'page' : null}>${label}</a>`)}</nav>
+      <nav class="tabs" aria-label="Pages">${PAGES.map(([href, label]) => html`<a href=${href} aria-current=${page === href ? 'page' : null}>${page === href && html`<span class="tab-bird"><${Bird} state="you" /></span>`}${label}</a>`)}</nav>
       <span class="now-muted" role="status">${status}</span>
     </header>
     <${Sprite} />

@@ -5,6 +5,8 @@
 @font-face { font-family: 'Cabin'; font-weight: 600; font-display: swap; src: url('/vendor/cabin-latin-600-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Cabin'; font-weight: 700; font-display: swap; src: url('/vendor/cabin-latin-700-normal.woff2') format('woff2'); }
 
+@font-face { font-family: 'Young Serif'; font-weight: 400; font-display: swap; src: url('/vendor/young-serif-latin-400-normal.woff2') format('woff2'); }
+
 /* Classic: the original dark green. */
 html[data-theme] {
   color-scheme: dark;
@@ -50,8 +52,29 @@ html[data-theme='branch'] {
   --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
 }
 
-/* Roost: Branch's beige, green, lime and orange, with birds. Light. */
+/* Roost: an eastern bluebird's cobalt with goldfinch yellow. Cream text, no cards; wires with birds on them. */
 html[data-theme='roost'] {
+  color-scheme: dark;
+  --bg: #23399a; --surface: #1b2d7e; --surface-2: #2f4aad; --raised: #2a43a3; --border: #6a82d8; --line: #4660bf;
+  --text: #fff6e0; --muted: #cbd5f8; --link: #ffd75e; --accent: #ffc933; --accent-ink: #1b2347; --focus: #ffffff;
+  --go: #9be8b8; --go-bg: #1c5a58; --go-ink: #d2f7df;
+  --you: #ffc933; --you-bg: #ffc933; --you-ink: #1b2347; --you-border: #ffc933;
+  --alarm: #ffb09c; --alarm-bg: #c4301a; --alarm-chip: #fff6e0; --alarm-ink: #8c1d0c; --alarm-border: #c4301a;
+  --info: #9fd0ff; --info-bg: #9fd0ff; --info-ink: #0f2a63; --info-border: #9fd0ff;
+  --stuck: #d7a8ff; --stuck-bg: #d7a8ff; --stuck-ink: #2b1555; --stuck-border: #d7a8ff;
+  --chip-bg: #3249a8; --chip-ink: #fff6e0; --idle: #93a5e6;
+  --radius: 4px; --radius-sm: 3px; --shadow: none;
+  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif; --display: 'Young Serif', 'Iowan Old Style', Georgia, serif;
+  --bird-mark: #ffc933; --bird-mark-wing: #d99a00;
+  --bird-ok: #9be8b8; --bird-ok-wing: #4fae7c; --bird-you: #ffc933; --bird-you-wing: #d99a00;
+  --bird-working: #9fd0ff; --bird-working-wing: #5b9ae0; --bird-stuck: #d7a8ff; --bird-stuck-wing: #9a63d6;
+  --bird-failed: #ff8566; --bird-failed-wing: #c4301a; --bird-quiet: #93a5e6; --bird-quiet-wing: #6b80cc;
+  --belly: #fff6e0; --leg: #fff6e0; --eye: #1b2347; --beak: #ff8a3d;
+  --wire: #b5c3f5; --nest: #2a43a3; --nest-line: #ffd75e; --egg: #fff6e0; --leaf: #9be8b8;
+}
+
+/* Roost Perch: Branch's beige, green, lime and orange, with birds on cards. Light. */
+html[data-theme='perch'] {
   color-scheme: light;
   --bg: #f7f3ef; --surface: #ffffff; --surface-2: #eae2d6; --raised: #f3ede4; --border: #ddd3c4; --line: #ece5da;
   --text: #1b2514; --muted: #5c654f; --link: #343b1b; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #343b1b;
@@ -63,6 +86,7 @@ html[data-theme='roost'] {
   --chip-bg: #eae2d6; --chip-ink: #343b1b; --idle: #a9a294;
   --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 2px rgba(52, 59, 27, .08), 0 6px 16px rgba(52, 59, 27, .05);
   --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
+  --bird-mark: #7a8f1f; --bird-mark-wing: #343b1b;
   --bird-ok: #7a8f1f; --bird-ok-wing: #3f4a0f; --bird-you: #f89521; --bird-you-wing: #c4700f;
   --bird-working: #2f6f9f; --bird-working-wing: #1f4d70; --bird-stuck: #8a4f9e; --bird-stuck-wing: #5e2f70;
   --bird-failed: #c2412f; --bird-failed-wing: #8f2d20; --bird-quiet: #8e8a7c; --bird-quiet-wing: #6f6b5e;
@@ -70,7 +94,7 @@ html[data-theme='roost'] {
   --twig: #343b1b; --leaf: #afbe2d; --berry: #f89521; --nest: #eae2d6; --nest-line: #7a6a4f; --egg: #fffdf8;
 }
 
-/* Roost Dusk: the same birds on Branch dark green. */
+/* Roost Dusk: Perch's birds on Branch dark green. */
 html[data-theme='dusk'] {
   color-scheme: dark;
   --bg: #1b2514; --surface: #243019; --surface-2: #343b1b; --raised: #2d3a20; --border: #3d4b2a; --line: #34412a;
@@ -83,6 +107,7 @@ html[data-theme='dusk'] {
   --chip-bg: #3d4b2a; --chip-ink: #eae2d6; --idle: #8a9378;
   --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 0 rgba(0, 0, 0, .2);
   --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
+  --bird-mark: #afbe2d; --bird-mark-wing: #7d8a3a;
   --bird-ok: #afbe2d; --bird-ok-wing: #7d8a3a; --bird-you: #f89521; --bird-you-wing: #c4700f;
   --bird-working: #6ea8d8; --bird-working-wing: #3d79ad; --bird-stuck: #c28bd6; --bird-stuck-wing: #8a4f9e;
   --bird-failed: #ef6a56; --bird-failed-wing: #b8402f; --bird-quiet: #9aa089; --bird-quiet-wing: #6f7662;
@@ -133,7 +158,8 @@ html[data-theme='lounge'] .presence { display: inline-block; }
 /* Roost birds and branch: markup is always rendered, shown only in the Roost themes. Decoration never carries data;
    every state also has its word, colour or count. */
 .sprite-host { position: absolute; width: 0; height: 0; overflow: hidden; }
-.bird, .egg, .nest, .roost-branch, .perched { display: none; }
+.bird, .egg, .nest, .roost-branch, .perched, .wire, .masthead-wire, .tab-bird, .calm .tier-head { display: none; }
+.bd-eye { fill: var(--eye); }
 .bd-body { fill: var(--b); } .bd-tail, .bd-wing { fill: var(--bw); } .bd-wing.back { fill: var(--b); }
 .bd-belly { fill: var(--belly); } .bd-beak { fill: var(--beak); } .bd-eye { fill: var(--eye); }
 .bd-leg { fill: none; stroke: var(--leg); stroke-width: 2; stroke-linecap: round; }
@@ -145,17 +171,38 @@ html[data-theme='lounge'] .presence { display: inline-block; }
 .ns-twig { fill: none; stroke: var(--nest-line); stroke-width: 2; stroke-linecap: round; }
 .br-twig { fill: none; stroke: var(--twig); stroke-width: 3; stroke-linecap: round; } .br-leaf { fill: var(--leaf); } .br-berry { fill: var(--berry); }
 
-html:is([data-theme='roost'], [data-theme='dusk']) {
+html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) {
   .bird { display: inline-block; flex: none; width: 34px; height: 34px; align-self: center; }
-  .bird.ok { --b: var(--bird-ok); --bw: var(--bird-ok-wing); } .bird.you { --b: var(--bird-you); --bw: var(--bird-you-wing); }
-  .bird.working { --b: var(--bird-working); --bw: var(--bird-working-wing); } .bird.stuck { --b: var(--bird-stuck); --bw: var(--bird-stuck-wing); }
-  .bird.failed { --b: var(--bird-failed); --bw: var(--bird-failed-wing); } .bird.quiet { --b: var(--bird-quiet); --bw: var(--bird-quiet-wing); }
-  .bird.idle { --b: var(--bird-ok); --bw: var(--bird-ok-wing); }
+  .bird.ok, .b.ok, .bird.idle, .b.idle { --b: var(--bird-ok); --bw: var(--bird-ok-wing); }
+  .bird.you, .b.you { --b: var(--bird-you); --bw: var(--bird-you-wing); }
+  .bird.working, .b.working { --b: var(--bird-working); --bw: var(--bird-working-wing); }
+  .bird.stuck, .b.stuck { --b: var(--bird-stuck); --bw: var(--bird-stuck-wing); }
+  .bird.failed, .b.failed { --b: var(--bird-failed); --bw: var(--bird-failed-wing); }
+  .bird.quiet, .b.quiet { --b: var(--bird-quiet); --bw: var(--bird-quiet-wing); }
+  .brand-mark { --b: var(--bird-mark); --bw: var(--bird-mark-wing); }
   .egg { display: inline-block; flex: none; width: 24px; height: 24px; margin-right: 4px; vertical-align: middle; align-self: center; }
   .nest { display: block; flex: none; width: 76px; height: 52px; }
   .nest:not(.n-empty) { margin-top: 4px; }
-  .roost-branch { display: block; width: 100%; height: 30px; margin: -6px 0 6px; }
   .brand-mark svg { stroke: none; width: 44px; height: 44px; }
+  .presence { display: none; }
+  .rows li .bird { margin: -4px 0; }
+  .empty { display: flex; align-items: center; gap: 8px; }
+  .empty .bird { width: 28px; height: 28px; opacity: .85; }
+  .empty-nest { display: flex; align-items: center; gap: 14px; }
+  .autos .dot { display: none; }
+  .autos td:first-child .bird, .autos td:first-child .egg { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
+  .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
+  html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
+}
+@keyframes roost-call { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes roost-fly { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(2px, -3px) rotate(-5deg); } }
+
+/* Perch and Dusk: cards with a leafy branch under the masthead. */
+html:is([data-theme='perch'], [data-theme='dusk']) {
+  .roost-branch { display: block; width: 100%; height: 30px; margin: -6px 0 6px; }
   .brand { font-size: 22px; font-weight: 700; letter-spacing: -.01em; gap: 8px; }
   .masthead { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; align-items: flex-end; }
   .brand-mark { margin-bottom: -2px; }
@@ -170,34 +217,106 @@ html:is([data-theme='roost'], [data-theme='dusk']) {
   .tier.you, .tier.go { border-left-width: 5px; }
   .tier.you h2 .count { background: var(--you-bg); color: var(--you-ink); }
   .tier.alarm h2 { color: var(--alarm); }
+  .tier.alarm .count { background: var(--alarm-chip); color: var(--alarm-ink); }
   .tier.calm { position: relative; margin-top: 46px; }
   .tier.calm .dot { display: none; }
   .perched { display: block; position: absolute; right: 26px; top: -39px; }
   .perched .bird { width: 46px; height: 46px; }
-  .rows li .bird { margin: -4px 0; }
-  .empty { display: flex; align-items: center; gap: 8px; }
-  .empty .bird { width: 28px; height: 28px; opacity: .85; }
-  .empty-nest { display: flex; align-items: center; gap: 14px; }
-  .autos .dot { display: none; }
-  .autos td:first-child .bird, .autos td:first-child .egg { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
   .autos tr.overdue td:first-child { color: var(--you-ink); }
   .node.quiet > .card { opacity: 1; background: var(--raised); border-style: dashed; }
-  .presence { display: none; }
   .card { border-radius: var(--radius-sm) 12px; }
-  .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
   .badge { border-radius: 999px; padding: 2px 10px; }
   .summary .badge { padding: 4px 12px; font-size: 12px; }
   button { font-weight: 700; }
   .toggle { font-weight: 600; }
 }
-html:is([data-theme='roost'], [data-theme='dusk']) .tier.alarm .count { background: var(--alarm-chip); color: var(--alarm-ink); }
 html[data-theme='dusk'] body { background-image: radial-gradient(circle at 8% 4%, rgba(175, 190, 45, .16) 0 2px, transparent 3px), radial-gradient(circle at 91% 11%, rgba(248, 149, 33, .16) 0 2px, transparent 3px), radial-gradient(circle at 58% 2%, rgba(247, 243, 239, .14) 0 1.5px, transparent 3px), radial-gradient(circle at 24% 14%, rgba(247, 243, 239, .1) 0 1.5px, transparent 3px); background-repeat: no-repeat; }
-@media (prefers-reduced-motion: no-preference) {
-  html:is([data-theme='roost'], [data-theme='dusk']) .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
-  html:is([data-theme='roost'], [data-theme='dusk']) .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
+
+/* Roost layout: the section title sits in a left column, content on the right, and every section opens with a wire. */
+.wire-line { fill: none; stroke: var(--wire, currentColor); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.wire-more { fill: var(--muted); font: 600 13px var(--font); }
+html[data-theme='roost'] {
+  body { font-size: 15px; }
+  .wire { display: block; width: 100%; height: auto; overflow: visible; margin: 0 0 8px; }
+  .wire.col { margin-bottom: 10px; }
+  .masthead-wire { display: block; width: 100%; height: 22px; margin: 2px 0 0; overflow: visible; }
+  .masthead { border: 0; padding: 34px 0 0; margin: 0; align-items: flex-end; }
+  .brand { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0; gap: 10px; }
+  .brand-mark svg { width: 52px; height: 52px; }
+  .brand-mark { margin-bottom: 2px; }
+  .tabs { margin: 0 0 6px 28px; gap: 2px; }
+  .tabs a { position: relative; border-radius: 0; padding: 6px 12px; font-size: 16px; font-weight: 600; color: var(--muted); }
+  .tabs a:hover { background: none; color: var(--text); }
+  .tabs a[aria-current='page'] { background: none; color: var(--text); }
+  .tab-bird .bird { width: 32px; height: 32px; }
+  .tab-bird { display: block; position: absolute; left: 50%; bottom: 100%; width: 32px; height: 32px; margin: 0 0 -9px -16px; }
+  .masthead [role='status'] { margin: 0 0 12px; font-size: 13px; }
+  .wordmark { display: block; margin: 4px 0 26px; font-size: 14px; } .wordmark strong { display: none; }
+  a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  #app { max-width: 1080px; }
+  #app.wide { max-width: 1600px; }
+  .tier { display: grid; grid-template-columns: 220px minmax(0, 1fr); column-gap: 32px; align-items: start; margin: 0; padding: 22px 0 26px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
+  .tier > * { grid-column: 2; min-width: 0; }
+  .tier > .tier-head { grid-column: 1; grid-row: 1 / span 8; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; }
+  .calm > .tier-head { display: flex; }
+  .tier.you, .tier.go, .tier.calm { border-left: 0; padding: 22px 0 26px; }
+  .tier h2 { font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.1; }
+  .tier h2 .count { display: block; margin: 6px 0 0; padding: 0; min-width: 0; background: none; color: var(--muted); font: 600 15px var(--font); text-align: left; }
+  .tier h3 .count { display: inline; margin: 0 0 0 6px; }
+  .tier .rows li > .bird, .tier .group .rows .bird { display: none; }
+  .tier.alarm h2, .tier.alarm h2 .count { color: #fff6e0; }
+  .tier.alarm { margin: 6px -28px 0; padding: 24px 28px 26px; border-top: 0; border-radius: var(--radius); background: var(--alarm-bg); --muted: #ffe9df; --line: #e46f58; --text: #fff6e0; --link: #fff6e0; color: #fff6e0; }
+  .tier.alarm .bird.failed, .tier.alarm .b.failed { --b: #fff6e0; --bw: #ffc3b1; }
+  .tier.alarm .bd-belly { fill: #ffb9a3; } .tier.alarm .wire { --wire: #ffe9df; }
+  .tier.alarm .chip { background: #fff6e0; color: #8c1d0c; }
+  .tier.alarm .pills li { background: transparent; box-shadow: inset 0 0 0 1px #ffb9a3; color: #fff6e0; }
+  .tier.alarm .pills li.none { box-shadow: none; border-color: #ffb9a3; }
+  .tier.alarm a { text-decoration-color: #fff6e0; }
+  .tier h3 { font-size: 16px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
+  .tier h3 .count { margin-left: 6px; }
+  .tier .tier-head .now-muted { font-size: 13.5px; line-height: 1.4; }
+  .groups { gap: 26px; }
+  .perched { display: none; }
+  .calm .dot { display: none; }
+  .tier.calm p { font-size: 15.5px; }
+  .tier.brief { display: block; }
+  .tier.brief summary h2 { font-size: 27px; }
+  .rows li { font-size: 15px; padding: 9px 0; }
+  .rows .title { font-weight: 600; }
+  .chip, .badge { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 700; border-radius: 3px; padding: 1px 8px; }
+  .chip.vendor, .chip.error { background: var(--alarm-bg); color: #fff6e0; }
+  .badge.you { background: var(--you); color: var(--you-ink); } .badge.failed { background: #8c2114; color: #fff6e0; }
+  .badge.stuck { background: var(--stuck-bg); color: var(--stuck-ink); } .badge.working { background: var(--info-bg); color: var(--info-ink); }
+  .pills li { background: var(--raised); }
+  .autos th { font-size: 13.5px; color: var(--muted); }
+  .autos tr.overdue td:first-child { color: var(--you); }
+  .autos tr.failed td:first-child, .autos tr.unreadable td:first-child { color: var(--alarm); }
+  .spark polyline { stroke: var(--you); }
+  .epic meter { accent-color: var(--accent); }
+  button { font-weight: 700; border-radius: 3px; }
+  button.text, button.more { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  /* Map */
+  .summary { margin: 4px 0 26px; gap: 10px; }
+  .summary .badge { padding: 4px 11px; font-size: 14px; }
+  .column h2, .runs h2 { font-family: var(--display); font-weight: 400; font-size: 24px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 6px; }
+  .column h2 .count, .runs h2 .count { background: none; color: var(--muted); padding: 0 0 0 6px; font: 600 15px var(--font); }
+  .card { background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 10px 10px 11px; }
+  .node.you > .card { background: rgba(255, 201, 51, .14); box-shadow: inset 4px 0 0 var(--you); }
+  .node.failed > .card { background: #8c2114; box-shadow: none; --muted: #ffe9df; color: #fff6e0; }
+  .node.failed > .card .name, .node.failed > .card .open-ws, .node.failed > .card .comment { color: #fff6e0; }
+  .node.failed > .card .bird.failed { --b: #fff6e0; --bw: #ffc3b1; } .node.failed > .card .bd-belly { fill: #ffb9a3; }
+  .node.stuck > .card, .node.working > .card { box-shadow: none; border-color: var(--line); background: none; }
+  .node.quiet > .card { opacity: 1; border-bottom-style: dashed; }
+  .node.quiet > .card .name, .node.quiet > .card .open-ws { color: var(--muted); }
+  .tree ul { border-left-color: var(--border); }
+  .card .comment { opacity: 1; color: var(--text); }
+  .toast { background: var(--surface); }
 }
-@keyframes roost-call { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes roost-fly { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(2px, -3px) rotate(-5deg); } }
+@media (max-width: 760px) {
+  html[data-theme='roost'] .tier { grid-template-columns: 1fr; }
+  html[data-theme='roost'] .tier > *, html[data-theme='roost'] .tier > .tier-head { grid-column: 1; grid-row: auto; }
+  html[data-theme='roost'] .tier.alarm { margin: 6px -14px 0; padding-inline: 14px; }
+}
 
 /* Presence dots: shown in Lounge only. */
 .presence { display: none; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--idle); box-shadow: 0 0 0 3px var(--surface); align-self: center; }

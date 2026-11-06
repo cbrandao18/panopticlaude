@@ -99,7 +99,32 @@ export const Sprite = () => html`<div class="sprite-host" aria-hidden="true" dan
 // state: you | failed | stuck | working | idle | quiet | ok
 export const Bird = ({ state, size }) => html`<svg class=${`bird ${state} ${size || ''}`} aria-hidden="true"><use href=${`#${state === 'ok' ? 'b-perch' : POSE[state] || 'b-perch'}`} /></svg>`;
 export const Egg = () => html`<svg class="egg" aria-hidden="true"><use href="#egg" /></svg>`;
-export const Branch = () => html`<svg class="roost-branch" aria-hidden="true"><rect width="100%" height="100%" fill="url(#branch-tile)" /></svg>`;
+// Perch and Dusk draw a leafy branch under the masthead; Roost draws a plain sagging wire.
+export const Branch = () => html`
+  <svg class="roost-branch" aria-hidden="true"><rect width="100%" height="100%" fill="url(#branch-tile)" /></svg>
+  <svg class="masthead-wire" viewBox="0 0 1000 22" preserveAspectRatio="none" aria-hidden="true"><path class="wire-line" d="M0 4 Q500 28 1000 4" /></svg>`;
+
+// A sagging wire with one bird per item, in the pose for its state. Hidden outside the Roost theme.
+// states: array of bird states (you, failed, stuck, working, ok, idle, quiet); width is the drawing width, not pixels.
+export function Wire({ states, width = 720, cap = 20, cls = '' }) {
+  const size = 34, y0 = 36, sag = 12;
+  const shown = states.slice(0, cap);
+  const extra = states.length - shown.length;
+  const room = width - 24 - size - (extra ? 44 : 0);
+  const step = Math.min(size + 12, room / Math.max(shown.length - 1, 1));
+  const curve = (x) => y0 + 4 * sag * (x / width) * (1 - x / width);
+  return html`
+    <svg class=${`wire ${cls}`} viewBox=${`0 0 ${width} ${shown.length ? 66 : 44}`} aria-hidden="true">
+      <path class="wire-line" d=${`M0 ${y0} Q${width / 2} ${y0 + 2 * sag} ${width} ${y0}`} />
+      ${shown.map((state, i) => {
+        const x = 18 + i * step;
+        const flip = i % 3 === 1;
+        const y = curve(x + size / 2) - size * 0.93 + 1;
+        return html`<g key=${i} class=${`b ${state}`} transform=${`translate(${flip ? x + size : x} ${y.toFixed(1)})${flip ? ' scale(-1 1)' : ''}`}><use href=${`#${state === 'ok' || state === 'idle' ? 'b-perch' : POSE[state]}`} width=${size} height=${size} /></g>`;
+      })}
+      ${extra > 0 && html`<text class="wire-more" x=${18 + (shown.length - 1) * step + size + 8} y=${curve(width - 40) - 4}>+${extra}</text>`}
+    </svg>`;
+}
 
 // A nest with up to three eggs, one per ready PR.
 export const Nest = ({ eggs }) => html`

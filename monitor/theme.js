@@ -2,10 +2,11 @@
 // Pages opt in to theming with data-themable on <html>; the Work page keeps its original look but takes the name.
 (function () {
   'use strict';
-  const THEMES = { roost: 'Roost', dusk: 'Roost Dusk', lounge: 'Lounge', branch: 'Branch', classic: 'Classic' };
-  const ROOST_THEMES = ['roost', 'dusk'];
+  const THEMES = { roost: 'Roost', perch: 'Roost Perch', dusk: 'Roost Dusk', lounge: 'Lounge', branch: 'Branch', classic: 'Classic' };
+  const ROOST_THEMES = ['roost', 'perch', 'dusk'];
   // The Roost themes get a full-colour bird on a leafy branch; everything else gets the line mark.
-  const ROOST_MARK = '<svg aria-hidden="true" viewBox="0 0 48 48"><path d="M2 45c10-3 24 1 34-1l10-2v3c-9 3-24 1-34 3z" fill="currentColor"/><path d="M33 44c3-7 9-8 14-6-1 6-7 8-14 6z" fill="#afbe2d"/><path d="M13 30L2 37l13 1z" fill="currentColor"/><ellipse cx="23" cy="29" rx="14" ry="11" fill="#7a8f1f"/><circle cx="32" cy="18" r="9" fill="#7a8f1f"/><ellipse cx="28" cy="33" rx="8" ry="5.5" fill="#f7f3ef"/><path d="M11 27c5-7 16-5 19 3-7 6-17 5-19-3z" fill="currentColor"/><path d="M40 16l7 3.5-7 3z" fill="#f89521"/><circle cx="35" cy="16" r="1.8" fill="#1b2514"/><rect x="21" y="38" width="2.2" height="6" rx="1" fill="currentColor"/><rect x="28" y="38" width="2.2" height="6" rx="1" fill="currentColor"/></svg>';
+  // Coloured by the theme's bird tokens (the bd-* classes in themes.css), perched on a short wire.
+  const ROOST_MARK = '<svg aria-hidden="true" viewBox="0 0 48 48"><path class="bd-tail" d="M13 30L2 37l13 1z"/><ellipse class="bd-body" cx="23" cy="29" rx="14" ry="11"/><circle class="bd-body" cx="32" cy="18" r="9"/><ellipse class="bd-belly" cx="28" cy="33" rx="8" ry="5.5"/><path class="bd-wing" d="M11 27c5-7 16-5 19 3-7 6-17 5-19-3z"/><path class="bd-beak" d="M40 16l7 3.5-7 3z"/><circle class="bd-eye" cx="35" cy="16" r="1.8"/><path class="bd-leg" d="M22 39v5M29 39v5M0 44.5Q24 49 48 44.5"/></svg>';
   const svg = (body) => `<svg aria-hidden="true" viewBox="0 0 32 32" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
   const BRANDS = {
     roost: {

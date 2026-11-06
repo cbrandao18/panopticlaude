@@ -70,6 +70,7 @@ const assets = {
   '/vendor/cabin-latin-400-normal.woff2': ['vendor/cabin-latin-400-normal.woff2', 'font/woff2'],
   '/vendor/cabin-latin-600-normal.woff2': ['vendor/cabin-latin-600-normal.woff2', 'font/woff2'],
   '/vendor/cabin-latin-700-normal.woff2': ['vendor/cabin-latin-700-normal.woff2', 'font/woff2'],
+  '/vendor/young-serif-latin-400-normal.woff2': ['vendor/young-serif-latin-400-normal.woff2', 'font/woff2'],
   '/vendor/preact.js': ['vendor/preact.js', 'text/javascript'],
   '/vendor/hooks.js': ['vendor/hooks.js', 'text/javascript'],
   '/vendor/htm.js': ['vendor/htm.js', 'text/javascript'],

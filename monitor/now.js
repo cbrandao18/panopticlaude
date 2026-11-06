@@ -3,7 +3,7 @@ import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca } from './ui.js';
-import { Bird, Nest, StatusBird } from './roost.js';
+import { Bird, Nest, StatusBird, Wire } from './roost.js';
 
 const html = htm.bind(h);
 const SHOWN = 5;
@@ -60,13 +60,14 @@ function More({ items, row }) {
     ${items.length > SHOWN && html`<button class="text more" type="button" onClick=${() => setAll(!all)}>${all ? 'Show fewer' : `Show all ${items.length}`}</button>`}`;
 }
 
-function Section({ id, title, count, tone, children, note }) {
+function Section({ id, title, count, tone, children, note, birds }) {
   return html`
     <section class=${`tier ${tone || ''}`} aria-labelledby=${`${id}-title`}>
       <header class="tier-head">
         <h2 id=${`${id}-title`}>${title}${count != null && html` <span class="count">${count}</span>`}</h2>
         ${note && html`<span class="now-muted">${note}</span>`}
       </header>
+      ${birds && html`<${Wire} states=${birds} />`}
       ${children}
     </section>`;
 }
@@ -81,14 +82,16 @@ function Down({ data }) {
   if (!down.length) {
     return html`
       <section class="tier calm" aria-label="Down">
+        <header class="tier-head" aria-hidden="true"><h2>Down</h2></header>
         <span class="perched"><${Bird} state="ok" /></span>
+        <${Wire} states=${['ok']} />
         <p><span class="dot ok" aria-hidden="true"></span><strong>Nothing is down.</strong>
         <span class="now-muted"> ${vendors.length} vendors, ${automations.length} automations and the bug sweep checked at ${clock(data.refreshedAt)}.</span></p>
         ${vendorPills}
       </section>`;
   }
   return html`
-    <${Section} id="down" title="Down" count=${down.length} tone="alarm">
+    <${Section} id="down" title="Down" count=${down.length} tone="alarm" birds=${down.map(() => 'failed')}>
       <${More} items=${down} row=${(d, i) => html`
         <li key=${`${d.kind}${i}${d.title}`}>
           <${Bird} state="failed" />
@@ -104,7 +107,7 @@ function Down({ data }) {
 function Ready({ data }) {
   const { ready, waitingPrs } = data;
   return html`
-    <${Section} id="ship" title="Ready to ship" count=${ready.length} tone=${ready.length ? 'go' : ''}
+    <${Section} id="ship" title="Ready to ship" count=${ready.length} tone=${ready.length ? 'go' : ''} birds=${ready.map(() => 'ok')}
       note=${waitingPrs.length ? `${waitingPrs.length} more of your PRs are waiting on something` : ''}>
       ${ready.length
         ? html`<${More} items=${ready} row=${(pr) => html`
@@ -130,7 +133,7 @@ function Blocked({ data }) {
   const { agents, reviews, ease, drafts } = data.blocked;
   const total = agents.length + reviews.length + ease.length + drafts.length;
   return html`
-    <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''}>
+    <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''} birds=${Array(total).fill('you')}>
       <div class="groups">
         <${Group} label="Agents waiting" items=${agents} empty="No agent is waiting on you."
           row=${(a) => html`<li key=${a.key}><span class="presence you" aria-hidden="true"></span><${Bird} state="you" /><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
@@ -177,6 +180,7 @@ function Releases({ data }) {
     </${Section}>`;
 }
 
+const AUTO_STATE = { failed: 'failed', unreadable: 'failed', overdue: 'stuck', running: 'working', completed: 'ok', paused: 'quiet', skipped: 'quiet', cancelled: 'quiet', waiting: 'quiet' };
 const STATUS = { failed: 'Failed', overdue: 'Missed run', unreadable: 'Unreadable', running: 'Running', completed: 'Run finished', paused: 'Paused', waiting: 'Not run yet', skipped: 'Skipped', cancelled: 'Stopped' };
 
 function Automations({ data }) {
@@ -184,7 +188,7 @@ function Automations({ data }) {
   const rows = data.automations.filter((a) => showPaused || a.status !== 'paused');
   const paused = data.automations.length - data.automations.filter((a) => a.status !== 'paused').length;
   return html`
-    <${Section} id="automations" title="Automations" count=${rows.length}
+    <${Section} id="automations" title="Automations" count=${rows.length} birds=${rows.map((a) => AUTO_STATE[a.status] || 'idle')}
       note=${html`Run finished means Orca marked it complete, not that the work succeeded. <a href="/work#jobs">Logs</a>`}>
       <table class="autos">
         <thead><tr><th scope="col">Status</th><th scope="col">Automation</th><th scope="col">Where</th><th scope="col">Last run</th><th scope="col">Next run</th></tr></thead>
