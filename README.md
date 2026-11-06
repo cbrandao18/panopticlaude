@@ -1,4 +1,4 @@
-# panopticlaude
+# Roost
 
 One sidebar. All your Claudes. Nowhere to hide.
 
@@ -13,6 +13,8 @@ Built because the existing Claude dashboards do too much. This is a glanceable t
 
 v0.1: working. Two tree views (Sessions, Crons) in their own activity-bar container. The design is in [docs/PLAN.md](docs/PLAN.md).
 
+Renamed from panopticlaude. Settings keys, command IDs, the hook script and state paths keep the `panopticlaude` prefix so existing installs keep working.
+
 ## Install (from source)
 
 ```sh
@@ -23,7 +25,7 @@ ln -sfn "$(pwd)/panopticlaude" ~/.vscode/extensions/panopticlaude
 Then:
 
 1. Reload VSCode (new windows pick the extension up automatically).
-2. Command palette: **Panopticlaude: Install Claude Code Hooks**. This adds the state-reporting hook to five events in `~/.claude/settings.json` (a backup is written next to it). Sessions started before that show a best-effort state from transcript mtime.
+2. Command palette: **Roost: Install Claude Code Hooks**. This adds the state-reporting hook to five events in `~/.claude/settings.json` (a backup is written next to it). Sessions started before that show a best-effort state from transcript mtime.
 3. Point the Crons view at your bots in settings:
 
 ```json

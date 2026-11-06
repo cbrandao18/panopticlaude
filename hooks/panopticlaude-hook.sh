@@ -1,5 +1,5 @@
 #!/bin/sh
-# Claude Code hook: records session state for panopticlaude.
+# Claude Code hook: records session state for Roost.
 # Registered for UserPromptSubmit, Stop, Notification, PermissionRequest, SessionEnd.
 # Only flat top-level fields are needed, so sed instead of jq (no dependencies).
 IN=$(cat)
