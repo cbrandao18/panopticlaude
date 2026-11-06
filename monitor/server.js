@@ -15,6 +15,7 @@ const { createSecurityReader } = require('./security-api');
 const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
 const { createTipsReader } = require('./claude-tips-api');
+const { createNowReader } = require('./now-api');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -59,7 +60,13 @@ function latestOrcaRun(runs) {
   return [...runs].sort((a, b) => (b.createdAt || b.scheduledFor) - (a.createdAt || a.scheduledFor))[0] || null;
 }
 const assets = {
-  '/': ['index.html', 'text/html'],
+  '/': ['now.html', 'text/html'],
+  '/now.js': ['now.js', 'text/javascript'],
+  '/now.css': ['now.css', 'text/css'],
+  '/vendor/preact.js': ['vendor/preact.js', 'text/javascript'],
+  '/vendor/hooks.js': ['vendor/hooks.js', 'text/javascript'],
+  '/vendor/htm.js': ['vendor/htm.js', 'text/javascript'],
+  '/work': ['index.html', 'text/html'],
   '/app.js': ['app.js', 'text/javascript'],
   '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
   '/ticket-work.css': ['ticket-work.css', 'text/css'],
@@ -253,6 +260,7 @@ function createMonitor({
   readBrief = createBriefReader({ render: renderGithubMarkdown }),
   fileEase = fileTicket,
   readTips = createTipsReader(),
+  readNow = null,
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
   pilotDir = path.join(os.homedir(), '.local/state/shared-reader-pilot'),
   postDraft = createPoster(),
@@ -261,6 +269,14 @@ function createMonitor({
   writeSeen = lib.saveInboxSeen
 }) {
   const filing = new Set();
+  const findingsJob = jobs.find((job) => job.findings);
+  readNow ||= createNowReader({
+    readMap,
+    readEase,
+    readMerge,
+    readJobs: () => Promise.all(jobs.map((job) => jobStatus(job, { run, readSeen }))),
+    readFindings: async () => (findingsJob ? JSON.parse(fs.readFileSync(findingsJob.findings, 'utf8')) : null)
+  });
   return http.createServer(async (req, res) => {
     const send = (status, body, type = 'application/json') => {
       res.writeHead(status, {
@@ -298,6 +314,9 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/claude-tips') {
         return send(200, await readTips());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/now') {
+        return send(200, await readNow());
       }
       if (req.method === 'GET' && url.pathname === '/api/brief') {
         return send(200, await readBrief());

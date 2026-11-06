@@ -848,3 +848,9 @@ button.thumb img {
 .pilot-report table { border-collapse: collapse; min-width: 850px; width: 100%; }
 .pilot-report th, .pilot-report td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
 .pilot-report th { color: var(--muted); }
+
+/* Page tabs shared by Now, Map and Work. */
+.tabs { display: flex; gap: 4px; margin-right: auto; margin-left: 24px; }
+.tabs a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 7px; font-size: 14px; font-weight: 550; }
+.tabs a:hover { color: #e7e9e8; background: #1b211e; }
+.tabs a[aria-current='page'] { color: #e7e9e8; background: #202823; }

@@ -1,6 +1,6 @@
 # Local automation dashboard
 
-The monitor shows Orca automation or launchd job status, schedules, logs, and a draft inbox in a localhost page. Scheduling stays with Orca or launchd; opening this page does not run a job. Node 20 or later is required; there are no dependencies to install.
+The monitor is a localhost dashboard: what is down, what is ready to ship, what is blocked on you, how live releases are going, every automation's status, and an org chart of your agents. The Work page keeps the job logs and draft inbox. Scheduling stays with Orca or launchd; opening this page does not run a job. Node 20 or later is required; there are no dependencies to install.
 
 Copy `monitor/config.example.json` to `~/.config/panopticlaude/monitor.json` and replace the example with your jobs. Entries use the same `label`, `log`, `inbox`, and `repo` fields as VS Code’s `panopticlaude.crons` setting. Add `automationId` from `orca automations list --json` for an Orca job; omit it for launchd. Keep the original label when migrating so inbox review history stays connected. `inbox` and `repo` are optional. `findings` optionally points to a bug sweep `findings.json`; the dashboard serves it at `/api/findings` and the PNGs in the `shots/` folder beside it at `/api/shot`. It also serves `fix.log`, next to the run log, as the `fix` log kind. `name` optionally overrides the display name. Keep this machine-specific config outside the repository.
 
@@ -15,7 +15,21 @@ On this Mac the server runs as the LaunchAgent `com.christie.panopticlaude-dashb
 
 Orca jobs read their schedule, enabled state, run history, saved output, and errors through the CLI. Launchd jobs keep using their plist and launchctl status.
 
-## What the page tells you
+## Pages
+
+- **Now** (`/`) answers "what needs me", most urgent first:
+  - **Down**: vendor status pages, Branch's Datadog monitors on vendor calls (ClarionDoor, Stripe, TransUnion, …), failed or missed automations, a failed feedback watcher, and fresh prod errors the bug sweep would file but hasn't. Borderline findings stay off. Dashed pills are critical things nothing watches yet (Staff uptime, Verisk, …). Vendor lists live at the top of `now-api.js`.
+  - **Ready to ship**: your non-draft PRs GitHub would merge now, fixes first.
+  - **Blocked on you**: workspaces whose comment starts `You:`, reviews requested of you, Ease decisions, unread held drafts.
+  - **Release watch**: one row per live project from its nightly feedback triage log and epic progress (`RELEASES` in `now-api.js`).
+  - **Automations**: every Orca automation on the Mac and the VM. "Run finished" means Orca marked it complete, not that the work succeeded; a precheck skip isn't a failure.
+  - **Daily brief**, collapsed.
+- **Map** (`/map`): an org chart of Orca work. Open or failed coordinator Runs on top, then workspaces by sidebar status, nested by parent. Needs you = `You:` comment; failed = a Run task failed there; stuck = an agent in an unexpected state, or an `Agent:` comment with no activity for a day; quiet = no activity for 3 days (hidden by default).
+- **Work** (`/work`): the previous page, unchanged. Ticket work, Ease and Security move to the AI PM agent; the draft inbox goes once assess-assumptions auto-posts.
+
+The Now page reads everything server-side every minute (`/api/now`), with each source failing on its own into the "Couldn't read" line. It needs `gh`, `pup` (Datadog) and the Orca CLI on the Mac, plus `coder ssh` to the VM. Pages use Preact and htm from `monitor/vendor/` (see its README).
+
+## Work page details
 
 - **Ease & effort** lists each #ease-and-effort post the `ease-effort-watch` automation handled, as a tree: the agent's logged steps, then your next moves (decide a ticket draft, dev deploy and mark a PR ready, send the saved Slack reply). It reads `ease.log`, `todo.md` and `todo/ease-*.md` in `~/orca/projects/daily-brief` on the VM over `coder ssh branch-ec2.main` (or locally when the log is on this host), joins Orca workspace names and `gh` PR state, and refreshes every minute. A ticket draft counts as decided once its line leaves `todo.md`; whether you sent the Slack reply isn't tracked.
 - **File ticket as drafted** files a not-easy post's ticket draft in `gobranch/branch` as your `gh` user, with issue type Story, after a confirm. It refuses when the Slack link is already on GitHub or the post was filed before, then logs a `filed` line in the VM's `ease.log` and removes the draft's line from `todo.md`. BRANCH TECH fields fill from the draft's `###` headings; check Ticket Type and Dev Sprint after, as the `file-ticket` skill describes.

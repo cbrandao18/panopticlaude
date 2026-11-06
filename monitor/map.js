@@ -1,241 +1,177 @@
-// Read-only map of Orca workspaces and the Runs that coordinate them.
-(function () {
-  'use strict';
-  const DAY = 86400000;
-  const NEEDS_SHOWN = 5;
-  const STATUSES = {
-    'status-5': 'Daily process',
-    'status-6': 'Fixes',
-    'status-7': 'Features',
-    'status-8': 'Automations',
-    'in-progress': 'Unsorted'
-  };
-  const HOSTS = { mac: 'Mac', vm: 'VM' };
-  const FINISHED = new Set(['succeeded', 'completed', 'failed', 'stopped', 'cancelled', 'abandoned', 'released']);
-  const $ = (id) => document.getElementById(id);
-  let data = null;
-  let showAllNeeds = false;
+// Org chart of Christie's work: Runs and their workers, then workspaces by sidebar status, nested by parent.
+// Highlights what needs her, what is stuck or failed, and what is working. Read-only.
+import { h, render } from './vendor/preact.js';
+import { useEffect, useState } from './vendor/hooks.js';
+import htm from './vendor/htm.js';
 
-  function el(tag, attrs, ...children) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attrs || {})) {
-      if (value === undefined || value === null || value === false) continue;
-      if (key === 'class') node.className = value;
-      else node.setAttribute(key, value);
-    }
-    for (const child of children.flat()) if (child !== null && child !== undefined && child !== false) node.append(child);
-    return node;
-  }
-  function ago(ms) {
-    if (!ms) return 'no activity';
-    const mins = Math.round((Date.now() - ms) / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    if (mins < 1440) return `${Math.round(mins / 60)}h ago`;
-    return `${Math.round(mins / 1440)}d ago`;
-  }
-  const focusView = () => document.querySelector('input[name="view"]:checked').value === 'focus';
-  const runActive = (run) => run.tasks.some((t) => !FINISHED.has(t.state));
-  const runState = (run) => (runActive(run) ? 'active' : run.tasks.some((t) => t.state === 'failed') ? 'failed' : 'done');
-  const needsYou = (ws) => /^You:/i.test(ws.comment);
-  const unclear = (ws) => ws.agents.some((a) => !['working', 'done'].includes(a.state));
-  const working = (ws) => ws.agents.some((a) => a.state === 'working');
-  const newest = (a, b) => b.lastActivityAt - a.lastActivityAt;
-  const short = (text) => (text.length > 80 ? `${text.slice(0, 80)}…` : text);
+const html = htm.bind(h);
+const DAY = 86400000;
+const QUIET_AFTER = 3 * DAY;
+const COLUMNS = [
+  ['status-6', 'Fixes'],
+  ['status-7', 'Features'],
+  ['status-5', 'Daily process'],
+  ['status-8', 'Automations'],
+  ['other', 'Unsorted']
+];
 
-  function visible() {
-    const all = data.hosts.flatMap((h) => h.workspaces);
-    const allRuns = data.hosts.flatMap((h) => h.runs);
-    const runs = allRuns.filter((r) => $('show-done').checked || runActive(r));
-    const needs = all.filter(needsYou).sort(newest);
-    let lanes;
-    if (focusView()) {
-      const pinned = new Set(all.filter((ws) => ws.pinned).map((ws) => ws.key));
-      const linked = new Set(runs.filter(runActive).flatMap((r) => r.tasks.map((t) => t.workspace)));
-      lanes = all.filter((ws) => !needsYou(ws) && (pinned.has(ws.key) || pinned.has(ws.parent) || working(ws) || unclear(ws) || linked.has(ws.key)));
-    } else {
-      const linked = new Set(runs.flatMap((r) => r.tasks.map((t) => t.workspace)));
-      lanes = all.filter((ws) => $('show-idle').checked || linked.has(ws.key) || Date.now() - ws.lastActivityAt < 7 * DAY || working(ws));
-    }
-    const shownKeys = new Set([...needs, ...lanes].map((ws) => ws.key));
-    return { all, allRuns, runs, needs, lanes, hidden: all.filter((ws) => !shownKeys.has(ws.key)).length };
-  }
+const meridiem = (text) => text.replace(/[\s ]*([AP])M\b/g, (m, l) => `${l.toLowerCase()}m`);
+const clock = (ms) => meridiem(new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+const ago = (ms) => {
+  const min = Math.round((Date.now() - ms) / 60000);
+  if (min < 60) return `${Math.max(min, 0)}m`;
+  if (min < 1440) return `${Math.round(min / 60)}h`;
+  return `${Math.round(min / 1440)}d`;
+};
 
-  // The newest Run whose workers used this workspace, if any.
-  function coordinator(ws, allRuns) {
-    const runs = allRuns.filter((r) => r.tasks.some((t) => t.workspace === ws.key));
-    return runs.find(runActive) || runs[0] || null;
-  }
+// What state a workspace is in, most urgent first; CSS keys off the string.
+function stateOf(ws, now = Date.now()) {
+  if (/^You:/i.test(ws.comment)) return 'you';
+  if (ws.failed) return 'failed';
+  if (ws.agents.some((a) => !['done', 'working'].includes(a.state))) return 'stuck';
+  if (ws.agents.some((a) => a.state === 'working')) return 'working';
+  // Unknown activity (0) is never stuck or quiet; a comment saying the agent is done isn't stuck either.
+  if (/^Agent:(?!\s*(done|finished|complete))/i.test(ws.comment) && ws.activeAt && now - ws.activeAt > DAY) return 'stuck';
+  if (ws.activeAt && now - ws.activeAt > QUIET_AFTER) return 'quiet';
+  return 'idle';
+}
+const RANK = { you: 0, failed: 1, stuck: 2, working: 3, idle: 4, quiet: 5 };
+const LABEL = { you: 'Needs you', failed: 'Failed', stuck: 'Stuck', working: 'Working', idle: '', quiet: '' };
 
-  function card(ws, ctx, { withHost = false } = {}) {
-    const busy = ws.agents.filter((a) => a.state === 'working').length;
-    const idle = Date.now() - ws.lastActivityAt > DAY;
-    const run = coordinator(ws, ctx.allRuns);
-    const parent = ws.parent && ctx.byKey.get(ws.parent);
-    const chips = [
-      withHost && el('span', { class: 'chip' }, HOSTS[ws.host]),
-      ws.pinned && el('span', { class: 'chip pinned' }, 'pinned'),
-      busy > 0 && el('span', { class: 'chip working' }, `${busy} working`),
-      unclear(ws) && el('span', { class: 'chip attention' }, 'check status'),
-      ws.pr && el('a', { class: 'chip', href: ws.pr.url, target: '_blank', rel: 'noopener' }, `PR #${ws.pr.number}`),
-      ws.issue && !ws.pr && (ws.repo === 'branch'
-        ? el('a', { class: 'chip', href: `https://github.com/gobranch/branch/issues/${ws.issue}`, target: '_blank', rel: 'noopener' }, `#${ws.issue}`)
-        : el('span', { class: 'chip' }, `#${ws.issue}`))
-    ];
-    const agents = ws.agents
-      .slice()
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, 3)
-      .map((a) => el('li', null,
-        el('p', { class: 'agent-head' }, `${a.type} · ${a.state} · ${ago(a.updatedAt)}`),
-        a.title && el('p', { class: 'agent-title' }, a.title),
-        a.last && el('p', { class: 'agent-last' }, a.last)));
-    return el('details', { class: `ws ${ws.status}${needsYou(ws) ? ' needs-you' : ''}`, 'data-key': ws.key },
-      el('summary', null,
-        el('span', { class: 'ws-name' }, ws.name),
-        el('span', { class: `ws-meta${idle ? ' stale' : ''}` }, ago(ws.lastActivityAt)),
-        ws.comment && el('span', { class: 'ws-comment' }, ws.comment),
-        parent && withHost && el('span', { class: 'ws-relation' }, `Under ${parent.name}`),
-        run && runActive(run) && el('span', { class: 'ws-relation' }, `Worker for: ${short(run.objective)} · ${HOSTS[run.host]}`),
-        el('span', { class: 'chips' }, chips)),
-      el('div', { class: 'ws-body' },
-        el('p', { class: 'ws-line' }, `${STATUSES[ws.status] || ws.status} · ${ws.repo} · ${ws.branch || 'no branch'}`),
-        el('p', { class: 'ws-line' }, !run ? 'No coordinator recorded.'
-          : runActive(run) ? `Coordinator: ${run.objective} · ${HOSTS[run.host]}`
-          : `Last coordinator (${runState(run)}): ${run.objective} · ${HOSTS[run.host]}`),
-        agents.length ? el('ul', { class: 'agents' }, agents) : el('p', { class: 'ws-line' }, 'No agents recorded.')));
+function build(data) {
+  const all = data.hosts.flatMap((host) => host.workspaces);
+  const byKey = new Map(all.map((ws) => [ws.key, { ...ws, children: [] }]));
+  const runs = data.hosts.flatMap((host) => host.runs);
+  // A failed Run task marks the workspace it ran in.
+  for (const run of runs) for (const t of run.tasks) if (t.status === 'failed' && byKey.has(t.workspace)) byKey.get(t.workspace).failed = true;
+  const now = Date.now();
+  for (const ws of byKey.values()) {
+    ws.activeAt = Math.max(ws.lastActivityAt || 0, ...ws.agents.map((a) => a.updatedAt || 0));
+    ws.state = stateOf(ws, now);
   }
+  const roots = [];
+  for (const ws of byKey.values()) (ws.parent && byKey.has(ws.parent) ? byKey.get(ws.parent).children : roots).push(ws);
+  // A branch is as urgent as its most urgent node.
+  const rank = (ws) => Math.min(RANK[ws.state], ...ws.children.map(rank));
+  const sort = (list) => list.sort((a, b) => rank(a) - rank(b) || b.activeAt - a.activeAt).forEach((ws) => sort(ws.children));
+  sort(roots);
+  const columns = COLUMNS.map(([id, label]) => ({
+    id,
+    label,
+    roots: roots.filter((ws) => (COLUMNS.some(([c]) => c === ws.status) ? ws.status : 'other') === id)
+  }));
+  const liveRuns = runs
+    .map((r) => ({ ...r, failed: r.tasks.some((t) => t.status === 'failed'), open: r.tasks.some((t) => !['completed', 'failed'].includes(t.status)) }))
+    .filter((r) => r.open || r.failed);
+  const counts = { you: 0, failed: 0, stuck: 0, working: 0 };
+  for (const ws of byKey.values()) if (ws.state in counts) counts[ws.state]++;
+  return { columns, runs: liveRuns, counts, rank };
+}
 
-  function tree(workspaces, ctx) {
-    const byKey = new Map(workspaces.map((ws) => [ws.key, ws]));
-    const kids = new Map();
-    const roots = [];
-    for (const ws of workspaces) {
-      if (ws.parent && byKey.has(ws.parent)) (kids.get(ws.parent) || kids.set(ws.parent, []).get(ws.parent)).push(ws);
-      else roots.push(ws);
-    }
-    const order = (a, b) => b.pinned - a.pinned || newest(a, b);
-    const branch = (ws) => {
-      const children = (kids.get(ws.key) || []).sort(order);
-      return el('div', { class: 'node' }, card(ws, ctx), children.length > 0 && el('div', { class: 'children' }, children.map(branch)));
-    };
-    return roots.sort(order).map(branch);
-  }
+function Node({ ws, showQuiet, rank }) {
+  const visible = ws.children.filter((c) => showQuiet || rank(c) < RANK.quiet);
+  return html`
+    <li class=${`node ${ws.state}`}>
+      <div class="card" title=${ws.path}>
+        <div class="card-top">
+          <span class="name">${ws.name}</span>
+          <span class="host">${ws.host === 'vm' ? 'VM' : 'Mac'}</span>
+        </div>
+        ${LABEL[ws.state] && html`<span class=${`badge ${ws.state}`}>${LABEL[ws.state]}</span>`}
+        ${ws.comment && html`<p class="comment">${ws.comment.replace(/^(You|Agent):\s*/i, '')}</p>`}
+        <p class="meta">
+          ${ws.pr && html`<a href=${ws.pr.url}>PR #${ws.pr.number}</a> · `}
+          ${ws.agents.filter((a) => a.state === 'working').length > 0 && `${ws.agents.filter((a) => a.state === 'working').length} working · `}
+          ${ws.activeAt ? `active ${ago(ws.activeAt)} ago` : 'no activity recorded'}
+        </p>
+      </div>
+      ${visible.length > 0 && html`<ul>${visible.map((c) => html`<${Node} key=${c.key} ws=${c} showQuiet=${showQuiet} rank=${rank} />`)}</ul>`}
+    </li>`;
+}
 
-  function runCard(run) {
-    const groups = new Map();
-    for (const t of run.tasks) {
-      const key = t.workspace || 'none';
-      groups.set(key, [...(groups.get(key) || []), t]);
-    }
-    const state = runState(run);
-    return el('details', { class: `run ${state}`, 'data-key': run.key },
-      el('summary', null,
-        el('span', { class: 'ws-name' }, run.objective),
-        el('span', { class: 'ws-meta' }, `on ${HOSTS[run.host]} · ${run.tasks.length} workers · ${state}`)),
-      el('ul', { class: 'agents' }, [...groups].map(([key, tasks]) => el('li', null,
-        el('p', { class: 'agent-head' }, key === 'none' ? 'no workspace' : key.split('/').pop()),
-        tasks.map((t) => el('p', { class: 'agent-title' }, `${t.title || 'untitled task'} · ${t.state}`))))));
-  }
+function Column({ col, showQuiet, rank }) {
+  const visible = col.roots.filter((ws) => showQuiet || rank(ws) < RANK.quiet);
+  const quiet = col.roots.length - visible.length;
+  return html`
+    <section class="column" aria-labelledby=${`col-${col.id}`}>
+      <h2 id=${`col-${col.id}`}>${col.label} <span class="count">${col.roots.length}</span></h2>
+      ${visible.length ? html`<ul class="tree">${visible.map((ws) => html`<${Node} key=${ws.key} ws=${ws} showQuiet=${showQuiet} rank=${rank} />`)}</ul>` : html`<p class="now-muted">Nothing active.</p>`}
+      ${quiet > 0 && html`<p class="now-muted quiet-note">${quiet} quiet for ${QUIET_AFTER / DAY}+ days</p>`}
+    </section>`;
+}
 
-  function drawLinks(runs) {
-    const svg = $('links');
-    const box = $('map').getBoundingClientRect();
-    svg.setAttribute('width', box.width);
-    svg.setAttribute('height', box.height);
-    svg.replaceChildren();
-    for (const run of runs) {
-      const from = document.querySelector(`.run[data-key="${CSS.escape(run.key)}"]`);
-      if (!from) continue;
-      const a = from.getBoundingClientRect();
-      for (const key of new Set(run.tasks.map((t) => t.workspace).filter(Boolean))) {
-        const to = document.querySelector(`.lane .ws[data-key="${CSS.escape(key)}"]`);
-        if (!to) continue;
-        const b = to.getBoundingClientRect();
-        const left = b.left < a.left;
-        const x1 = (left ? a.left : a.right) - box.left;
-        const y1 = a.top + 20 - box.top;
-        const x2 = (left ? b.right : b.left) - box.left;
-        const y2 = b.top + 20 - box.top;
-        const mid = (x1 + x2) / 2;
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`);
-        path.setAttribute('class', `link ${runState(run)}`);
-        svg.append(path);
+function Runs({ runs }) {
+  if (!runs.length) return null;
+  return html`
+    <section class="runs" aria-labelledby="runs-title">
+      <h2 id="runs-title">Coordinators <span class="count">${runs.length}</span></h2>
+      <ul class="tree">
+        ${runs.map((r) => html`
+          <li key=${r.key} class=${`node ${r.failed ? 'failed' : 'working'}`}>
+            <div class="card"><div class="card-top"><span class="name">${r.objective}</span><span class="host">${r.host === 'vm' ? 'VM' : 'Mac'}</span></div></div>
+            ${r.tasks.some((t) => t.status === 'completed') && html`<p class="meta run-done">${r.tasks.filter((t) => t.status === 'completed').length} of ${r.tasks.length} tasks completed</p>`}
+            <ul>${r.tasks.filter((t) => t.status !== 'completed').map((t, i) => html`
+              <li key=${i} class=${`node ${t.status === 'failed' ? 'failed' : t.status === 'completed' ? 'idle' : 'working'}`}>
+                <div class="card"><span class="name">${t.title || 'Untitled task'}</span><p class="meta">${t.status}</p></div>
+              </li>`)}</ul>
+          </li>`)}
+      </ul>
+    </section>`;
+}
+
+function App() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [showQuiet, setShowQuiet] = useState(false);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/map', { signal: AbortSignal.timeout(60000) });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+        setData(body);
+        setError(null);
+      } catch (e) {
+        setError(e.message);
       }
-    }
-  }
+    };
+    load();
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const view = data && build(data);
+  return html`
+    <header class="masthead">
+      <div class="brand"><svg aria-hidden="true" viewBox="0 0 32 32"><path d="M3 16s5-9 13-9 13 9 13 9-5 9-13 9S3 16 3 16Z"/><circle cx="16" cy="16" r="4"/></svg> PANOPTICLAUDE</div>
+      <nav class="tabs" aria-label="Pages"><a href="/">Now</a><a aria-current="page" href="/map">Map</a><a href="/work">Work</a></nav>
+      <span class="now-muted" role="status">${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Reading Orca on the Mac and the VM…'}</span>
+    </header>
+    ${view && html`
+      <div class="summary">
+        <span class="badge you">${view.counts.you} need you</span>
+        <span class="badge failed">${view.counts.failed} failed</span>
+        <span class="badge stuck">${view.counts.stuck} stuck</span>
+        <span class="badge working">${view.counts.working} working</span>
+        <label class="toggle"><input type="checkbox" checked=${showQuiet} onChange=${(e) => setShowQuiet(e.currentTarget.checked)} /> Show quiet workspaces</label>
+      </div>
+      ${data.hosts.filter((host) => host.error).map((host) => html`<p class="error-line" key=${host.id}>Couldn't read the ${host.label}: ${host.error}</p>`)}
+      <${Runs} runs=${view.runs} />
+      <div class="columns">${view.columns.map((col) => html`<${Column} key=${col.id} col=${col} showQuiet=${showQuiet} rank=${view.rank} />`)}</div>`}`;
+}
 
-  function renderNeeds(needs, ctx) {
-    const shown = showAllNeeds ? needs : needs.slice(0, NEEDS_SHOWN);
-    $('needs-title').textContent = `Needs you (${needs.length})`;
-    document.querySelector('#needs .needs-body').replaceChildren(
-      ...(needs.length ? shown.map((ws) => card(ws, ctx, { withHost: true })) : [el('p', { class: 'ws-line' }, 'Nothing is waiting on you. Agents mark a workspace here with a "You:" comment.')]),
-      needs.length > NEEDS_SHOWN && el('button', { class: 'text', id: 'needs-more', type: 'button' },
-        showAllNeeds ? 'Show fewer' : `Show all ${needs.length}`));
+// Links open in the Mac's default browser through the server; falls back to a new tab.
+document.addEventListener('click', async (event) => {
+  const a = event.target.closest('a[href^="http"]');
+  if (!a) return;
+  event.preventDefault();
+  try {
+    const res = await fetch('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body: JSON.stringify({ url: a.href }) });
+    if (!res.ok) throw new Error();
+  } catch {
+    window.open(a.href, '_blank', 'noreferrer');
   }
+});
 
-  function render() {
-    if (!data) return;
-    const v = visible();
-    const ctx = { allRuns: v.allRuns, byKey: new Map(v.all.map((ws) => [ws.key, ws])) };
-    renderNeeds(v.needs, ctx);
-    for (const host of data.hosts) {
-      const mine = v.lanes.filter((ws) => ws.host === host.id);
-      const empty = focusView() ? 'Nothing pinned or running here.' : 'No recent workspaces.';
-      document.querySelector(`#lane-${host.id} .lane-body`).replaceChildren(
-        host.error ? el('p', { class: 'error' }, `Couldn't read the ${host.label}: ${host.error}. Use Refresh to retry.`) : '',
-        ...(mine.length ? tree(mine, ctx) : [el('p', { class: 'ws-line' }, empty)]));
-    }
-    $('map').classList.toggle('no-runs', !v.runs.length);
-    document.querySelector('#lane-runs .lane-body').replaceChildren(...v.runs.map(runCard));
-    $('show-idle-label').hidden = focusView();
-    $('view-note').textContent = focusView()
-      ? 'Focus shows what needs you, then pinned work, running agents and active Runs.'
-      : 'All workspaces active in the last 7 days.';
-    const counts = data.hosts.map((h) => `${h.label} ${h.workspaces.length}`).join(' · ');
-    $('connection').textContent = `Read ${ago(data.refreshedAt)} · ${counts} workspaces${v.hidden ? ` · ${v.hidden} hidden` : ''}`;
-    drawLinks(v.runs);
-  }
-
-  // Re-render without losing which cards are open or which card has keyboard focus.
-  function rerender() {
-    const open = new Set([...document.querySelectorAll('details[open]')].map((d) => d.dataset.key));
-    const focused = document.activeElement?.closest('details')?.dataset.key;
-    const inNeeds = Boolean(document.activeElement?.closest('#needs'));
-    render();
-    for (const d of document.querySelectorAll('details')) if (open.has(d.dataset.key)) d.open = true;
-    if (focused) document.querySelector(`${inNeeds ? '#needs' : '#map'} details[data-key="${CSS.escape(focused)}"] summary`)?.focus();
-    if (open.size && data) drawLinks(visible().runs);
-  }
-
-  async function load() {
-    $('refresh').disabled = true;
-    try {
-      const res = await fetch('/api/map');
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Map unavailable.');
-      data = body;
-      $('error').hidden = true;
-    } catch (e) {
-      $('error').textContent = `Couldn't load the map: ${e.message}. Use Refresh to retry.`;
-      $('error').hidden = false;
-    } finally {
-      $('refresh').disabled = false;
-    }
-    rerender();
-  }
-
-  for (const input of document.querySelectorAll('input[name="view"], #show-idle, #show-done')) input.addEventListener('change', rerender);
-  $('needs').addEventListener('click', (e) => {
-    if (e.target.id !== 'needs-more') return;
-    showAllNeeds = !showAllNeeds;
-    rerender();
-    $('needs-more')?.focus();
-  });
-  $('refresh').addEventListener('click', load);
-  $('map').addEventListener('toggle', () => data && drawLinks(visible().runs), true);
-  window.addEventListener('resize', () => data && drawLinks(visible().runs));
-  load();
-  setInterval(load, 30000);
-})();
+const root = document.getElementById('app');
+root.replaceChildren();
+render(html`<${App} />`, root);
