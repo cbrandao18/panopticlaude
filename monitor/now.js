@@ -83,7 +83,6 @@ function Down({ data }) {
     return html`
       <section class="tier calm" aria-label="Down">
         <header class="tier-head" aria-hidden="true"><h2>Down</h2></header>
-        <span class="perched"><${Bird} state="ok" /></span>
         <span class="sect-bird"><${Bird} state="ok" /></span>
         <p><span class="dot ok" aria-hidden="true"></span><strong>Nothing is down.</strong>
         <span class="now-muted"> ${vendors.length} vendors, ${automations.length} automations and the bug sweep checked at ${clock(data.refreshedAt)}.</span></p>

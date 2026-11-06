@@ -1,26 +1,14 @@
 // Shared by the Now and Map pages.
 import { h } from './vendor/preact.js';
-import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Bird, Branch, Sprite } from './roost.js';
 
 const html = htm.bind(h);
 
-// The name and mark come from theme.js, which the picker can change at any time.
-function useBrand() {
-  const [brand, setBrand] = useState(window.pano.brand());
-  useEffect(() => {
-    const update = () => setBrand(window.pano.brand());
-    window.addEventListener('pano:change', update);
-    return () => window.removeEventListener('pano:change', update);
-  }, []);
-  return brand;
-}
-
 const PAGES = [['/', 'Now'], ['/map', 'Map'], ['/work', 'Work']];
 
 export function Masthead({ page, status }) {
-  const brand = useBrand();
+  const brand = window.pano.brand();
   return html`
     <header class="masthead">
       <div class="brand" title=${brand.name}><span class="brand-mark" dangerouslySetInnerHTML=${{ __html: brand.mark }} /><span class="brand-name">${brand.name}</span></div>

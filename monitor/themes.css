@@ -1,5 +1,5 @@
-/* Theme tokens for the Now and Map pages. theme.js sets data-theme on <html> before first paint.
-   now.css and map.css use only these variables, so a theme is one block here. */
+/* Roost, the dashboard's theme: an eastern bluebird's cobalt with goldfinch yellow, cream text, tinted panels and a few birds.
+   theme.js sets data-theme on <html> before first paint. now.css and map.css use only these variables. */
 
 @font-face { font-family: 'Cabin'; font-weight: 400; font-display: swap; src: url('/vendor/cabin-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Cabin'; font-weight: 600; font-display: swap; src: url('/vendor/cabin-latin-600-normal.woff2') format('woff2'); }
@@ -7,52 +7,6 @@
 
 @font-face { font-family: 'Young Serif'; font-weight: 400; font-display: swap; src: url('/vendor/young-serif-latin-400-normal.woff2') format('woff2'); }
 
-/* Classic: the original dark green. */
-html[data-theme] {
-  color-scheme: dark;
-  --bg: #111514; --surface: #151a18; --surface-2: #202823; --raised: #1d2421; --border: #303a34; --line: #222a26;
-  --text: #e7e9e8; --muted: #a0aaa5; --link: #b6d9fa; --accent: #a8d6b5; --accent-ink: #172b1e; --focus: #cae7d2;
-  --go: #a8d6b5; --go-bg: #23402e; --go-ink: #c9ecd3;
-  --you: #f1cf8a; --you-bg: #4a3a1a; --you-ink: #f6dfae; --you-border: #8a6d2c;
-  --alarm: #f2a7a0; --alarm-bg: #2b1716; --alarm-chip: #5a2723; --alarm-ink: #ffd9d4; --alarm-border: #7a3a35;
-  --info: #8cc2f0; --info-bg: #1e3346; --info-ink: #b6d9fa; --info-border: #2f4f6b;
-  --stuck: #e59ac2; --stuck-bg: #4d2a3c; --stuck-ink: #f3c4dc; --stuck-border: #6d3a55;
-  --chip-bg: #26302b; --chip-ink: #d2dad5; --idle: #59645e;
-  --radius: 10px; --radius-sm: 5px; --shadow: none;
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg); color: var(--text); font-family: var(--font);
-}
-
-/* Lounge: a chat-app feel. Charcoal surfaces, coral accent, presence dots, red "for you" pills, a left rail. */
-html[data-theme='lounge'] {
-  --bg: #1c1d23; --surface: #26282f; --surface-2: #31333c; --raised: #2b2d35; --border: #3a3d48; --line: #30323b;
-  --text: #f0f1f4; --muted: #a5a9b6; --link: #7fb2ff; --accent: #ff7a59; --accent-ink: #2a0f06; --focus: #ffb39f;
-  --go: #43d695; --go-bg: #183a2b; --go-ink: #b4f2d4;
-  --you: #ffb547; --you-bg: #47361a; --you-ink: #ffe0ad; --you-border: #8f6a2a;
-  --alarm: #ff5e6c; --alarm-bg: #3a1e24; --alarm-chip: #f2414f; --alarm-ink: #ffffff; --alarm-border: #6b2a33;
-  --info: #6ea8ff; --info-bg: #1d2f4d; --info-ink: #c6dcff; --info-border: #2e4a7a;
-  --stuck: #c792ff; --stuck-bg: #35254d; --stuck-ink: #e3ccff; --stuck-border: #57407d;
-  --chip-bg: #353845; --chip-ink: #dfe1e8; --idle: #6b6f7c;
-  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 0 rgba(0, 0, 0, .25), 0 8px 24px rgba(0, 0, 0, .18);
-  --font: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
-
-/* Branch: the brand palette. Beige, dark green, lime and orange, in Cabin. */
-html[data-theme='branch'] {
-  color-scheme: light;
-  --bg: #f7f3ef; --surface: #ffffff; --surface-2: #eae2d6; --raised: #f1ebe3; --border: #ddd3c4; --line: #ece5da;
-  --text: #1b2514; --muted: #646d58; --link: #343b1b; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #343b1b;
-  --go: #7a8f1f; --go-bg: #eef2cf; --go-ink: #3f4a0f;
-  --you: #f89521; --you-bg: #fde6cc; --you-ink: #8a4a05; --you-border: #f3b673;
-  --alarm: #c2412f; --alarm-bg: #fbeae6; --alarm-chip: #c2412f; --alarm-ink: #ffffff; --alarm-border: #e8b0a6;
-  --info: #2f6f9f; --info-bg: #e3eef7; --info-ink: #1f4d70; --info-border: #b5d0e6;
-  --stuck: #8a4f9e; --stuck-bg: #f1e6f5; --stuck-ink: #5e2f70; --stuck-border: #d8bfe2;
-  --chip-bg: #eae2d6; --chip-ink: #343b1b; --idle: #a9a294;
-  --radius: 12px; --radius-sm: 6px; --shadow: 0 1px 2px rgba(52, 59, 27, .08);
-  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
-}
-
-/* Roost: an eastern bluebird's cobalt with goldfinch yellow. Cream text, no cards; wires with birds on them. */
 html[data-theme='roost'] {
   color-scheme: dark;
   --bg: #23399a; --surface: #1b2d7e; --surface-2: #2f4aad; --raised: #2a43a3; --border: #6a82d8; --line: #4660bf;
@@ -73,94 +27,28 @@ html[data-theme='roost'] {
   --panel: rgba(255, 255, 255, .08); --panel-you: rgba(255, 201, 51, .16); --panel-go: rgba(155, 232, 184, .15); --panel-info: rgba(159, 208, 255, .15); --panel-lilac: rgba(215, 168, 255, .15);
   --inset: rgba(0, 0, 0, .22); --alert-bg: #8c2114; --alert-border: #e46f58; --green: #9be8b8;
   --wire: #b5c3f5; --nest: #2a43a3; --nest-line: #ffd75e; --egg: #fff6e0; --leaf: #9be8b8;
+  background: var(--bg); color: var(--text); font-family: var(--font);
 }
 
-/* Roost Perch: Branch's beige, green, lime and orange, with birds on cards. Light. */
-html[data-theme='perch'] {
-  color-scheme: light;
-  --bg: #f7f3ef; --surface: #ffffff; --surface-2: #eae2d6; --raised: #f3ede4; --border: #ddd3c4; --line: #ece5da;
-  --text: #1b2514; --muted: #5c654f; --link: #343b1b; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #343b1b;
-  --go: #7a8f1f; --go-bg: #eef2cf; --go-ink: #3f4a0f;
-  --you: #f89521; --you-bg: #fde6cc; --you-ink: #7d4204; --you-border: #f3b673;
-  --alarm: #b53a29; --alarm-bg: #fbeae6; --alarm-chip: #b53a29; --alarm-ink: #ffffff; --alarm-border: #e8b0a6;
-  --info: #2f6f9f; --info-bg: #e3eef7; --info-ink: #1f4d70; --info-border: #b5d0e6;
-  --stuck: #8a4f9e; --stuck-bg: #f1e6f5; --stuck-ink: #5e2f70; --stuck-border: #d8bfe2;
-  --chip-bg: #eae2d6; --chip-ink: #343b1b; --idle: #a9a294;
-  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 2px rgba(52, 59, 27, .08), 0 6px 16px rgba(52, 59, 27, .05);
-  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
-  --bird-mark: #7a8f1f; --bird-mark-wing: #343b1b;
-  --bird-ok: #7a8f1f; --bird-ok-wing: #3f4a0f; --bird-you: #f89521; --bird-you-wing: #c4700f;
-  --bird-working: #2f6f9f; --bird-working-wing: #1f4d70; --bird-stuck: #8a4f9e; --bird-stuck-wing: #5e2f70;
-  --bird-failed: #c2412f; --bird-failed-wing: #8f2d20; --bird-quiet: #8e8a7c; --bird-quiet-wing: #6f6b5e;
-  --belly: #f7f3ef; --leg: #343b1b; --eye: #1b2514; --beak: #f89521;
-  --twig: #343b1b; --leaf: #afbe2d; --berry: #f89521; --nest: #eae2d6; --nest-line: #7a6a4f; --egg: #fffdf8;
-}
 
-/* Roost Dusk: Perch's birds on Branch dark green. */
-html[data-theme='dusk'] {
-  color-scheme: dark;
-  --bg: #1b2514; --surface: #243019; --surface-2: #343b1b; --raised: #2d3a20; --border: #3d4b2a; --line: #34412a;
-  --text: #f7f3ef; --muted: #bcc3aa; --link: #afbe2d; --accent: #afbe2d; --accent-ink: #1b2514; --focus: #f7f3ef;
-  --go: #afbe2d; --go-bg: #34411a; --go-ink: #dfe9a0;
-  --you: #f89521; --you-bg: #4a3412; --you-ink: #ffd59a; --you-border: #a8651a;
-  --alarm: #ff9c8c; --alarm-bg: #3b1d19; --alarm-chip: #c9402c; --alarm-ink: #ffffff; --alarm-border: #7a3a35;
-  --info: #8cc2f0; --info-bg: #1e3346; --info-ink: #b6d9fa; --info-border: #2f4f6b;
-  --stuck: #d9a4ec; --stuck-bg: #4a2a58; --stuck-ink: #f0d4fa; --stuck-border: #6d4580;
-  --chip-bg: #3d4b2a; --chip-ink: #eae2d6; --idle: #8a9378;
-  --radius: 16px; --radius-sm: 8px; --shadow: 0 1px 0 rgba(0, 0, 0, .2);
-  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif;
-  --bird-mark: #afbe2d; --bird-mark-wing: #7d8a3a;
-  --bird-ok: #afbe2d; --bird-ok-wing: #7d8a3a; --bird-you: #f89521; --bird-you-wing: #c4700f;
-  --bird-working: #6ea8d8; --bird-working-wing: #3d79ad; --bird-stuck: #c28bd6; --bird-stuck-wing: #8a4f9e;
-  --bird-failed: #ef6a56; --bird-failed-wing: #b8402f; --bird-quiet: #9aa089; --bird-quiet-wing: #6f7662;
-  --belly: #f7f3ef; --leg: #afbe2d; --eye: #1b2514; --beak: #f89521;
-  --twig: #7d8a3a; --leaf: #afbe2d; --berry: #f89521; --nest: #2d3a20; --nest-line: #a08a62; --egg: #f7f3ef;
-}
-
-/* Shared chrome on themed pages. */
+/* Shared chrome. */
 html[data-theme] body { font-family: var(--font); }
 html[data-theme] a { color: var(--link); }
-html[data-theme='branch'] a { text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
 html[data-theme] button { background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-sm); }
 html[data-theme] button.secondary, html[data-theme] button.text { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 html[data-theme] :focus-visible { outline-color: var(--focus); }
 html[data-theme] .masthead { border-bottom-color: var(--border); }
 html[data-theme] .brand { color: var(--text); }
 html[data-theme] .brand svg { stroke: var(--accent); }
-html[data-theme='branch'] .brand svg { stroke: #343b1b; }
 html[data-theme] .tabs a { color: var(--muted); }
 html[data-theme] .tabs a:hover { color: var(--text); background: var(--raised); }
 html[data-theme] .tabs a[aria-current='page'] { color: var(--text); background: var(--surface-2); }
 .wordmark { display: none; }
 
-/* Lounge layout: the masthead becomes a left rail of round page icons; the name moves above the content. */
-html[data-theme='lounge'] body { padding-left: 76px; }
-html[data-theme='lounge'] .masthead {
-  position: fixed; inset: 0 auto 0 0; width: 76px; z-index: 5; margin: 0; padding: 14px 0;
-  flex-direction: column; justify-content: flex-start; gap: 10px; border: 0; background: #15161b;
-}
-html[data-theme='lounge'] .masthead .brand { justify-content: center; width: 48px; height: 48px; border-radius: 16px; background: var(--accent); }
-html[data-theme='lounge'] .masthead .brand svg { stroke: var(--accent-ink); width: 28px; height: 28px; }
-html[data-theme='lounge'] .masthead .brand-name { display: none; }
-html[data-theme='lounge'] .tabs { flex-direction: column; margin: 8px 0 0; padding-top: 10px; border-top: 2px solid var(--surface-2); gap: 8px; }
-html[data-theme='lounge'] .tabs a {
-  position: relative; display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%;
-  background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 700; transition: border-radius .15s, background .15s;
-}
-html[data-theme='lounge'] .tabs a:hover, html[data-theme='lounge'] .tabs a[aria-current='page'] { border-radius: 16px; background: var(--accent); color: var(--accent-ink); }
-html[data-theme='lounge'] .tabs a[aria-current='page']::before { content: ''; position: absolute; left: -14px; width: 4px; height: 36px; border-radius: 0 4px 4px 0; background: var(--text); }
-html[data-theme='lounge'] .masthead [role='status'] { margin-top: auto; width: 64px; text-align: center; font-size: 10.5px; line-height: 1.3; }
-html[data-theme='lounge'] .wordmark { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 18px; }
-html[data-theme='lounge'] .wordmark strong { font-size: 26px; letter-spacing: -.01em; }
-html[data-theme='lounge'] .tier { border: 0; box-shadow: var(--shadow); }
-html[data-theme='lounge'] .tier.you h2 .count, html[data-theme='lounge'] .tier.alarm h2 .count { background: var(--alarm-chip); color: var(--alarm-ink); }
-html[data-theme='lounge'] .presence { display: inline-block; }
-@media (prefers-reduced-motion: reduce) { html[data-theme='lounge'] .tabs a { transition: none; } }
-
-/* Roost birds and branch: markup is always rendered, shown only in the Roost themes. Decoration never carries data;
+/* Roost birds: the sprite is rendered once; each bird is a <use> of it. Decoration never carries data;
    every state also has its word, colour or count. */
 .sprite-host { position: absolute; width: 0; height: 0; overflow: hidden; }
-.bird, .egg, .nest, .roost-branch, .perched, .masthead-wire, .tab-bird, .sect-bird, .calm .tier-head { display: none; }
+.bird, .egg, .nest, .masthead-wire, .tab-bird, .sect-bird, .calm .tier-head { display: none; }
 .bd-eye { fill: var(--eye); }
 .bd-body { fill: var(--b); } .bd-tail, .bd-wing { fill: var(--bw); } .bd-wing.back { fill: var(--b); }
 .bd-belly { fill: var(--belly); } .bd-beak { fill: var(--beak); } .bd-eye { fill: var(--eye); }
@@ -171,9 +59,8 @@ html[data-theme='lounge'] .presence { display: inline-block; }
 .eg-shell { fill: var(--egg); stroke: var(--leg); stroke-width: 2; } .eg-spot { fill: var(--leaf); }
 .ns-back { fill: var(--nest); stroke: var(--nest-line); stroke-width: 3; stroke-linecap: round; }
 .ns-twig { fill: none; stroke: var(--nest-line); stroke-width: 2; stroke-linecap: round; }
-.br-twig { fill: none; stroke: var(--twig); stroke-width: 3; stroke-linecap: round; } .br-leaf { fill: var(--leaf); } .br-berry { fill: var(--berry); }
 
-html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) {
+html[data-theme='roost'] {
   .bird { display: inline-block; flex: none; width: 34px; height: 34px; align-self: center; }
   .bird.ok, .bird.idle { --b: var(--bird-ok); --bw: var(--bird-ok-wing); }
   .bird.you { --b: var(--bird-you); --bw: var(--bird-you-wing); }
@@ -194,45 +81,11 @@ html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) {
   .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
-  html:is([data-theme='roost'], [data-theme='perch'], [data-theme='dusk']) .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
+  html[data-theme='roost'] .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
+  html[data-theme='roost'] .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
 }
 @keyframes roost-call { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes roost-fly { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(2px, -3px) rotate(-5deg); } }
-
-/* Perch and Dusk: cards with a leafy branch under the masthead. */
-html:is([data-theme='perch'], [data-theme='dusk']) {
-  .roost-branch { display: block; width: 100%; height: 30px; margin: -6px 0 6px; }
-  .presence { display: none; }
-  .autos .dot { display: none; }
-  .brand { font-size: 22px; font-weight: 700; letter-spacing: -.01em; gap: 8px; }
-  .masthead { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; align-items: flex-end; }
-  .brand-mark { margin-bottom: -2px; }
-  .tabs { margin-bottom: 4px; }
-  .tabs a { border-radius: 999px; font-weight: 700; padding: 6px 14px; }
-  .tabs a[aria-current='page'] { background: var(--accent); color: var(--accent-ink); }
-  .masthead [role='status'] { margin-bottom: 8px; }
-  .wordmark { display: block; margin: 0 0 18px; font-size: 13.5px; } .wordmark strong { display: none; }
-  a { text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
-  .tier { border-radius: var(--radius); box-shadow: var(--shadow); }
-  .tier h2 { font-size: 19px; font-weight: 700; letter-spacing: -.005em; }
-  .tier.you, .tier.go { border-left-width: 5px; }
-  .tier.you h2 .count { background: var(--you-bg); color: var(--you-ink); }
-  .tier.alarm h2 { color: var(--alarm); }
-  .tier.alarm .count { background: var(--alarm-chip); color: var(--alarm-ink); }
-  .tier.calm { position: relative; margin-top: 46px; }
-  .tier.calm .dot { display: none; }
-  .perched { display: block; position: absolute; right: 26px; top: -39px; }
-  .perched .bird { width: 46px; height: 46px; }
-  .autos tr.overdue td:first-child { color: var(--you-ink); }
-  .node.quiet > .card { opacity: 1; background: var(--raised); border-style: dashed; }
-  .card { border-radius: var(--radius-sm) 12px; }
-  .badge { border-radius: 999px; padding: 2px 10px; }
-  .summary .badge { padding: 4px 12px; font-size: 12px; }
-  button { font-weight: 700; }
-  .toggle { font-weight: 600; }
-}
-html[data-theme='dusk'] body { background-image: radial-gradient(circle at 8% 4%, rgba(175, 190, 45, .16) 0 2px, transparent 3px), radial-gradient(circle at 91% 11%, rgba(248, 149, 33, .16) 0 2px, transparent 3px), radial-gradient(circle at 58% 2%, rgba(247, 243, 239, .14) 0 1.5px, transparent 3px), radial-gradient(circle at 24% 14%, rgba(247, 243, 239, .1) 0 1.5px, transparent 3px); background-repeat: no-repeat; }
 
 /* Roost layout: the section title sits in a left column, content on the right, and every section opens with a wire. */
 .wire-line { fill: none; stroke: var(--wire, currentColor); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
@@ -278,7 +131,6 @@ html[data-theme='roost'] {
   .groups { gap: 26px; }
   .sect-bird { display: block; position: absolute; right: 28px; top: -37px; }
   .sect-bird .bird { width: 40px; height: 40px; }
-  .perched { display: none; }
   .calm .dot { display: none; }
   .autos .bird { display: none; } .autos tr.waiting .dot { display: none; }
   .presence { display: inline-block; box-shadow: none; }
@@ -335,7 +187,7 @@ html[data-theme='roost'] {
   html[data-theme='roost'] .tier { padding-inline: 16px; }
 }
 
-/* Presence dots: shown in Lounge only. */
+/* Presence dots: the small status dot on Map cards and Now rows. */
 .presence { display: none; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--idle); box-shadow: 0 0 0 3px var(--surface); align-self: center; }
 .presence.you { background: var(--you); }
 .presence.failed { background: var(--alarm); }
@@ -344,16 +196,3 @@ html[data-theme='roost'] {
 
 /* The name in the masthead. */
 html[data-theme] .brand-mark { display: inline-flex; }
-html[data-theme='classic'] .brand-name, html:not([data-theme]) .brand-name { text-transform: uppercase; }
-html[data-theme='branch'] .brand { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
-html[data-theme='branch'] .masthead { border-bottom: 2px solid var(--accent); }
-
-/* Theme and name picker. */
-.switcher { position: fixed; right: 18px; bottom: 18px; z-index: 10; font-size: 13px; }
-.switcher summary { cursor: pointer; list-style: none; padding: 7px 12px; border-radius: 999px; background: var(--surface-2, #202823); color: var(--text, #e7e9e8); border: 1px solid var(--border, #364139); box-shadow: 0 4px 14px rgba(0, 0, 0, .25); }
-.switcher summary::-webkit-details-marker { display: none; }
-.switcher[open] summary { margin-bottom: 8px; }
-.switcher .panel { padding: 12px 14px; border-radius: 12px; background: var(--surface, #151a18); color: var(--text, #e7e9e8); border: 1px solid var(--border, #303a34); box-shadow: 0 10px 30px rgba(0, 0, 0, .3); display: grid; gap: 10px; min-width: 210px; }
-.switcher fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 4px; }
-.switcher legend { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted, #a0aaa5); margin-bottom: 4px; }
-.switcher label { display: flex; gap: 8px; align-items: center; cursor: pointer; }

@@ -79,14 +79,6 @@ export const SPRITE = `<svg class="sprite" width="0" height="0" aria-hidden="tru
       <path class="ns-back" d="M3 14 C4 28 16 33 32 33 C48 33 60 28 61 14"/>
       <path class="ns-twig" d="M2 16 Q22 26 40 18 M6 22 Q24 32 58 16 M10 27 Q30 22 54 26 M14 31 Q34 28 50 29 M4 12 Q14 22 30 24 M60 12 Q46 24 26 25"/>
     </symbol>
-    <pattern id="branch-tile" width="260" height="30" patternUnits="userSpaceOnUse">
-      <path class="br-twig" d="M-2 17 C30 9 60 22 100 15 S170 9 200 17 S240 22 262 17"/>
-      <path class="br-twig" d="M96 16 q10 -9 22 -8 M180 14 q8 8 20 8"/>
-      <path class="br-leaf" d="M60 17 q4 -12 16 -12 q0 12 -16 12Z"/>
-      <path class="br-leaf" d="M130 14 q-3 11 -15 12 q-1 -11 15 -12Z"/>
-      <path class="br-leaf" d="M222 17 q3 -11 15 -11 q1 11 -15 11Z"/>
-      <circle class="br-berry" cx="118" cy="8" r="3.2"/><circle class="br-berry" cx="200" cy="22" r="3.2"/>
-    </pattern>
   </defs>
 </svg>
 `;
@@ -99,10 +91,8 @@ export const Sprite = () => html`<div class="sprite-host" aria-hidden="true" dan
 // state: you | failed | stuck | working | idle | quiet | ok
 export const Bird = ({ state, size }) => html`<svg class=${`bird ${state} ${size || ''}`} aria-hidden="true"><use href=${`#${state === 'ok' ? 'b-perch' : POSE[state] || 'b-perch'}`} /></svg>`;
 export const Egg = () => html`<svg class="egg" aria-hidden="true"><use href="#egg" /></svg>`;
-// Perch and Dusk draw a leafy branch under the masthead; Roost draws a plain sagging wire.
-export const Branch = () => html`
-  <svg class="roost-branch" aria-hidden="true"><rect width="100%" height="100%" fill="url(#branch-tile)" /></svg>
-  <svg class="masthead-wire" viewBox="0 0 1000 22" preserveAspectRatio="none" aria-hidden="true"><path class="wire-line" d="M0 4 Q500 28 1000 4" /></svg>`;
+// The sagging wire under the masthead.
+export const Branch = () => html`<svg class="masthead-wire" viewBox="0 0 1000 22" preserveAspectRatio="none" aria-hidden="true"><path class="wire-line" d="M0 4 Q500 28 1000 4" /></svg>`;
 
 // A nest with up to three eggs, one per ready PR.
 export const Nest = ({ eggs }) => html`
