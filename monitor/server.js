@@ -9,7 +9,7 @@ const { promisify } = require('node:util');
 const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { ticketData, startRefresh } = require('./ticket-work-api');
-const { createMapReader } = require('./map-api');
+const { createMapReader, openWorkspace } = require('./map-api');
 const { createEaseReader, fileTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
 const { createMergeReader } = require('./merge-api');
@@ -63,6 +63,7 @@ const assets = {
   '/': ['now.html', 'text/html'],
   '/now.js': ['now.js', 'text/javascript'],
   '/now.css': ['now.css', 'text/css'],
+  '/ui.js': ['ui.js', 'text/javascript'],
   '/vendor/preact.js': ['vendor/preact.js', 'text/javascript'],
   '/vendor/hooks.js': ['vendor/hooks.js', 'text/javascript'],
   '/vendor/htm.js': ['vendor/htm.js', 'text/javascript'],
@@ -261,6 +262,7 @@ function createMonitor({
   fileEase = fileTicket,
   readTips = createTipsReader(),
   readNow = null,
+  openInOrca = openWorkspace,
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
   pilotDir = path.join(os.homedir(), '.local/state/shared-reader-pilot'),
   postDraft = createPoster(),
@@ -331,6 +333,25 @@ function createMonitor({
         return send(200, await readEase());
       }
       // Opens GitHub and Slack links in the Mac's default browser, outside whatever is showing this page.
+      if (req.method === 'POST' && url.pathname === '/api/orca/open') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Open requests must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 2048) return send(413, { error: 'Request is too large.' });
+        }
+        let key;
+        try {
+          key = JSON.parse(body).key;
+        } catch {
+          return send(400, { error: 'Invalid request.' });
+        }
+        if (typeof key !== 'string') return send(400, { error: 'Invalid request.' });
+        const result = await openInOrca(key, await readMap());
+        return send(result.opened ? 200 : 409, result);
+      }
       if (req.method === 'POST' && url.pathname === '/api/open') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
           return send(403, { error: 'Open requests must come from the monitor.' });

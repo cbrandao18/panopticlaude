@@ -3,6 +3,7 @@
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
+import { openInOrca } from './ui.js';
 
 const html = htm.bind(h);
 const DAY = 86400000;
@@ -74,7 +75,7 @@ function Node({ ws, showQuiet, rank }) {
     <li class=${`node ${ws.state}`}>
       <div class="card" title=${ws.path}>
         <div class="card-top">
-          <span class="name">${ws.name}</span>
+          <button class="name open-ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>
           <span class="host">${ws.host === 'vm' ? 'VM' : 'Mac'}</span>
         </div>
         ${LABEL[ws.state] && html`<span class=${`badge ${ws.state}`}>${LABEL[ws.state]}</span>`}
@@ -159,18 +160,6 @@ function App() {
       <div class="columns">${view.columns.map((col) => html`<${Column} key=${col.id} col=${col} showQuiet=${showQuiet} rank=${view.rank} />`)}</div>`}`;
 }
 
-// Links open in the Mac's default browser through the server; falls back to a new tab.
-document.addEventListener('click', async (event) => {
-  const a = event.target.closest('a[href^="http"]');
-  if (!a) return;
-  event.preventDefault();
-  try {
-    const res = await fetch('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body: JSON.stringify({ url: a.href }) });
-    if (!res.ok) throw new Error();
-  } catch {
-    window.open(a.href, '_blank', 'noreferrer');
-  }
-});
 
 const root = document.getElementById('app');
 root.replaceChildren();

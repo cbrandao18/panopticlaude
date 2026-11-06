@@ -410,3 +410,12 @@ test('Now, Map and Work pages are served with the vendored helpers; /api/now ret
   }
   assert.deepEqual(await (await f.get('now')).json(), { down: [], marker: 'now' });
 });
+
+test('/api/orca/open needs the monitor header and passes only the key', async (t) => {
+  const seen = [];
+  const f = await fixture(t, { readMap: async () => ({ hosts: [] }), openInOrca: async (key) => (seen.push(key), { opened: true }) });
+  const post = (headers) => fetch(`${f.base}/api/orca/open`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ key: 'vm|x' }) });
+  assert.equal((await post({})).status, 403);
+  assert.equal((await post({ 'X-Panopticlaude': '1' })).status, 200);
+  assert.deepEqual(seen, ['vm|x']);
+});

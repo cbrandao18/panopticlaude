@@ -2,6 +2,7 @@
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
+import { openInOrca } from './ui.js';
 
 const html = htm.bind(h);
 const SHOWN = 5;
@@ -26,22 +27,6 @@ const ago = (ms) => {
 const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const hostLabel = (host) => (host === 'vm' ? 'VM' : 'Mac');
 
-// Links open in the Mac's default browser through the server; falls back to a new tab.
-document.addEventListener('click', async (event) => {
-  const a = event.target.closest('a[href^="http"]');
-  if (!a) return;
-  event.preventDefault();
-  try {
-    const res = await fetch('/api/open', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
-      body: JSON.stringify({ url: a.href })
-    });
-    if (!res.ok) throw new Error();
-  } catch {
-    window.open(a.href, '_blank', 'noreferrer');
-  }
-});
 
 function usePoll(route, ms) {
   const [state, setState] = useState({ data: null, error: null });
@@ -144,7 +129,8 @@ function Blocked({ data }) {
     <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''}>
       <div class="groups">
         <${Group} label="Agents waiting" items=${agents} empty="No agent is waiting on you."
-          row=${(a) => html`<li key=${a.key}><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? ` · PR #${a.pr.number}` : ''}</span></li>`} />
+          row=${(a) => html`<li key=${a.key}><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
+            <button class="text open" type="button" onClick=${() => openInOrca(a.key, a.name)}>Open in Orca</button></li>`} />
         <${Group} label="Reviews requested" items=${reviews} empty="No reviews requested."
           row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>#${r.number} ${r.title}</a> <span class="detail">· ${r.author}</span></span></li>`} />
         <${Group} label="Ease decisions" items=${ease} empty="No Ease & effort post needs you."

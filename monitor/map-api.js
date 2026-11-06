@@ -100,4 +100,17 @@ function createMapReader(orca = orcaRunner(), ttl = 30000) {
   };
 }
 
-module.exports = { createMapReader, orcaRunner, readHost };
+// Brings the Orca desktop app to a workspace's first terminal, on the Mac or the VM. Only keys from the
+// current map are accepted, so the browser never chooses what the CLI runs against.
+async function openWorkspace(key, map, orca = orcaRunner()) {
+  const ws = map.hosts.flatMap((h) => h.workspaces).find((w) => w.key === key);
+  if (!ws) return { opened: false, error: 'That workspace is no longer on the map. Refresh and try again.' };
+  const host = HOSTS.find((h) => h.id === ws.host);
+  const worktreeId = key.slice(key.indexOf('|') + 1);
+  const { terminals } = await orca(['terminal', 'list', '--worktree', `id:${worktreeId}`, ...host.args]);
+  if (!terminals?.length) return { opened: false, error: `${ws.name} has no open terminal to switch to. Open it from Orca's sidebar.` };
+  const { focus } = await orca(['terminal', 'switch', '--terminal', terminals[0].handle, ...host.args]);
+  return { opened: Boolean(focus?.navigated) };
+}
+
+module.exports = { createMapReader, orcaRunner, readHost, openWorkspace };

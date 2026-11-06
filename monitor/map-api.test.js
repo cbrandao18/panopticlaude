@@ -55,3 +55,22 @@ test('a failing host is reported without hiding the other', async () => {
   assert.strictEqual(map.hosts[1].error, 'VM unreachable');
   assert.strictEqual(map.hosts[0].workspaces.length, 2);
 });
+
+test('openWorkspace switches to the first terminal on the right host and refuses unknown keys', async () => {
+  const { openWorkspace } = require('./map-api');
+  const map = { hosts: [{ id: 'vm', workspaces: [{ key: 'vm|repo::/w/a', host: 'vm', name: 'A' }, { key: 'vm|repo::/w/b', host: 'vm', name: 'B' }] }] };
+  const calls = [];
+  const orca = async (args) => {
+    calls.push(args);
+    if (args[1] === 'list') return { terminals: args[3] === 'id:repo::/w/a' ? [{ handle: 'term_1' }] : [] };
+    return { focus: { navigated: true } };
+  };
+  assert.deepEqual(await openWorkspace('vm|repo::/w/a', map, orca), { opened: true });
+  assert.deepEqual(calls, [
+    ['terminal', 'list', '--worktree', 'id:repo::/w/a', '--environment', 'cloud'],
+    ['terminal', 'switch', '--terminal', 'term_1', '--environment', 'cloud']
+  ]);
+  assert.match((await openWorkspace('vm|repo::/w/b', map, orca)).error, /no open terminal/);
+  assert.match((await openWorkspace('mac|evil', map, orca)).error, /no longer on the map/);
+  assert.equal(calls.length, 3);
+});
