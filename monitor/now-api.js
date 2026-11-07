@@ -5,6 +5,10 @@ const { promisify } = require('node:util');
 const { orcaRunner } = require('./map-api');
 const { runOnHost } = require('./security-api');
 
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+
 const exec = promisify(execFile);
 const HOSTS = [
   { id: 'mac', label: 'Mac', args: [] },
@@ -123,6 +127,55 @@ async function readAutomations(orca) {
   );
   const order = { failed: 0, overdue: 1, unreadable: 2, running: 3 };
   return hosts.flat().sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.name.localeCompare(b.name));
+}
+
+// --- roost-medic ------------------------------------------------------------------------------------------
+// The Mac LaunchAgent that fixes Down items and stalled workspaces every 5 minutes. Shown as an automation row.
+const MEDIC_STATE = path.join(os.homedir(), '.local/state/roost-medic');
+const MEDIC_EVERY_MS = 5 * 60000;
+
+// "2026-11-07 9:03:48AM" in local time, as roost-medic's log() writes it.
+function medicTime(stamp) {
+  const m = /^(\d{4})-(\d\d)-(\d\d) (\d+):(\d\d):(\d\d)([AP]M)$/.exec(stamp);
+  if (!m) return null;
+  const h = (+m[4] % 12) + (m[7] === 'PM' ? 12 : 0);
+  return new Date(+m[1], m[2] - 1, +m[3], h, +m[5], +m[6]).getTime();
+}
+
+// Its last actions, newest first: its own timestamped lines, and the responder's 'responder:' lines,
+// dated by the "Starting responder" line before them. The item list under that line is skipped.
+function medicActions(text, limit = 4) {
+  const out = [];
+  let runAt = null;
+  for (const line of text.split('\n')) {
+    const stamped = /^(\S+ \S+[AP]M) (.*)$/.exec(line);
+    if (stamped) {
+      runAt = medicTime(stamped[1]);
+      if (!/^Starting responder/.test(stamped[2])) out.push({ at: runAt, text: stamped[2] });
+    } else if (/^responder:/.test(line)) out.push({ at: runAt, text: line.replace(/^responder:\s*/, '') });
+  }
+  return out.slice(-limit).reverse();
+}
+
+function medicRow({ lastRun, responderRunning, log }, now = Date.now()) {
+  let status = 'completed';
+  if (!lastRun) status = 'waiting';
+  else if (now - lastRun > 3 * MEDIC_EVERY_MS) status = 'overdue';
+  else if (responderRunning) status = 'running';
+  return {
+    key: 'mac|roost-medic', id: 'roost-medic', host: 'mac', name: 'roost-medic (fixes Down items, resumes stalled agents)',
+    enabled: true, status, error: '', lastRunAt: lastRun, nextRunAt: lastRun ? lastRun + MEDIC_EVERY_MS : null,
+    actions: medicActions(log)
+  };
+}
+
+async function readMedic(dir = MEDIC_STATE) {
+  const mtime = (f) => fs.stat(path.join(dir, f)).then((s) => s.mtimeMs, () => null);
+  const pid = await fs.readFile(path.join(dir, 'responder.pid'), 'utf8').then((t) => +t.trim(), () => 0);
+  let responderRunning = false;
+  try { if (pid) { process.kill(pid, 0); responderRunning = true; } } catch { /* not running */ }
+  const log = await fs.readFile(path.join(dir, 'medic.log'), 'utf8').then((t) => t.slice(-20000), () => '');
+  return medicRow({ lastRun: await mtime('last-run'), responderRunning, log });
 }
 
 // --- Status pages ------------------------------------------------------------------------------------------
@@ -355,13 +408,13 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic }, ttl = 60000) {
   let cached = null;
   let pending = null;
   return () => {
     if (cached && Date.now() - cached.refreshedAt < ttl) return Promise.resolve(cached);
     pending ||= Promise.all([
-      settle(() => readAutomations(orca)),
+      settle(() => Promise.all([readAutomations(orca), medic().catch(() => null)]).then(([rows, m]) => (m ? [m, ...rows] : rows))),
       settle(() => readStatusPages(getJson)),
       settle(() => readMonitors(run)),
       settle(() => readReviewRequests(run)),
@@ -379,4 +432,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   };
 }
 
-module.exports = { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };

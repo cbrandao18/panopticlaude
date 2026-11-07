@@ -78,3 +78,6 @@ footer.errors { display: block; color: var(--alarm); font-size: 13px; border: 0;
 }
 .rows button.open { margin-left: auto; padding: 3px 9px; font-size: 12px; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); margin: 0; padding: 9px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+
+/* roost-medic's last actions: one line each, full text on hover. */
+td .detail.action { max-width: 52ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

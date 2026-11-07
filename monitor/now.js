@@ -201,7 +201,7 @@ function Automations({ data }) {
           ${rows.map((a) => html`
             <tr key=${a.key} class=${a.status}>
               <td><span class=${`dot ${a.status}`} aria-hidden="true"></span><${StatusBird} status=${a.status} />${STATUS[a.status] || a.status}</td>
-              <td>${a.name}${a.error && html`<div class="detail">${a.error}</div>`}</td>
+              <td>${a.name}${a.error && html`<div class="detail">${a.error}</div>`}${(a.actions || []).slice(0, 3).map((x) => html`<div class="detail action" title=${x.text}>${x.at ? `${ago(x.at)}: ` : ''}${x.text}</div>`)}</td>
               <td>${hostLabel(a.host)}</td>
               <td>${a.lastRunAt ? ago(a.lastRunAt) : '—'}</td>
               <td>${a.nextRunAt ? when(a.nextRunAt) : '—'}</td>

@@ -134,3 +134,24 @@ test('stalled: Agent: comment with nothing running, unless the parent runs or an
   });
   assert.deepEqual(out.blocked.agents.map((a) => a.ask), ['Restart or update: no agent behind "Agent: fixing"']);
 });
+
+test('medic: row status from its heartbeat, and its last actions newest first', () => {
+  const { medicActions, medicRow } = require('./now-api');
+  const log = [
+    '2026-11-06 11:44:30PM VM reachable again',
+    '2026-11-07 9:03:48AM Starting responder for:',
+    'Stalled workspaces:',
+    '- Roost (mac, worktree id x): Restart or update',
+    'responder: Roost: comment fixed',
+    'responder: #37812: resumed'
+  ].join('\n');
+  const acts = medicActions(log);
+  assert.deepEqual(acts.map((a) => a.text), ['#37812: resumed', 'Roost: comment fixed', 'VM reachable again']);
+  assert.equal(acts[0].at, new Date(2026, 10, 7, 9, 3, 48).getTime());
+  assert.equal(acts[2].at, new Date(2026, 10, 6, 23, 44, 30).getTime());
+  const now = Date.now();
+  assert.equal(medicRow({ lastRun: now - 60000, responderRunning: false, log: '' }, now).status, 'completed');
+  assert.equal(medicRow({ lastRun: now - 60000, responderRunning: true, log: '' }, now).status, 'running');
+  assert.equal(medicRow({ lastRun: now - 20 * 60000, responderRunning: false, log: '' }, now).status, 'overdue');
+  assert.equal(medicRow({ lastRun: null, responderRunning: false, log: '' }, now).status, 'waiting');
+});
