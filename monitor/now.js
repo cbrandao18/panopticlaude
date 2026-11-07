@@ -152,10 +152,11 @@ const nightTotal = (r, n) => (r.spark ? n.counts?.[r.spark] || 0 : n.fixes + n.d
 
 function Spark({ release }) {
   const last = release.nights.slice(-14);
-  if (last.length < 2) return null;
+  const w = 120;
+  // Keep the column when there's no line yet, so every row's detail lines up.
+  if (last.length < 2) return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" aria-hidden="true"></svg>`;
   const total = (n) => nightTotal(release, n);
   const max = Math.max(1, ...last.map(total));
-  const w = 120;
   const step = w / (last.length - 1);
   const points = last.map((n, i) => `${(i * step).toFixed(1)},${(22 - (total(n) / max) * 20).toFixed(1)}`).join(' ');
   return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label="${release.spark ? release.metrics.find(([k]) => k === release.spark)?.[1] || release.spark : 'Feedback'}, last ${last.length} entries"><polyline points=${points} /></svg>`;
@@ -163,7 +164,7 @@ function Spark({ release }) {
 
 function Releases({ data }) {
   return html`
-    <${Section} id="releases" title="Release watch" tone="info" note="Weeks, not hours. Signal: feedback the project's watcher triages each night.">
+    <${Section} id="releases" title="Release watch" tone="info" note="Weeks, not hours. Signal: what each project's watcher logs, nightly or weekly.">
       <ul class="rows releases">
         ${data.releases.map((r) => html`
           <li key=${r.name}>
