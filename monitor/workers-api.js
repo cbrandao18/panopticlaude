@@ -3,6 +3,7 @@
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { runOnHost } = require('./security-api');
@@ -13,6 +14,32 @@ const AGENTS_DIR = path.join(os.homedir(), 'Library/LaunchAgents');
 const SKIP = new Set(['panopticlaude-dashboard', 'roost-medic']);
 const OVERDUE_MS = 30 * 60000;
 const CONFLICT = '.local/state/agent-sync/conflict';
+const RUNS_FILE = path.join(os.homedir(), '.local/state/roost/launchd-runs.json');
+
+// launchd counts each agent's runs but records no time. Watching the count once a minute (watchRuns) dates
+// every run to within a minute; the times are kept in RUNS_FILE so a restart doesn't lose them.
+function createRunTracker(file = RUNS_FILE, now = Date.now) {
+  let seen = null;
+  return (name, runs) => {
+    seen ||= (() => {
+      try {
+        return JSON.parse(fsSync.readFileSync(file, 'utf8'));
+      } catch {
+        return {};
+      }
+    })();
+    const prev = seen[name];
+    if (runs == null || runs === prev?.runs) return prev?.at ?? null;
+    // A lower count means launchd reloaded the agent and restarted its count; that isn't a run.
+    seen[name] = { runs, at: prev && runs > prev.runs ? now() : prev?.at ?? null };
+    try {
+      fsSync.mkdirSync(path.dirname(file), { recursive: true });
+      fsSync.writeFileSync(file, JSON.stringify(seen));
+    } catch {}
+    return seen[name].at;
+  };
+}
+const trackRuns = createRunTracker();
 
 const every = (sec) => (sec >= 3600 ? `every ${+(sec / 3600).toFixed(1)} h` : `every ${Math.round(sec / 60)} min`);
 const row = (host, name, kind, fields) => ({
@@ -29,21 +56,21 @@ function calendarText(cal) {
 }
 
 // `launchctl print` output for one LaunchAgent (null when it isn't loaded); `calendar` is its StartCalendarInterval.
-function launchdRow(name, text, conflict = '', calendar = null) {
+function launchdRow(name, text, conflict = '', calendar = null, lastRunAt = null) {
   const kind = 'LaunchAgent';
   if (text == null) return row('mac', name, kind, { status: 'failed', error: `com.christie.${name} is not loaded in launchd` });
   const field = (k) => new RegExp(`^\\t${k} = (.+)$`, 'm').exec(text)?.[1];
   const interval = +(/^(\d+) seconds/.exec(field('run interval') || '')?.[1] || 0);
   const exit = field('last exit code');
   const timed = interval || /com\.apple\.launchd\.calendarinterval/.test(text);
-  const fields = { schedule: interval ? every(interval) : timed ? calendarText(calendar) : 'always on' };
+  const fields = { schedule: interval ? every(interval) : timed ? calendarText(calendar) : 'always on', lastRunAt: timed ? lastRunAt : null };
   if (!timed && field('state') !== 'running') return row('mac', name, kind, { ...fields, status: 'failed', error: `com.christie.${name} should always run but is ${field('state') || 'stopped'}` });
   if (exit && /^-?\d+$/.test(exit) && exit !== '0') return row('mac', name, kind, { ...fields, status: 'failed', error: `com.christie.${name}: last run exited with code ${exit}` });
   if (conflict) return row('mac', name, kind, { ...fields, status: 'failed', error: `sync stopped on a conflict: ${conflict}` });
   return row('mac', name, kind, { ...fields, status: field('state') === 'running' ? 'running' : 'completed' });
 }
 
-async function readMac({ run = exec, dir = AGENTS_DIR, home = os.homedir() } = {}) {
+async function readMac({ run = exec, dir = AGENTS_DIR, home = os.homedir(), track = trackRuns } = {}) {
   const names = (await fs.readdir(dir)).map((f) => /^com\.christie\.(.+)\.plist$/.exec(f)?.[1]).filter((n) => n && !SKIP.has(n));
   const conflict = await fs.readFile(path.join(home, CONFLICT), 'utf8').then((t) => t.trim().slice(0, 200) || 'see ~/' + CONFLICT, () => '');
   return Promise.all(names.sort().map(async (n) => {
@@ -51,7 +78,8 @@ async function readMac({ run = exec, dir = AGENTS_DIR, home = os.homedir() } = {
     const calendar = text && /calendarinterval/.test(text)
       ? await run('plutil', ['-extract', 'StartCalendarInterval', 'json', '-o', '-', path.join(dir, `com.christie.${n}.plist`)]).then((r) => JSON.parse(r.stdout), () => null)
       : null;
-    return launchdRow(n, text, n === 'agent-sync' ? conflict : '', Array.isArray(calendar) ? calendar[0] : calendar);
+    const runs = text && /^\truns = (\d+)$/m.exec(text);
+    return launchdRow(n, text, n === 'agent-sync' ? conflict : '', Array.isArray(calendar) ? calendar[0] : calendar, track(n, runs ? +runs[1] : null));
   }));
 }
 
@@ -94,4 +122,11 @@ async function readWorkers({ run = exec, host = runOnHost } = {}) {
   return [...mac, ...vm];
 }
 
-module.exports = { launchdRow, parseVm, readMac, readWorkers, VM_SCRIPT };
+// Keeps run times current even while nobody has the page open.
+function watchRuns(every = 60000) {
+  const tick = () => readMac().catch(() => {});
+  tick();
+  setInterval(tick, every).unref();
+}
+
+module.exports = { launchdRow, parseVm, readMac, readWorkers, createRunTracker, watchRuns, VM_SCRIPT };

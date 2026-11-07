@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { launchdRow, parseVm } = require('./workers-api');
+const { launchdRow, parseVm, createRunTracker } = require('./workers-api');
 
 const print = (fields) => `gui/501/x = {\n${Object.entries(fields).map(([k, v]) => `\t${k} = ${v}`).join('\n')}\n\tendpoints = {\n\t\tstate = active\n\t}\n}`;
 
@@ -44,4 +44,24 @@ test('parseVm: timers joined to their service results', () => {
   assert.match(rows[1].error, /conflict: CONFLICT x/);
   assert.equal(rows[0].lastRunAt, now - 300000);
   assert.equal(rows[0].key, 'vm|worker:review-watch');
+});
+
+test('createRunTracker dates a run when the count goes up, survives a restart, ignores a reload', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'runs-')), 'runs.json');
+  let clock = 1000;
+  const track = createRunTracker(file, () => clock);
+  assert.equal(track('sync', 280), null); // first sighting: no time yet
+  clock = 2000;
+  assert.equal(track('sync', 280), null);
+  assert.equal(track('sync', 281), 2000);
+  clock = 3000;
+  assert.equal(track('sync', 2), 2000); // launchd reload restarts the count
+  assert.equal(createRunTracker(file, () => 9000)('sync', 2), 2000); // a new process reads the saved times
+  assert.equal(track('sync', null), 2000);
+  const row = launchdRow('sync', print({ state: 'not running', 'run interval': '900 seconds', 'last exit code': '0' }), '', null, 2000);
+  assert.equal(row.lastRunAt, 2000);
+  assert.equal(launchdRow('tunnel', print({ state: 'running', 'last exit code': '0' }), '', null, 2000).lastRunAt, null);
 });
