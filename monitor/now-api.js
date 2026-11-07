@@ -286,7 +286,19 @@ function mergeVendors(checks) {
   return [...byName.values()].sort((a, b) => a.ok - b.ok || a.name.localeCompare(b.name));
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs }) {
+// Workspaces whose comment says an agent is on it, but nothing is running there or in its parent.
+// Automation-owned statuses (Daily process, Automations) are left to the automations that own them.
+// shortcut: any running agent in the parent covers its children, so a busy parent can hide a stalled child; match on dispatches if that bites.
+const STALL_MS = 30 * 60000;
+const AUTOMATION_STATUSES = new Set(['status-5', 'status-8']);
+function stalled(workspaces, now) {
+  const running = (w) => (w.agents || []).some((a) => a.state !== 'done') || (!(w.agents || []).length && w.live > 0);
+  const byKey = new Map(workspaces.map((w) => [w.key, w]));
+  return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !AUTOMATION_STATUSES.has(w.status)
+    && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
+}
+
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -311,6 +323,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   const agents = workspaces
     .filter((w) => /^You:/i.test(w.comment) && !easeWorkspaces.has(w.name))
     .map((w) => ({ key: w.key, host: w.host, name: w.name, ask: w.comment.replace(/^You:\s*/i, ''), pr: w.pr, at: w.lastActivityAt }))
+    .concat(stalled(workspaces, now).map((w) => ({ key: w.key, host: w.host, name: w.name, ask: `Restart or update: no agent behind "${clip(w.comment, 60)}"`, pr: w.pr, at: w.lastActivityAt, stalled: true })))
     .sort((a, b) => b.at - a.at);
   const easeYou = (ease.value?.posts || []).filter((p) => p.whose === 'you').map((p) => {
     const action = (p.actions || []).find((a) => a.state === 'open');
@@ -365,4 +378,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   };
 }
 
-module.exports = { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, assemble, isFix } = require('./now-api');
+const { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix } = require('./now-api');
 
 const host = { id: 'vm', label: 'VM' };
 const now = Date.parse('2026-11-05T22:00:00Z');
@@ -106,4 +106,29 @@ test('monitorStatuses: Alert/Warn fire, missing monitors are flagged', () => {
 test('mergeVendors combines a status page and monitors under one name', () => {
   const merged = mergeVendors([{ name: 'Stripe', ok: true, detail: '' }, { name: 'Stripe', ok: false, indicator: 'alert', detail: 'ACH fallback', url: 'dd' }, { name: 'Lob', ok: true }]);
   assert.deepEqual(merged.map((v) => [v.name, v.ok, v.url || null]), [['Stripe', false, 'dd'], ['Lob', true, null]]);
+});
+
+test('stalled: Agent: comment with nothing running, unless the parent runs or an automation owns it', () => {
+  const now = 10 * 3600000;
+  const old = now - 3600000;
+  const ws = (key, extra) => ({ key, name: key, comment: 'Agent: fixing', lastActivityAt: old, live: 0, agents: [], ...extra });
+  const rows = [
+    ws('idle'),
+    ws('done', { agents: [{ state: 'done' }] }),
+    ws('working', { agents: [{ state: 'working' }] }),
+    ws('script', { live: 1 }),
+    ws('fresh', { lastActivityAt: now - 60000 }),
+    ws('you', { comment: 'You: approve #1' }),
+    ws('auto', { status: 'status-8' }),
+    ws('parent', { agents: [{ state: 'working' }] }),
+    ws('queued', { parent: 'parent' }),
+    ws('orphan', { parent: 'idle' })
+  ];
+  assert.deepEqual(stalled(rows, now).map((w) => w.key), ['idle', 'done', 'orphan']);
+  const out = assemble({
+    automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, ease: { value: { posts: [] } },
+    merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] },
+    map: { value: { hosts: [{ workspaces: [ws('idle')] }] } }, now
+  });
+  assert.deepEqual(out.blocked.agents.map((a) => a.ask), ['Restart or update: no agent behind "Agent: fixing"']);
 });
