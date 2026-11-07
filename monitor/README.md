@@ -20,7 +20,7 @@ Orca jobs read their schedule, enabled state, run history, saved output, and err
 - **Now** (`/`) answers "what needs me", most urgent first:
   - **Down**: vendor status pages, Branch's Datadog monitors on vendor calls (ClarionDoor, Stripe, TransUnion, …), failed or missed automations, a failed feedback watcher, and fresh prod errors the bug sweep would file but hasn't. Borderline findings stay off. Dashed pills are critical things nothing watches yet (Staff uptime, Verisk, …). Vendor lists live at the top of `now-api.js`.
   - **Ready to ship**: your non-draft PRs GitHub would merge now, fixes first.
-  - **Blocked on you**: workspaces whose comment starts `You:`, reviews requested of you, Ease decisions, unread held drafts.
+  - **Blocked on you**: workspaces whose comment starts `You:`, `Agent:` workspaces with no agent running for 30+ minutes (except Daily process and Automations, and children of a workspace whose agent is running), reviews requested of you, Ease decisions, unread held drafts.
   - **Release watch**: one row per live project from its nightly feedback triage log and epic progress (`RELEASES` in `now-api.js`).
   - **Automations**: every Orca automation on the Mac and the VM. "Run finished" means Orca marked it complete, not that the work succeeded; a precheck skip isn't a failure.
   - **Daily brief**, collapsed.
