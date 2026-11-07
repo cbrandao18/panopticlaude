@@ -100,7 +100,8 @@ function automationRow(host, automation, runs, now = Date.now()) {
     lastRunAt: latest?.startedAt || latest?.createdAt || null,
     nextRunAt: automation.enabled ? automation.nextRunAt || null : null,
     schedule: automation.rrule,
-    timezone: automation.timezone
+    timezone: automation.timezone,
+    workspace: automation.workspaceId || null
   };
 }
 
@@ -287,14 +288,14 @@ function mergeVendors(checks) {
 }
 
 // Workspaces whose comment says an agent is on it, but nothing is running there or in its parent.
-// Automation-owned statuses (Daily process, Automations) are left to the automations that own them.
+// A workspace an enabled automation runs in is idle between runs on purpose, so it is skipped.
 // shortcut: any running agent in the parent covers its children, so a busy parent can hide a stalled child; match on dispatches if that bites.
 const STALL_MS = 30 * 60000;
-const AUTOMATION_STATUSES = new Set(['status-5', 'status-8']);
-function stalled(workspaces, now) {
+function stalled(workspaces, now, automations = []) {
   const running = (w) => (w.agents || []).some((a) => a.state !== 'done') || (!(w.agents || []).length && w.live > 0);
   const byKey = new Map(workspaces.map((w) => [w.key, w]));
-  return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !AUTOMATION_STATUSES.has(w.status)
+  const scheduled = new Set(automations.filter((a) => a.enabled && a.workspace).map((a) => `${a.host}|${a.workspace}`));
+  return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !scheduled.has(w.key)
     && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
 }
 
@@ -323,7 +324,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   const agents = workspaces
     .filter((w) => /^You:/i.test(w.comment) && !easeWorkspaces.has(w.name))
     .map((w) => ({ key: w.key, host: w.host, name: w.name, ask: w.comment.replace(/^You:\s*/i, ''), pr: w.pr, at: w.lastActivityAt }))
-    .concat(stalled(workspaces, now).map((w) => ({ key: w.key, host: w.host, name: w.name, ask: `Restart or update: no agent behind "${clip(w.comment, 60)}"`, pr: w.pr, at: w.lastActivityAt, stalled: true })))
+    .concat(stalled(workspaces, now, automations.value || []).map((w) => ({ key: w.key, host: w.host, name: w.name, ask: `Restart or update: no agent behind "${clip(w.comment, 60)}"`, pr: w.pr, at: w.lastActivityAt, stalled: true })))
     .sort((a, b) => b.at - a.at);
   const easeYou = (ease.value?.posts || []).filter((p) => p.whose === 'you').map((p) => {
     const action = (p.actions || []).find((a) => a.state === 'open');

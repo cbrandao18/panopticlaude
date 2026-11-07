@@ -120,11 +120,13 @@ test('stalled: Agent: comment with nothing running, unless the parent runs or an
     ws('fresh', { lastActivityAt: now - 60000 }),
     ws('you', { comment: 'You: approve #1' }),
     ws('auto', { status: 'status-8' }),
+    ws('vm|sched'),
     ws('parent', { agents: [{ state: 'working' }] }),
     ws('queued', { parent: 'parent' }),
     ws('orphan', { parent: 'idle' })
   ];
-  assert.deepEqual(stalled(rows, now).map((w) => w.key), ['idle', 'done', 'orphan']);
+  const autos = [{ host: 'vm', workspace: 'sched', enabled: true }, { host: 'vm', workspace: 'idle', enabled: false }];
+  assert.deepEqual(stalled(rows, now, autos).map((w) => w.key), ['idle', 'done', 'auto', 'orphan']);
   const out = assemble({
     automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, ease: { value: { posts: [] } },
     merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] },
