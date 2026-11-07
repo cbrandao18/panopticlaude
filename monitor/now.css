@@ -53,15 +53,19 @@ button.more { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
 .epic { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .epic meter { width: 90px; }
 
-table.autos { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.autos { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
 .autos th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 8px 6px 0; border-bottom: 1px solid var(--border); }
 .autos td { padding: 6px 8px 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
 .autos tr.paused td { color: var(--muted); }
 .autos tr.failed td:first-child, .autos tr.unreadable td:first-child { color: var(--alarm); }
 .autos tr.overdue td:first-child { color: var(--you); }
-.autos td:first-child { white-space: nowrap; width: 130px; }
-.autos td:nth-child(3) { width: 60px; }
-.autos td:nth-child(4), .autos td:nth-child(5) { width: 140px; white-space: nowrap; }
+.autos td:first-child { white-space: nowrap; }
+.autos th:first-child { width: 122px; }
+.autos th:nth-child(3) { width: 64px; }
+.autos th:nth-child(4) { width: 84px; }
+.autos th:nth-child(5) { width: 118px; }
+.autos td:nth-child(4), .autos td:nth-child(5) { white-space: nowrap; }
+.autos td:nth-child(2) { overflow-wrap: anywhere; }
 
 .brief summary { display: flex; align-items: baseline; gap: 14px; cursor: pointer; list-style-position: inside; }
 .brief summary h2 { display: inline; }
@@ -80,4 +84,4 @@ footer.errors { display: block; color: var(--alarm); font-size: 13px; border: 0;
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); margin: 0; padding: 9px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
 
 /* roost-medic's last actions: one line each, full text on hover. */
-td .detail.action { max-width: 52ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

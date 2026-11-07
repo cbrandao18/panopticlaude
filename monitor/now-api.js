@@ -155,7 +155,8 @@ function medicActions(text, limit = 4) {
     if (stamped) {
       runAt = medicTime(stamped[1]);
       if (!/^Starting responder/.test(stamped[2])) out.push({ at: runAt, text: stamped[2] });
-    } else if (/^responder:/.test(line)) out.push({ at: runAt, text: line.replace(/^responder:\s*/, '') });
+    // The responder sometimes stamps its own line too; the row already shows when it ran.
+    } else if (/^responder:/.test(line)) out.push({ at: runAt, text: line.replace(/^responder:\s*(\d{4}-\d\d-\d\d \d+:\d\d(:\d\d)?[AP]M\s*)?/, '') });
   }
   return out.slice(-limit).reverse();
 }

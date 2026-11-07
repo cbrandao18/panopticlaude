@@ -143,7 +143,7 @@ test('medic: row status from its heartbeat, and its last actions newest first', 
     'Stalled workspaces:',
     '- Roost (mac, worktree id x): Restart or update',
     'responder: Roost: comment fixed',
-    'responder: #37812: resumed'
+    'responder: 2026-11-07 9:31AM #37812: resumed'
   ].join('\n');
   const acts = medicActions(log);
   assert.deepEqual(acts.map((a) => a.text), ['#37812: resumed', 'Roost: comment fixed', 'VM reachable again']);

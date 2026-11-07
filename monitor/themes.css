@@ -77,7 +77,9 @@ html[data-theme='roost'] {
   .empty { display: flex; align-items: center; gap: 8px; }
   .empty .bird { width: 28px; height: 28px; opacity: .85; }
   .empty-nest { display: flex; align-items: center; gap: 14px; }
-  .autos td:first-child .bird, .autos td:first-child .egg { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
+  .autos td:first-child .bird { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
+  /* Same 16px slot as the status dot, so every status label starts in line. */
+  .autos td:first-child .egg { width: 16px; height: 16px; margin: 0 4px 0 -4px; vertical-align: -3px; }
   .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
 }
 @media (prefers-reduced-motion: no-preference) {
