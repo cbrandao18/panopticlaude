@@ -158,7 +158,7 @@ function Spark({ release }) {
   const w = 120;
   const step = w / (last.length - 1);
   const points = last.map((n, i) => `${(i * step).toFixed(1)},${(22 - (total(n) / max) * 20).toFixed(1)}`).join(' ');
-  return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label="${release.spark ? `Chats ${release.metrics.find(([k]) => k === release.spark)?.[1] || release.spark}` : 'Feedback'} per night, last ${last.length} nights"><polyline points=${points} /></svg>`;
+  return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label="${release.spark ? release.metrics.find(([k]) => k === release.spark)?.[1] || release.spark : 'Feedback'}, last ${last.length} entries"><polyline points=${points} /></svg>`;
 }
 
 function Releases({ data }) {
@@ -167,7 +167,7 @@ function Releases({ data }) {
       <ul class="rows releases">
         ${data.releases.map((r) => html`
           <li key=${r.name}>
-            <span class="title">${r.name}</span>
+            <span class="title">${r.url ? html`<${Link} href=${r.url}>${r.name}</${Link}>` : r.name}</span>
             <${Spark} release=${r} />
             <span class="detail">
               ${r.last

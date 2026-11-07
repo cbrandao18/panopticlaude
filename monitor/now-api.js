@@ -63,6 +63,14 @@ const RELEASES = [
     // Shown instead of fixes / design calls / vague; the spark plots `spark`.
     metrics: [['chats', 'chats'], ['bad', 'not working well']],
     spark: 'bad'
+  },
+  {
+    name: 'Review skills',
+    channel: 'the weekly skill-tuning runs',
+    log: '~/branch-agents/projects/process-updates/skill-checks/runs.log',
+    url: 'https://app.datadoghq.com/dashboard/fex-qhi-n9i/agent-skills-health',
+    metrics: [['missed', 'missed issues'], ['stale', 'stale names'], ['cited', 'Devlo citations']],
+    spark: 'missed'
   }
 ];
 
