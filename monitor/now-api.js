@@ -4,6 +4,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { orcaRunner } = require('./map-api');
 const { runOnHost } = require('./security-api');
+const { readWorkers } = require('./workers-api');
 
 const fs = require('node:fs/promises');
 const os = require('node:os');
@@ -125,9 +126,11 @@ async function readAutomations(orca) {
       }
     })
   );
-  const order = { failed: 0, overdue: 1, unreadable: 2, running: 3 };
-  return hosts.flat().sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.name.localeCompare(b.name));
+  return sortAutomations(hosts.flat());
 }
+
+const STATUS_ORDER = { failed: 0, overdue: 1, unreadable: 2, running: 3 };
+const sortAutomations = (rows) => rows.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || a.name.localeCompare(b.name));
 
 // --- roost-medic ------------------------------------------------------------------------------------------
 // The Mac LaunchAgent that fixes Down items and stalled workspaces every 5 minutes. Shown as an automation row.
@@ -163,7 +166,7 @@ function medicRow({ lastRun, responderRunning, log }, now = Date.now()) {
   else if (now - lastRun > 3 * MEDIC_EVERY_MS) status = 'overdue';
   else if (responderRunning) status = 'running';
   return {
-    key: 'mac|roost-medic', id: 'roost-medic', host: 'mac', name: 'roost-medic (fixes Down items, resumes stalled agents)',
+    key: 'mac|roost-medic', id: 'roost-medic', host: 'mac', name: 'roost-medic (fixes Down items, resumes stalled agents)', kind: 'LaunchAgent', schedule: 'every 5 min',
     enabled: true, status, error: '', lastRunAt: lastRun, nextRunAt: lastRun ? lastRun + MEDIC_EVERY_MS : null,
     actions: medicActions(log)
   };
@@ -408,13 +411,13 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }) }, ttl = 60000) {
   let cached = null;
   let pending = null;
   return () => {
     if (cached && Date.now() - cached.refreshedAt < ttl) return Promise.resolve(cached);
     pending ||= Promise.all([
-      settle(() => Promise.all([readAutomations(orca), medic().catch(() => null)]).then(([rows, m]) => (m ? [m, ...rows] : rows))),
+      settle(() => Promise.all([readAutomations(orca), workers(), medic().catch(() => null)]).then(([rows, w, m]) => [...(m ? [m] : []), ...sortAutomations([...rows, ...w])])),
       settle(() => readStatusPages(getJson)),
       settle(() => readMonitors(run)),
       settle(() => readReviewRequests(run)),

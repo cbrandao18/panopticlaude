@@ -194,17 +194,17 @@ function Automations({ data }) {
   const paused = data.automations.length - data.automations.filter((a) => a.status !== 'paused').length;
   return html`
     <${Section} id="automations" title="Automations" tone="lilac" count=${rows.length}
-      note=${html`Run finished means Orca marked it complete, not that the work succeeded. <a href="/work#jobs">Logs</a>`}>
+      note=${html`For Orca automations, Run finished means Orca marked it complete, not that the work succeeded. For LaunchAgents and systemd timers, it means the last run exited cleanly. <a href="/work#jobs">Logs</a>`}>
       <table class="autos">
         <thead><tr><th scope="col">Status</th><th scope="col">Automation</th><th scope="col">Where</th><th scope="col">Last run</th><th scope="col">Next run</th></tr></thead>
         <tbody>
           ${rows.map((a) => html`
             <tr key=${a.key} class=${a.status}>
               <td><span class=${`dot ${a.status}`} aria-hidden="true"></span><${StatusBird} status=${a.status} />${STATUS[a.status] || a.status}</td>
-              <td>${a.name}${a.error && html`<div class="detail">${a.error}</div>`}${(a.actions || []).slice(0, 3).map((x) => html`<div class="detail action" title=${x.text}>${x.at ? `${ago(x.at)}: ` : ''}${x.text}</div>`)}</td>
+              <td>${a.name}${a.kind && html`<div class="detail">${a.kind}</div>`}${a.error && html`<div class="detail">${a.error}</div>`}${(a.actions || []).slice(0, 3).map((x) => html`<div class="detail action" title=${x.text}>${x.at ? `${ago(x.at)}: ` : ''}${x.text}</div>`)}</td>
               <td>${hostLabel(a.host)}</td>
               <td>${a.lastRunAt ? ago(a.lastRunAt) : '—'}</td>
-              <td>${a.nextRunAt ? when(a.nextRunAt) : '—'}</td>
+              <td>${a.nextRunAt ? when(a.nextRunAt) : a.schedule || '—'}</td>
             </tr>`)}
         </tbody>
       </table>
