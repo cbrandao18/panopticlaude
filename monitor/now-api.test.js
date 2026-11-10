@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix } = require('./now-api');
+const { automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix } = require('./now-api');
 
 const host = { id: 'vm', label: 'VM' };
 const now = Date.parse('2026-11-05T22:00:00Z');
@@ -34,6 +34,15 @@ test('parseTriageLog reads counts and failures', () => {
   assert.equal(nights[0].failed, true);
   assert.deepEqual([nights[1].ticket, nights[1].fixes, nights[1].design, nights[1].fixer], [38078, 3, 5, 'started']);
   assert.deepEqual(parseTriageLog('2026-11-06 7:05pm chats=4 bad=1')[0].counts, { chats: 4, bad: 1 });
+});
+
+test('readRelease turns a workspace file history into daily counts and progress', async () => {
+  const commands = [];
+  const host = async (cmd) => (commands.push(cmd), '2026-11-05 totalFiles=3123 muiImport=1041\n2026-11-10 totalFiles=3199 muiImport=450\n');
+  const r = await readRelease({ name: 'x', workspace: '/w/x', file: 'a/b.json', progress: ['muiImport', 'files off MUI'] }, { host });
+  assert.match(commands[0], /cd '\/w\/x'.*git log --reverse/s);
+  assert.deepEqual([r.nights.length, r.last.counts.muiImport], [2, 450]);
+  assert.deepEqual(r.progress, { label: 'files off MUI', total: 1041, completed: 591 });
 });
 
 test('sweepDown flags unreadable sources and unticketed prod errors only', () => {

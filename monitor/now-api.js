@@ -53,7 +53,8 @@ const VENDOR_MONITORS = {
 // Business-critical but nothing watches them yet. Shown so the gap stays visible.
 const UNWATCHED = ['Staff uptime', 'Verisk (MVR, A-PLUS)', 'Carfax', 'CoreLogic', 'CMT'];
 
-// Live projects watched over weeks. Each reads the nightly triage log its feedback watcher writes.
+// Projects watched over weeks. A live release reads the nightly triage log its feedback watcher writes;
+// a local workspace reads its progress file's git history, one entry per day.
 const RELEASES = [
   {
     name: 'Staff new look',
@@ -76,6 +77,16 @@ const RELEASES = [
     url: 'https://app.datadoghq.com/dashboard/fex-qhi-n9i/agent-skills-health',
     metrics: [['missed', 'missed issues'], ['stale', 'stale names'], ['cited', 'Devlo citations']],
     spark: 'missed'
+  },
+  {
+    name: 'Staff off Material-UI',
+    channel: 'the ui-core-v2 run',
+    workspace: '/workspaces/branch/.worktrees/branch/staff-mui-v5-plan',
+    file: 'staff-fe/scripts/mui-ratchet.json',
+    metrics: [['muiImport', 'files import MUI'], ['makeStylesOrWithStyles', 'use makeStyles']],
+    spark: 'muiImport',
+    // Shown as a meter: how far this count has fallen from its first entry.
+    progress: ['muiImport', 'files off MUI']
   }
 ];
 
@@ -292,14 +303,26 @@ function parseTriageLog(text) {
   return nights;
 }
 
+// A flat JSON file's first commit, then its last commit each day, oldest first, as triage-log lines:
+// "2026-11-10 muiImport=450 …". The first commit is the starting point progress counts from.
+const fileHistory = (dir, file) => `cd '${dir}' 2>/dev/null && git log --reverse --date=short --format='%cd %H' -- '${file}' |
+  awk 'NR == 1 { print } { if (!($1 in h)) d[++n] = $1; h[$1] = $2 } END { for (i = 1; i <= n; i++) print d[i], h[d[i]] }' |
+  while read day sha; do printf '%s ' "$day"; git show "$sha:${file}" | tr -d ' \n{}"' | tr ',:' ' ='; echo; done`;
+
 async function readRelease(release, { host = runOnHost, run = exec } = {}) {
   const [logText, epic] = await Promise.all([
-    host(`tail -n 60 ${release.log} 2>/dev/null || true`),
+    host(release.workspace ? fileHistory(release.workspace, release.file) : `tail -n 60 ${release.log} 2>/dev/null || true`),
     release.epic ? readEpic(release.epic, run).catch(() => null) : null
   ]);
   const nights = parseTriageLog(logText);
   const last = nights.at(-1) || null;
-  return { ...release, nights, last, epic, watcherFailed: Boolean(last?.failed) };
+  let progress = null;
+  if (release.progress && last) {
+    const [key, label] = release.progress;
+    const total = nights[0].counts[key] || 0;
+    progress = { label, total, completed: total - (last.counts[key] || 0) };
+  }
+  return { ...release, nights, last, epic, progress, watcherFailed: Boolean(last?.failed) };
 }
 
 // --- Bug sweep ---------------------------------------------------------------------------------------------
@@ -404,7 +427,8 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     ready,
     waitingPrs: merge.value?.waiting || [],
     blocked: { agents, reviews: reviews.value || [], ease: easeYou, drafts },
-    releases: releases.value || [],
+    // A local workspace's row opens it in Orca.
+    releases: (releases.value || []).map((r) => (r.workspace ? { ...r, key: workspaces.find((w) => w.path === r.workspace)?.key || null } : r)),
     automations: automations.value || [],
     errors
   };
@@ -436,4 +460,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   };
 }
 
-module.exports = { medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };

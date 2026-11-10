@@ -164,7 +164,7 @@ function Spark({ release }) {
 
 function Releases({ data }) {
   return html`
-    <${Section} id="releases" title="Release watch" tone="info" note="Weeks, not hours. Signal: what each project's watcher logs, nightly or weekly.">
+    <${Section} id="releases" title="Project watch" tone="info" note="Weeks, not hours. Live releases show what their watcher logs; local work shows its progress file, one point a day.">
       <ul class="rows releases">
         ${data.releases.map((r) => html`
           <li key=${r.name}>
@@ -177,8 +177,11 @@ function Releases({ data }) {
                   : r.metrics
                     ? `${day(r.last.date)}: ${r.metrics.map(([key, label]) => `${r.last.counts?.[key] ?? 0} ${label}`).join(', ')}`
                     : html`${day(r.last.date)}: ${r.last.fixes} fixes, ${r.last.design} design calls, ${r.last.vague} vague${r.last.ticket ? html` → <a href=${`https://github.com/gobranch/branch/issues/${r.last.ticket}`}>#${r.last.ticket}</a>` : ''}`
-                : `No nights logged yet in ${r.channel}`}
+                : `Nothing logged yet in ${r.channel}`}
             </span>
+            ${r.progress && html`<span class="epic">${r.progress.completed} of ${r.progress.total} ${r.progress.label}
+              <meter min="0" max=${r.progress.total || 1} value=${r.progress.completed}></meter></span>`}
+            ${r.key && html`<button class="text open" type="button" onClick=${() => openInOrca(r.key, r.name)}>Open in Orca</button>`}
             ${r.epic && html`<span class="epic"><a href=${r.epic.url}>#${r.epic.number}</a> ${r.epic.completed} of ${r.epic.total} done
               <meter min="0" max=${r.epic.total || 1} value=${r.epic.completed}></meter></span>`}
           </li>`)}

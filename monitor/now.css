@@ -52,6 +52,8 @@ button.more { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
 .spark polyline { fill: none; stroke: var(--you); stroke-width: 1.5; }
 .epic { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .epic meter { width: 90px; }
+/* After a meter, the button sits beside it instead of splitting the free space. */
+.releases .epic + button.open { margin-left: 0; }
 
 table.autos { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
 .autos th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 8px 6px 0; border-bottom: 1px solid var(--border); }
