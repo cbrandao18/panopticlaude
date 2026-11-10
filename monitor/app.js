@@ -145,50 +145,6 @@ function renderJobs() {
   });
   $('jobs').replaceChildren(...cards);
 }
-function pilotReport(text) {
-  const container = element('div', null, 'pilot-report');
-  let table;
-  for (const line of text.split('\n')) {
-    if (line.startsWith('|')) {
-      const cells = line.split('|').slice(1, -1).map((cell) => cell.trim());
-      if (cells.every((cell) => /^:?-+:?$/.test(cell))) continue;
-      if (!table) {
-        const scroll = element('div', null, 'pilot-table-scroll');
-        table = element('table');
-        scroll.append(table);
-        container.append(scroll);
-      }
-      const row = element('tr');
-      cells.forEach((cell) => row.append(element(table.children.length ? 'td' : 'th', cell)));
-      table.append(row);
-    } else {
-      table = null;
-      if (line.startsWith('#')) container.append(element('h3', line.replace(/^#+\s*/, '')));
-      else if (line.trim()) container.append(element('p', line));
-    }
-  }
-  return container;
-}
-function renderPilot(pilot) {
-  const card = $('pilot');
-  if (pilot.status === 'unavailable') {
-    card.hidden = false;
-    card.replaceChildren(element('h2', 'Shared reader pilot'), element('p', 'Pilot status or report unavailable.', 'warning'));
-    return;
-  }
-  const top = element('div', null, 'card-top');
-  const heading = element('div');
-  heading.append(element('h2', 'Shared reader pilot'), element('p', 'Synthetic comparisons · Claude + Codex · Mac + cloud', 'schedule'));
-  top.append(heading, element('span', pilot.attention ? 'Needs attention' : pilot.status === 'finalized' ? 'Final report' : 'In progress', `status ${pilot.attention ? 'waiting' : 'running'}`));
-  const start = Date.parse(pilot.startedAt);
-  const dates = element('p', pilot.status === 'finalized'
-    ? `Final report: ${timestamp(Date.parse(pilot.finalizedAt))}`
-    : `Repeats after ${timestamp(start + 7 * 86400000)} · Final report after ${timestamp(start + 14 * 86400000)}`, 'pilot-dates');
-  const details = element('details');
-  details.append(element('summary', 'View comparison and delivery status'), pilotReport(pilot.report));
-  card.replaceChildren(top, dates, details);
-  card.hidden = false;
-}
 async function refresh() {
   if (state.refreshing) {
     return;
@@ -196,11 +152,7 @@ async function refresh() {
   state.refreshing = true;
   $('refresh').disabled = true;
   try {
-    const [result, pilot] = await Promise.all([api('status'), api('shared-reader')]);
-    if (JSON.stringify(state.pilot) !== JSON.stringify(pilot)) {
-      state.pilot = pilot;
-      renderPilot(pilot);
-    }
+    const result = await api('status');
     // Keep focused buttons stable when nothing has changed.
     if (JSON.stringify(state.jobs) !== JSON.stringify(result.jobs)) {
       state.jobs = result.jobs;

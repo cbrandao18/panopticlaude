@@ -277,7 +277,6 @@ function createMonitor({
   readNow = null,
   openInOrca = openWorkspace,
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
-  pilotDir = path.join(os.homedir(), '.local/state/shared-reader-pilot'),
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
@@ -456,22 +455,6 @@ function createMonitor({
           updatedAt: Date.now(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         });
-      }
-      if (req.method === 'GET' && url.pathname === '/api/shared-reader') {
-        try {
-          const state = JSON.parse(fs.readFileSync(path.join(pilotDir, 'controller.json'), 'utf8'));
-          const report = fs.readFileSync(path.join(pilotDir, 'report.md'), 'utf8');
-          if (!Number.isFinite(Date.parse(state.started_at))) throw new Error('Invalid start');
-          return send(200, {
-            status: state.finalized_at ? 'finalized' : 'active',
-            startedAt: state.started_at,
-            finalizedAt: state.finalized_at || null,
-            attention: Boolean(state.error || state.telemetry_error || state.cloud_cleanup_error || Object.keys(state.errors || {}).length),
-            report
-          });
-        } catch {
-          return send(200, { status: 'unavailable' });
-        }
       }
       const job = jobs.find((item) => item.label === url.searchParams.get('job'));
       if (!job) {

@@ -832,23 +832,6 @@ button.thumb img {
   outline: none;
 }
 
-.pilot {
-  margin-bottom: 16px;
-}
-.pilot[hidden] { display: none; }
-.pilot-dates {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 16px 0;
-}
-.pilot summary { cursor: pointer; color: var(--green); font-size: 13px; }
-.pilot-report { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.pilot-report h3 { font-size: 14px; margin: 20px 0 8px; }
-.pilot-table-scroll { overflow-x: auto; }
-.pilot-report table { border-collapse: collapse; min-width: 850px; width: 100%; }
-.pilot-report th, .pilot-report td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
-.pilot-report th { color: var(--muted); }
-
 /* Page tabs shared by Now, Map and Work. */
 .tabs { display: flex; gap: 4px; margin-right: auto; margin-left: 24px; }
 .tabs a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 7px; font-size: 14px; font-weight: 550; }

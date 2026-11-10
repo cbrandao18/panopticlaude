@@ -30,7 +30,6 @@ async function fixture(t, options = {}, withFindings = false) {
   });
   const server = createMonitor({
     jobs: [job],
-    pilotDir: path.join(dir, "pilot"),
     run,
     renderMarkdown: async (text) => `<p>${text}</p>`,
     readSeen: () => seen,
@@ -59,23 +58,6 @@ async function fixture(t, options = {}, withFindings = false) {
     );
   return { job, get, review, name, inbox, run, seen, base, dir, shots };
 }
-
-test('shared reader exposes its local comparison and reports missing or malformed state', async (t) => {
-  const f = await fixture(t);
-  let data = await (await f.get('shared-reader')).json();
-  assert.equal(data.status, 'unavailable');
-  const pilot = path.join(f.dir, 'pilot');
-  fs.mkdirSync(pilot);
-  fs.writeFileSync(path.join(pilot, 'controller.json'), JSON.stringify({ started_at: '2026-11-01T16:51:57Z', attempts: {} }));
-  fs.writeFileSync(path.join(pilot, 'report.md'), 'Synthetic comparison\nWeek-two repeats recorded: 0 of 4.');
-  data = await (await f.get('shared-reader')).json();
-  assert.equal(data.status, 'active');
-  assert.equal(data.startedAt, '2026-11-01T16:51:57Z');
-  assert.match(data.report, /0 of 4/);
-  fs.writeFileSync(path.join(pilot, 'controller.json'), '{broken');
-  data = await (await f.get('shared-reader')).json();
-  assert.equal(data.status, 'unavailable');
-});
 
 test('posting uses the server draft, rejects stale previews, and protects writes', async (t) => {
   const posted = [];
