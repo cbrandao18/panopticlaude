@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { easeData, fileTicket, ticketFromDraft, isStaffPr, readGithubStates } = require('./ease-api');
+const { easeData, fileTicket, declineTicket, ticketFromDraft, isStaffPr, readGithubStates } = require('./ease-api');
 const { createMonitor } = require('./server');
 
 const SOURCE = `2026-11-01T09:00:00-0500 skipped 1111.000001: already ticketed as #1
@@ -190,4 +190,48 @@ test('a Staff PR is yours, a PR in another app is handed off, and "You:" comment
 test('readGithubStates marks PRs as Staff from their changed files', async () => {
   const run = async (cmd, args) => ({ stdout: args[1].endsWith('/files') ? 'staff-fe/a.ts\nyarn.lock\n' : JSON.stringify({ state: 'OPEN', isDraft: true, title: 't', isPull: true }) });
   assert.equal((await readGithubStates([90], run))[90].staff, true);
+});
+
+test('declineTicket logs the decision with a quoted reason and drops the todo line', async () => {
+  let script = '';
+  await declineTicket('2222.000002', "won't do: Front covers it", { source: async () => SOURCE, host: async (s) => { script = s; } });
+  assert.match(script, /declined 2222\.000002: %s\\n' "\$\(date [^)]+\)" 'won'\\''t do: Front covers it' >> ease\.log/);
+  assert.match(script, /grep -v 'todo\/ease-2222000002\\.md' todo\.md/);
+  await declineTicket('2222.000002', '', { source: async () => SOURCE, host: async (s) => { script = s; } });
+  assert.match(script, /declined 2222\.000002: %s\\n' "[^"]+" '' >> ease\.log/);
+});
+
+test('declineTicket refuses unknown, already decided, or easy-win posts', async () => {
+  const host = async () => { throw new Error('should not run'); };
+  await assert.rejects(declineTicket('x; rm -rf ~', '', { source: async () => SOURCE, host }), { status: 400 });
+  await assert.rejects(declineTicket('3333.000003', '', { source: async () => SOURCE, host }), { status: 404 });
+  const declined = SOURCE.replace('@@TODO', '2026-11-02T10:00:00-0500 declined 2222.000002: no\n@@TODO');
+  await assert.rejects(declineTicket('2222.000002', '', { source: async () => declined, host }), { status: 409 });
+  await assert.rejects(fileTicket('2222.000002', { source: async () => declined, run: host }), { status: 409 });
+});
+
+test('a declined post is closed and shows the decision', async () => {
+  const declined = SOURCE.replace('@@TODO', '2026-11-02T10:00:00-0500 declined 2222.000002: Front covers it\n@@TODO')
+    .replace(/^- 2026-11-01 ease-and-effort.*$/m, '');
+  const post = (await easeData({ source: async () => declined, ghStates: async () => ({}) })).posts.find((p) => p.ts === '2222.000002');
+  assert.deepEqual(post.actions[0], { text: 'Decided not to do it: Front covers it', state: 'done' });
+  assert.equal(post.whose, 'closed');
+  assert.equal(post.outcome, 'declined');
+});
+
+test('an open decision offers both filing and declining', async () => {
+  const post = (await easeData({ source: async () => SOURCE, ghStates: async () => ({}) })).posts.find((p) => p.ts === '2222.000002');
+  assert.equal(post.actions[0].decide, true);
+});
+
+test('/api/ease/decline requires the monitor header and passes the reason', async (t) => {
+  const declined = [];
+  const server = createMonitor({ jobs: [], readMap: async () => ({ hosts: [] }), readEase: async () => ({ posts: [] }), declineEase: async (ts, reason) => { declined.push([ts, reason]); return { declined: true }; } });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server.close(r)));
+  const url = `http://127.0.0.1:${server.address().port}/api/ease/decline`;
+  const body = JSON.stringify({ ts: '1.2', reason: 'not now' });
+  assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })).status, 403);
+  assert.equal((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body })).status, 200);
+  assert.deepEqual(declined, [['1.2', 'not now']]);
 });

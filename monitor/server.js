@@ -10,7 +10,7 @@ const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader, openWorkspace } = require('./map-api');
-const { createEaseReader, fileTicket } = require('./ease-api');
+const { createEaseReader, fileTicket, declineTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
 const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
@@ -272,6 +272,7 @@ function createMonitor({
   readMerge = createMergeReader(),
   readBrief = createBriefReader({ render: renderGithubMarkdown }),
   fileEase = fileTicket,
+  declineEase = declineTicket,
   readTips = createTipsReader(),
   readNow = null,
   openInOrca = openWorkspace,
@@ -412,6 +413,35 @@ function createMonitor({
           return send(201, result);
         } catch (error) {
           return send(error.status || 502, { error: error.status ? error.message : `Couldn't file the ticket: ${String(error.message).slice(0, 300)}` });
+        } finally {
+          filing.delete(ts);
+        }
+      }
+      if (req.method === 'POST' && url.pathname === '/api/ease/decline') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Requests must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 2048) return send(413, { error: 'Request is too large.' });
+        }
+        let ts;
+        let reason;
+        try {
+          ({ ts, reason = '' } = JSON.parse(body));
+        } catch {
+          return send(400, { error: 'Invalid request.' });
+        }
+        if (typeof ts !== 'string' || typeof reason !== 'string') return send(400, { error: 'Choose a post.' });
+        if (filing.has(ts)) return send(409, { error: 'Already deciding this post.' });
+        filing.add(ts);
+        try {
+          const result = await declineEase(ts, reason);
+          readEase.clear?.();
+          return send(200, result);
+        } catch (error) {
+          return send(error.status || 502, { error: error.status ? error.message : `Couldn't save the decision: ${String(error.message).slice(0, 300)}` });
         } finally {
           filing.delete(ts);
         }

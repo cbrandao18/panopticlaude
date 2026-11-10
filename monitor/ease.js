@@ -5,7 +5,8 @@
   if (!root) return;
   const LABELS = {
     started: 'Started a workspace', filed: 'Filed', skipped: 'Skipped', 'not-easy': 'Not an easy win', pr: 'Opened a draft PR',
-    clear: 'Devlo clear, CI green', blocked: 'Blocked', drafted: 'Saved a Slack reply draft', 'dry-run': 'Dry run'
+    clear: 'Devlo clear, CI green', blocked: 'Blocked', drafted: 'Saved a Slack reply draft', 'dry-run': 'Dry run',
+    declined: 'You decided not to do it'
   };
   const WHOSE = { you: 'Needs you', agent: 'Agent working', closed: 'Closed' };
   const el = (tag, text, className) => {
@@ -57,38 +58,56 @@
     return li;
   }
   const filing = new Set();
-  function fileButton(ts) {
-    const wrap = el('span', null, 'ease-file');
-    const button = el('button', filing.has(ts) ? 'Filing…' : 'File ticket as drafted', 'secondary ease-file-button');
+  // One POST per click; `ask` returns the request body, or null to cancel.
+  function decisionButton(ts, { label, busy, path, ask, done }) {
+    const button = el('button', filing.has(ts) ? busy : label, 'secondary ease-file-button');
     button.type = 'button';
     button.disabled = filing.has(ts);
     const status = el('span', null, 'ease-muted');
     status.setAttribute('role', 'status');
     button.addEventListener('click', async () => {
-      if (!confirm('File this ticket in gobranch/branch as you, exactly as drafted?')) return;
+      const extra = ask();
+      if (!extra) return;
       filing.add(ts);
       button.disabled = true;
-      button.textContent = 'Filing…';
+      button.textContent = busy;
       try {
-        const res = await fetch('/api/ease/file', {
+        const res = await fetch(path, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
-          body: JSON.stringify({ ts })
+          body: JSON.stringify({ ts, ...extra })
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error || `Request failed (${res.status}).`);
         filing.delete(ts);
         await load();
-        if (body.warning) alert(`Filed #${body.number}. ${body.warning}`);
+        done?.(body);
       } catch (error) {
         filing.delete(ts);
         button.disabled = false;
-        button.textContent = 'File ticket as drafted';
+        button.textContent = label;
         status.textContent = ` ${error.message}`;
         status.className = 'ease-error';
       }
     });
-    wrap.append(button, status);
+    return [button, status];
+  }
+  function decideButtons(a, ts) {
+    const wrap = el('span', null, 'ease-file');
+    if (a.ticket) {
+      wrap.append(...decisionButton(ts, {
+        label: 'File ticket as drafted', busy: 'Filing…', path: '/api/ease/file',
+        ask: () => confirm('File this ticket in gobranch/branch as you, exactly as drafted?') && {},
+        done: (body) => body.warning && alert(`Filed #${body.number}. ${body.warning}`)
+      }));
+    }
+    wrap.append(...decisionButton(ts, {
+      label: 'Not doing it', busy: 'Saving…', path: '/api/ease/decline',
+      ask: () => {
+        const reason = prompt('Not doing this one. Why? (optional, shown on this card)');
+        return reason === null ? null : { reason };
+      }
+    }));
     return wrap;
   }
   function actionLeaf(a, ts) {
@@ -96,8 +115,8 @@
     li.append(el('span', { open: 'To do', done: 'Done', waiting: 'Agent', unknown: 'Check' }[a.state], 'ease-state'));
     li.append(a.url ? link(a.url, a.text) : el('span', a.text));
     if (a.state === 'unknown') li.append(el('span', ' (sent status isn’t tracked)', 'ease-muted'));
+    if (a.decide) li.append(decideButtons(a, ts));
     if (a.ticket) {
-      li.append(fileButton(ts));
       const d = el('details', null, 'ease-draft');
       d.append(el('summary', 'Preview what will be filed'), el('p', 'Title', 'ease-preview-label'), el('pre', a.ticket.title),
         el('p', 'Body', 'ease-preview-label'), el('pre', a.ticket.body));

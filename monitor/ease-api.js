@@ -74,12 +74,15 @@ function buildPost(ts, events, { todo, drafts }, ws, ghStates) {
     return url && { url: url[0], title: ghStates[Number(url[1])]?.title || `#${url[1]}` };
   };
   const filed = events.findLast((e) => e.kind === 'filed' && filedLink(e));
+  const declined = events.findLast((e) => e.kind === 'declined');
   if (filed) {
     const { url, title } = filedLink(filed);
     actions.push({ text: `Filed ${title}`, state: 'done', url });
+  } else if (declined) {
+    actions.push({ text: `Decided not to do it${declined.text ? `: ${declined.text}` : ''}`, state: 'done' });
   } else if (events.some((e) => e.kind === 'not-easy')) {
     actions.push(todoLine
-      ? { text: 'Decide on the ticket draft (file it, or drop it from todo.md)', state: 'open', ...(ticketFromDraft(draft) ? { ticket: ticketFromDraft(draft) } : { draft }) }
+      ? { text: 'Decide: file the ticket draft, or decide not to do it', state: 'open', decide: true, ...(ticketFromDraft(draft) ? { ticket: ticketFromDraft(draft) } : { draft }) }
       : { text: 'Ticket draft decided (removed from todo.md)', state: 'done' });
   }
   if (events.some((e) => e.kind === 'drafted')) {
@@ -140,7 +143,7 @@ async function fileTicket(ts, { source = readSource, host = runOnHost, run = exe
   if (!/^\d+\.\d+$/.test(ts)) throw Object.assign(new Error('Unknown post.'), { status: 400 });
   const id = ts.replace('.', '');
   const parsed = parse(await source());
-  if (parsed.events.some((e) => e.ts === ts && e.kind === 'filed')) throw Object.assign(new Error('Already filed.'), { status: 409 });
+  if (parsed.events.some((e) => e.ts === ts && ['filed', 'declined'].includes(e.kind))) throw Object.assign(new Error('Already decided.'), { status: 409 });
   const ticket = ticketFromDraft(parsed.drafts[id]);
   if (!ticket) throw Object.assign(new Error('No ticket draft found for this post.'), { status: 404 });
   const gh = (args) => run('/opt/homebrew/bin/gh', args, { timeout: 30000 }).then((r) => r.stdout);
@@ -159,6 +162,21 @@ async function fileTicket(ts, { source = readSource, host = runOnHost, run = exe
     return { url, number: issue.number, warning: 'Filed, but the VM log and todo.md were not updated.' };
   }
   return { url, number: issue.number };
+}
+
+// Records "not doing it" the same way filing does: a log line on the VM and the todo.md line dropped.
+async function declineTicket(ts, reason = '', { source = readSource, host = runOnHost } = {}) {
+  if (!/^\d+\.\d+$/.test(ts)) throw Object.assign(new Error('Unknown post.'), { status: 400 });
+  const events = parse(await source()).events.filter((e) => e.ts === ts);
+  if (events.some((e) => ['filed', 'declined'].includes(e.kind))) throw Object.assign(new Error('Already decided.'), { status: 409 });
+  if (!events.some((e) => e.kind === 'not-easy')) throw Object.assign(new Error('No open decision for this post.'), { status: 404 });
+  const quoted = `'${String(reason).replace(/\s+/g, ' ').trim().slice(0, 300).replace(/'/g, "'\\''")}'`;
+  await host([
+    'cd ~/orca/projects/daily-brief || exit 1',
+    `printf '%s declined ${ts}: %s\\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" ${quoted} >> ease.log`,
+    `grep -v 'todo/ease-${ts.replace('.', '')}\\.md' todo.md > todo.md.tmp; mv todo.md.tmp todo.md`
+  ].join('\n'));
+  return { declined: true };
 }
 
 // A PR is Staff when it changes staff-* packages and no other app package; shared files (packages/, lockfile, docs) don't count.
@@ -215,4 +233,4 @@ function createEaseReader(options = {}, ttl = 60000) {
   return read;
 }
 
-module.exports = { isStaffPr, readGithubStates, parse, buildPost, easeData, createEaseReader, ticketFromDraft, fileTicket };
+module.exports = { isStaffPr, readGithubStates, parse, buildPost, easeData, createEaseReader, ticketFromDraft, fileTicket, declineTicket };
