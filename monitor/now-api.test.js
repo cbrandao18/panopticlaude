@@ -59,6 +59,20 @@ test('sweepDown flags unreadable sources and unticketed prod errors only', () =>
   assert.deepEqual(down.map((d) => d.title), ["Bug sweep couldn't read sentry", 'New one']);
 });
 
+test('assemble puts a stuck slot queue on Down and reports an unreachable VM', () => {
+  const base = { automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, map: { value: { hosts: [] } }, ease: { value: {} },
+    merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] } };
+  const now = Date.parse('2026-11-10T17:00:00-05:00');
+  const slots = { value: { at: '2026-11-10T16:59:00-05:00', budget: 10, used: 0, paused: null, kinds: {}, recent: [],
+    queue: [{ position: 1, kind: 'review', key: 'review:1:2026-11-10', priority: 50, queuedAt: '2026-11-10T16:30:00-05:00', fitsNow: true }] } };
+  const out = assemble({ ...base, slots, now });
+  assert.equal(out.slots.stuck, true);
+  assert.match(out.down.find((d) => /slot queue/.test(d.title)).detail, /1 queued item fits now/);
+  const down = assemble({ ...base, slots: { error: 'coder: connection refused' }, now });
+  assert.deepEqual([down.slots, down.slotsError], [null, 'coder: connection refused']);
+  assert.ok(down.errors.some((e) => e.source === 'slots'));
+});
+
 test('isFix matches fix and hotfix titles', () => {
   assert.equal(isFix('fix(policy-mod): x'), true);
   assert.equal(isFix('Hotfix: y'), true);

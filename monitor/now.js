@@ -1,4 +1,4 @@
-// The Now page: down, ready to ship, blocked on you, release watch, automations, brief. Read-only.
+// The Now page: down, ready to ship, blocked on you, project watch, agent slots, automations, brief. Read-only.
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
@@ -189,6 +189,71 @@ function Releases({ data }) {
     </${Section}>`;
 }
 
+const KIND = { hotfix: 'Hotfix', review: 'Review', mention: 'Ping reply', bugfix: 'Bug fix', ease: 'Ease', easywin: 'Easy win', todo: 'Staff To Do' };
+const VERB = { queued: 'Queued', started: 'Started', skipped: 'Skipped', error: 'Error', retry: 'Retry', expired: 'Expired', other: 'Log' };
+const waited = (ms) => (ms < 3600000 ? `${Math.max(1, Math.round(ms / 60000))}m` : `${Math.round(ms / 3600000)}h`);
+const What = ({ what }) => html`<${Link} href=${what.url}>${what.label}</${Link}>${what.at ? ` from ${when(what.at)}` : ''}`;
+const Workspace = ({ ws }) => (ws.key
+  ? html`<button class="ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>`
+  : html`<span class="ws">${ws.name}</span>`);
+
+function Slots({ data }) {
+  const s = data.slots;
+  const note = 'Every VM automation that starts a workspace agent queues here; slots.timer starts the best fit every 5 minutes.';
+  if (!s) {
+    return html`
+      <${Section} id="slots" title="Agent slots" tone="info" note=${note}>
+        <p class="warning">Couldn't reach the VM's slot queue${data.slotsError ? `: ${data.slotsError}` : '.'}</p>
+      </${Section}>`;
+  }
+  return html`
+    <${Section} id="slots" title="Agent slots" tone="info" count=${s.queue.length || null} note=${note}>
+      <div class="budget">
+        <span><strong>${s.used} of ${s.budget}</strong> budget in use</span>
+        <meter min="0" max=${s.budget} value=${s.used} aria-label="Slot budget in use"></meter>
+        ${s.paused
+          ? html`<span class="chip paused">Waiting: ${s.paused}</span>`
+          : html`<span class="now-muted">VM checked ${when(s.at)}</span>`}
+      </div>
+      <ul class="kinds" aria-label="Slots per kind">
+        ${s.kinds.map((k) => html`
+          <li key=${k.kind} class=${k.running.length ? 'busy' : ''}>
+            <span class="kind">${KIND[k.kind] || k.kind}</span>
+            <span class="used">${k.running.length}/${k.most}</span>
+            ${k.running.map((ws) => html`<${Workspace} key=${ws.name} ws=${ws} />`)}
+          </li>`)}
+      </ul>
+      <div class="groups">
+        <div class="group">
+          <h3>Up next <span class="count">${s.queue.length}</span></h3>
+          ${s.queue.length
+            ? html`<${More} items=${s.queue} row=${(q) => html`
+                <li key=${q.key}>
+                  <span class="pos">${q.position}</span>
+                  <span class="chip">${KIND[q.kind] || q.kind}</span>
+                  <span class="title"><${What} what=${q.what} /></span>
+                  <span class="detail">waited ${waited(q.waitedMs)} · priority ${q.priority}</span>
+                  <span class=${`fit ${q.fitsNow ? 'yes' : ''}`}>${q.fitsNow ? 'Fits now' : 'Waiting for room'}</span>
+                </li>`} />`
+            : html`<p class="now-muted empty"><${Bird} state="idle" />Nothing queued.</p>`}
+        </div>
+        <div class="group">
+          <h3>Recent</h3>
+          ${s.recent.length
+            ? html`<${More} items=${s.recent} row=${(r, i) => html`
+                <li key=${`${r.at}${i}`} class=${`verb-${r.verb}`}>
+                  <span class=${`chip verb ${r.verb}`}>${VERB[r.verb] || r.verb}</span>
+                  ${r.kind && html`<span class="detail">${KIND[r.kind] || r.kind}</span>`}
+                  <span class="title"><${What} what=${r.what} /></span>
+                  ${r.note && r.note !== r.verb && html`<span class="detail">${r.note}</span>`}
+                  <span class="when">${when(r.at)}</span>
+                </li>`} />`
+            : html`<p class="now-muted empty">No starts yet.</p>`}
+        </div>
+      </div>
+    </${Section}>`;
+}
+
 const STATUS = { failed: 'Failed', overdue: 'Missed run', unreadable: 'Unreadable', running: 'Running', completed: 'Run finished', paused: 'Paused', waiting: 'Not run yet', skipped: 'Skipped', cancelled: 'Stopped' };
 
 function Automations({ data }) {
@@ -234,6 +299,7 @@ function App() {
       <${Ready} data=${data} />
       <${Blocked} data=${data} />
       <${Releases} data=${data} />
+      <${Slots} data=${data} />
       <${Automations} data=${data} />
       <${Brief} />
       ${data.errors.length > 0 && html`<footer class="errors"><strong>Couldn't read:</strong> ${data.errors.map((e) => `${e.source} (${e.error})`).join(' · ')}</footer>`}`}`;
