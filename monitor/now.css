@@ -105,3 +105,8 @@ footer.errors { display: block; color: var(--alarm); font-size: 13px; border: 0;
 
 /* roost-medic's last actions: one line each, full text on hover. */
 td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip.intake-live { background: var(--go-bg); color: var(--go-ink); }
+.chip.intake-dry { background: var(--alarm-chip); color: var(--alarm-ink); font-size: 13px; }
+.intake-counts { margin: 0 0 12px; font-size: 14px; }
+.intake-counts .n.failed:not(.zero) { color: var(--alarm-ink); font-weight: 700; }
+.intake-counts .n.zero { color: var(--muted); }

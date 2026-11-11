@@ -6,6 +6,7 @@ const { orcaRunner } = require('./map-api');
 const { runOnHost } = require('./security-api');
 const { readWorkers } = require('./workers-api');
 const { readSlots, summarize: summarizeSlots } = require('./slots-api');
+const { readIntake, summarize: summarizeIntake } = require('./intake-api');
 
 const fs = require('node:fs/promises');
 const os = require('node:os');
@@ -380,7 +381,7 @@ function stalled(workspaces, now, automations = []) {
     && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, now = Date.now() }) {
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -404,6 +405,11 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     down.push({ kind: 'automation', title: 'VM slot queue looks stuck', detail: `${waiting} queued ${waiting === 1 ? 'item fits' : 'items fit'} now, but nothing has started for over 15 minutes (slots.timer)` });
   }
 
+  const intakeCard = intake.value ? summarizeIntake(intake.value) : null;
+  for (const r of intakeCard?.failed || []) {
+    down.push({ kind: 'automation', title: `New-ticket intake run failed: ${clip(r.title, 120)}`, detail: `GitHub Actions ai-new-ticket.yml (${r.event})`, url: r.url, since: r.at });
+  }
+
   const ready = (merge.value?.ready || []).map((pr) => ({ ...pr, fix: isFix(pr.title) })).sort((a, b) => b.fix - a.fix || a.number - b.number);
 
   // Ease posts have their own group; don't list their workspaces twice.
@@ -419,7 +425,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   });
   const drafts = (jobs.value || []).filter((j) => j.hasInbox && j.unread).map((j) => ({ name: j.name, unread: j.unread }));
 
-  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots })
+  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake })
     .filter(([, r]) => r.error)
     .map(([source, r]) => ({ source, error: clip(r.error, 300) }));
   for (const h of map.value?.hosts || []) if (h.error) errors.push({ source: `map (${h.label})`, error: h.error });
@@ -439,13 +445,15 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     automations: automations.value || [],
     slots: slotCard,
     slotsError: slots.error ? clip(slots.error, 300) : null,
+    intake: intakeCard,
+    intakeError: intake.error ? clip(intake.error, 300) : null,
     errors
   };
 }
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host) }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host), intake = () => readIntake(run) }, ttl = 60000) {
   let cached = null;
   let pending = null;
   return () => {
@@ -461,10 +469,11 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
       settle(() => Promise.all(RELEASES.map((r) => readRelease(r, { host, run })))),
       settle(readFindings),
       settle(readJobs),
-      settle(slots)
+      settle(slots),
+      settle(intake)
     ])
-      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus]) =>
-        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus })))
+      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns]) =>
+        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns })))
       .finally(() => { pending = null; });
     return pending;
   };
