@@ -17,7 +17,9 @@ Orca jobs read their schedule, enabled state, run history, saved output, and err
 
 ## Pages
 
-- **Now** (`/`) answers "what needs me", most urgent first:
+The left sidebar groups Workspace, Operations and Resources. Overview (`/`) keeps the full summary; Needs you (`/#needs-you`), Ready to ship (`/#ready`), Health (`/#health`), Automations (`/#automations`), Agent queue (`/#queue`), Projects (`/#projects`) and Daily brief (`/#brief`) show focused views of the same data. These links support refresh, bookmarks and browser Back. Focused lists start expanded; Overview starts with five rows per list. The sidebar becomes a horizontal navigation strip on narrow screens.
+
+- **Overview** (`/`) answers "what needs me", most urgent first:
   - **Down**: vendor status pages, Branch's Datadog monitors on vendor calls (ClarionDoor, Stripe, TransUnion, …), failed or missed automations, a failed feedback watcher, and fresh prod errors the bug sweep would file but hasn't. Borderline findings stay off. Dashed pills are critical things nothing watches yet (Staff uptime, Verisk, …). Vendor lists live at the top of `now-api.js`.
   - **Ready to ship**: your non-draft PRs GitHub would merge now, fixes first.
   - **Blocked on you**: workspaces whose comment starts `You:`, `Agent:` workspaces with no agent running for 30+ minutes (except Daily process and Automations, and children of a workspace whose agent is running), reviews requested of you, Ease decisions, unread held drafts.
@@ -28,7 +30,7 @@ Orca jobs read their schedule, enabled state, run history, saved output, and err
 - **Map** (`/map`): an org chart of Orca work. Open or failed coordinator Runs on top, then workspaces by sidebar status, nested by parent. Needs you = `You:` comment; failed = a Run task failed there; stuck = an agent in an unexpected state, or an `Agent:` comment with no activity for a day; quiet = no activity for 3 days (hidden by default). Click a workspace name (or Open in Orca on the Now page) to bring the Orca app to that workspace's first terminal, on the Mac or the VM; the server only accepts workspaces on the current map. Orca has no workspace deep link, so a workspace with no open terminal can't be opened this way.
 - **Work** (`/work`): the previous page, unchanged. Ticket work, Ease and Security move to the AI PM agent; the draft inbox goes once assess-assumptions auto-posts.
 
-**Look.** One theme, Roost: cobalt page, cream text, goldfinch yellow for things that need you, tinted section panels and a few birds as accents. Tokens and layout live in `themes.css`; the bird sprite and the masthead wire in `roost.js`; the name and mark in `theme.js`. Titles use Young Serif and body text Cabin, both vendored in `vendor/`.
+**Look.** One light Roost theme: white panels on a pale-gray background, compact Cabin typography, subtle table stripes, and colored navigation icons and status badges. The small bird remains in the logo. Tokens and layout live in `themes.css`, shared navigation and icons in `roost.js`, and the name and mark in `theme.js`. Fonts are vendored in `vendor/`.
 
 The Now page reads everything server-side every minute (`/api/now`), with each source failing on its own into the "Couldn't read" line. It needs `gh`, `pup` (Datadog) and the Orca CLI on the Mac, plus `coder ssh` to the VM. Pages use Preact and htm from `monitor/vendor/` (see its README).
 
@@ -52,3 +54,5 @@ The Now page reads everything server-side every minute (`/api/now`), with each s
 The server listens only on `127.0.0.1`, rejects unexpected Host and Origin headers, and serves only configured job logs and inbox files. It doesn’t load third-party assets. Posting accepts only a draft number and source version from a configured inbox; the server supplies the repository, issue, and comment body. Bot credentials stay on the server.
 
 Run the existing tests and monitor HTTP tests with `node --test`.
+
+The browser regression check is `node scripts/check-monitor-ui.cjs`. It runs an isolated server with synthetic data and checks focused views, browser history, reload, shared navigation, and desktop/mobile overflow. Use an installed Playwright module (`PLAYWRIGHT_MODULE` can point to its absolute path); `CHROME_CHANNEL=chrome` uses installed Google Chrome instead of Playwright's bundled Chromium. The check closes its browser and server.

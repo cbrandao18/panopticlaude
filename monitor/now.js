@@ -1,9 +1,9 @@
-// The Now page: down, ready to ship, blocked on you, project watch, agent slots, automations, brief. Read-only.
+// Overview and focused views: health, ready to ship, needs you, projects, queue, automations and brief. Read-only.
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca } from './ui.js';
-import { Bird, Nest, StatusBird } from './roost.js';
+import { Bird, Nest, StatusBird, PAGES } from './roost.js';
 
 const html = htm.bind(h);
 const SHOWN = 5;
@@ -53,7 +53,7 @@ function usePoll(route, ms) {
 const Link = ({ href, children }) => (href ? html`<a href=${href}>${children}</a>` : children);
 
 function More({ items, row }) {
-  const [all, setAll] = useState(false);
+  const [all, setAll] = useState(() => Boolean(currentView()));
   const shown = all ? items : items.slice(0, SHOWN);
   return html`
     <ul class="rows">${shown.map(row)}</ul>
@@ -263,7 +263,7 @@ function Automations({ data }) {
   return html`
     <${Section} id="automations" title="Automations" tone="lilac" count=${rows.length}
       note=${html`For Orca automations, Run finished means Orca marked it complete, not that the work succeeded. For LaunchAgents and systemd timers, it means the last run exited cleanly. <a href="/work#jobs">Logs</a>`}>
-      <table class="autos">
+      <div class="table-scroll" role="region" aria-label="Automation runs" tabindex="0"><table class="autos">
         <thead><tr><th scope="col">Status</th><th scope="col">Automation</th><th scope="col">Where</th><th scope="col">Last run</th><th scope="col">Next run</th></tr></thead>
         <tbody>
           ${rows.map((a) => html`
@@ -275,26 +275,45 @@ function Automations({ data }) {
               <td>${a.nextRunAt ? when(a.nextRunAt) : a.schedule || '—'}</td>
             </tr>`)}
         </tbody>
-      </table>
+      </table></div>
       ${paused > 0 && html`<button class="text more" type="button" onClick=${() => setShowPaused(!showPaused)}>${showPaused ? 'Hide paused' : `Show ${paused} paused`}</button>`}
     </${Section}>`;
 }
 
-function Brief() {
-  const { data } = usePoll('/api/brief', 300000);
-  if (!data) return null;
+function Brief({ expanded = false }) {
+  const { data, error } = usePoll('/api/brief', 300000);
+  if (!data) return html`<section class="tier"><h2>Daily brief</h2><p class="now-muted" role="status">${error || 'Loading daily brief…'}</p></section>`;
   return html`
-    <details class="tier brief">
+    <details class="tier brief" open=${expanded}>
       <summary><h2>Daily brief</h2><span class="now-muted">${data.error || (data.writtenAt ? `Written ${when(data.writtenAt)} on the VM` : 'No brief yet')}</span></summary>
       ${data.html && html`<div class="brief-body" dangerouslySetInnerHTML=${{ __html: data.html }} />`}
     </details>`;
 }
 
+const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Blocked, 'projects': Releases, 'queue': Slots, 'automations': Automations };
+const currentView = () => {
+  const hash = window.location.hash.slice(1);
+  return Object.hasOwn(VIEWS, hash) || hash === 'brief' ? hash : '';
+};
+
 function App() {
   const { data, error } = usePoll('/api/now', 60000);
+  const [view, setView] = useState(currentView);
+  useEffect(() => {
+    const navigate = () => {
+      setView(currentView());
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => document.querySelector('.page-heading h1')?.focus({ preventScroll: true }));
+    };
+    window.addEventListener('hashchange', navigate);
+    return () => window.removeEventListener('hashchange', navigate);
+  }, []);
+  const page = view ? `/#${view}` : '/';
+  useEffect(() => { document.title = `Roost · ${PAGES.find(item => item.href === page).label}`; }, [page]);
+  const Focused = VIEWS[view];
   return html`
-    <${Masthead} page="/" status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
-    ${data && html`
+    <${Masthead} page=${page} status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
+    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
       <${Down} data=${data} />
       <${Ready} data=${data} />
       <${Blocked} data=${data} />
@@ -302,7 +321,8 @@ function App() {
       <${Slots} data=${data} />
       <${Automations} data=${data} />
       <${Brief} />
-      ${data.errors.length > 0 && html`<footer class="errors"><strong>Couldn't read:</strong> ${data.errors.map((e) => `${e.source} (${e.error})`).join(' · ')}</footer>`}`}`;
+      ` : html`<p class="now-muted" role="status">${error || 'Loading your dashboard…'}</p>`}
+    ${data?.errors.length > 0 && html`<footer class="errors"><strong>Couldn't read:</strong> ${data.errors.map((e) => `${e.source} (${e.error})`).join(' · ')}</footer>`}`;
 }
 
 const root = document.getElementById('app');

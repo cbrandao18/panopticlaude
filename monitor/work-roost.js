@@ -1,6 +1,5 @@
-// The Work page's static masthead gets the shared Roost sprite and wire.
+// Keep navigation identical on the static Work page and the Preact pages.
 import { h, render } from './vendor/preact.js';
-import { Branch, Sprite } from './roost.js';
+import { Sidebar } from './roost.js';
 
-render(h(Sprite), document.getElementById('roost-sprite'));
-render(h(Branch), document.getElementById('roost-wire'));
+render(h(Sidebar, { page: '/work' }), document.getElementById('roost-sidebar'));

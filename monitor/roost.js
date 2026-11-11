@@ -1,9 +1,46 @@
-// Roost's birds, egg, nest and branch. One inline SVG sprite; colours come from CSS tokens in themes.css.
-// Everything here is decoration: it is aria-hidden and hidden unless a Roost theme is on.
+// Shared navigation and decorative bird artwork; colors come from themes.css.
 import { h } from './vendor/preact.js';
+import { useEffect } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 
 const html = htm.bind(h);
+
+export const PAGES = [
+  { group: 'Workspace', href: '/', label: 'Overview', color: 'blue', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z', description: 'A quick look at your agents, work and systems.' },
+  { group: 'Workspace', href: '/#needs-you', label: 'Needs you', color: 'orange', icon: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4', description: 'Decisions, reviews and agents waiting for you.' },
+  { group: 'Workspace', href: '/#ready', label: 'Ready to ship', color: 'green', icon: 'M4 12l5 5L20 6', description: 'Pull requests that are ready to merge.' },
+  { group: 'Workspace', href: '/map', label: 'Map', color: 'purple', icon: 'M9 3h6v5H9zM2 16h6v5H2zM16 16h6v5h-6zM12 8v4M5 16v-4h14v4', description: 'Workspaces, agents and the work connecting them.' },
+  { group: 'Operations', href: '/#health', label: 'Health', color: 'green', icon: 'M2 12h5l3-8 4 16 3-8h5', description: 'Vendor health, failed runs and production signals.' },
+  { group: 'Operations', href: '/#automations', label: 'Automations', color: 'purple', icon: 'M13 2L4 14h7l-1 8 10-12h-7z', description: 'Schedules and run status across your Mac and VM.' },
+  { group: 'Operations', href: '/#queue', label: 'Agent queue', color: 'blue', icon: 'M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01', description: 'Capacity, queued work and recent agent starts.' },
+  { group: 'Operations', href: '/#projects', label: 'Projects', color: 'orange', icon: 'M3 7V4h6l2 3h10v13H3z', description: 'Progress across watched projects and releases.' },
+  { group: 'Resources', href: '/#brief', label: 'Daily brief', color: 'blue', icon: 'M5 3h14v18H5zM8 7h8M8 11h8M8 15h5', description: 'Your latest daily brief.' },
+  { group: 'Resources', href: '/work', label: 'Work', color: 'slate', icon: 'M3 5h18v15H3zM3 14h5l2 3h4l2-3h5', description: 'Tickets, deployments, logs and drafts.' }
+];
+
+export function Sidebar({ page }) {
+  const brand = window.pano.brand();
+  useEffect(() => {
+    document.querySelector('.sidebar [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [page]);
+  return html`
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Roost overview"><span class="brand-mark" dangerouslySetInnerHTML=${{ __html: brand.mark }} /><span>${brand.name}</span></a>
+      <nav aria-label="Roost navigation">
+        ${['Workspace', 'Operations', 'Resources'].map(group => html`
+          <div class="nav-group" key=${group}>
+            <p class="nav-label">${group}</p>
+            ${PAGES.filter(item => item.group === group).map(item => html`
+              <a key=${item.href} href=${item.href} aria-current=${page === item.href ? 'page' : null}>
+                <span class=${`nav-icon ${item.color}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d=${item.icon} /></svg></span>
+                ${item.label}
+              </a>`)}
+          </div>`)}
+      </nav>
+      <div class="sidebar-foot">${brand.tagline}</div>
+    </aside>
+    <${Sprite} />`;
+}
 
 export const SPRITE = `<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
   <defs>

@@ -1,54 +1,31 @@
-/* Roost, the dashboard's theme: an eastern bluebird's cobalt with goldfinch yellow, cream text, tinted panels and a few birds.
-   theme.js sets data-theme on <html> before first paint. now.css and map.css use only these variables. */
-
+/* Roost: compact, light surfaces; color is reserved for navigation and status. */
 @font-face { font-family: 'Cabin'; font-weight: 400; font-display: swap; src: url('/vendor/cabin-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Cabin'; font-weight: 600; font-display: swap; src: url('/vendor/cabin-latin-600-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Cabin'; font-weight: 700; font-display: swap; src: url('/vendor/cabin-latin-700-normal.woff2') format('woff2'); }
 
-@font-face { font-family: 'Young Serif'; font-weight: 400; font-display: swap; src: url('/vendor/young-serif-latin-400-normal.woff2') format('woff2'); }
-
 html[data-theme='roost'] {
-  color-scheme: dark;
-  --bg: #23399a; --surface: #1b2d7e; --surface-2: #2f4aad; --raised: #2a43a3; --border: #6a82d8; --line: #4660bf;
-  --text: #fff6e0; --muted: #e3e9fc; --link: #ffd75e; --accent: #ffc933; --accent-ink: #1b2347; --focus: #ffffff;
-  --go: #9be8b8; --go-bg: #1c5a58; --go-ink: #d2f7df;
-  --you: #ffc933; --you-bg: #ffc933; --you-ink: #1b2347; --you-border: #ffc933;
-  --alarm: #ffb09c; --alarm-bg: #c4301a; --alarm-chip: #fff6e0; --alarm-ink: #8c1d0c; --alarm-border: #c4301a;
-  --info: #9fd0ff; --info-bg: #9fd0ff; --info-ink: #0f2a63; --info-border: #9fd0ff;
-  --stuck: #d7a8ff; --stuck-bg: #d7a8ff; --stuck-ink: #2b1555; --stuck-border: #d7a8ff;
-  --chip-bg: #3249a8; --chip-ink: #fff6e0; --idle: #93a5e6;
-  --radius: 4px; --radius-sm: 3px; --shadow: none;
-  --font: 'Cabin', 'Avenir Next', -apple-system, system-ui, sans-serif; --display: 'Young Serif', 'Iowan Old Style', Georgia, serif;
-  --bird-mark: #ffc933; --bird-mark-wing: #d99a00;
-  --bird-ok: #9be8b8; --bird-ok-wing: #4fae7c; --bird-you: #ffc933; --bird-you-wing: #d99a00;
-  --bird-working: #9fd0ff; --bird-working-wing: #5b9ae0; --bird-stuck: #d7a8ff; --bird-stuck-wing: #9a63d6;
-  --bird-failed: #ff8566; --bird-failed-wing: #c4301a; --bird-quiet: #93a5e6; --bird-quiet-wing: #6b80cc;
-  --belly: #fff6e0; --leg: #fff6e0; --eye: #1b2347; --beak: #ff8a3d;
-  --panel: rgba(255, 255, 255, .08); --panel-you: rgba(255, 201, 51, .16); --panel-go: rgba(155, 232, 184, .15); --panel-info: rgba(159, 208, 255, .15); --panel-lilac: rgba(215, 168, 255, .15);
-  --inset: rgba(0, 0, 0, .22); --alert-bg: #8c2114; --alert-border: #e46f58; --green: #9be8b8;
-  --wire: #b5c3f5; --nest: #2a43a3; --nest-line: #ffd75e; --egg: #fff6e0; --leaf: #9be8b8;
+  color-scheme: light;
+  --bg: #f7f8fa; --surface: #fff; --surface-2: #f3f5f8; --raised: #f5f7fa;
+  --border: #e0e4eb; --line: #edf0f4; --text: #242b38; --muted: #626d7e;
+  --link: #315bd5; --accent: #315bd5; --accent-ink: #fff; --focus: #315bd5;
+  --go: #23805b; --go-bg: #eaf7ef; --go-ink: #176342;
+  --you: #a86510; --you-bg: #fff4dc; --you-ink: #87500b; --you-border: #e6c681;
+  --alarm: #c13c48; --alarm-bg: #fff6f6; --alarm-chip: #fde9ec; --alarm-ink: #a42c3b; --alarm-border: #edc3c8;
+  --info: #366bd3; --info-bg: #edf3ff; --info-ink: #315bc3; --info-border: #c9d7f5;
+  --stuck: #8054ba; --stuck-bg: #f3edfc; --stuck-ink: #7545ab; --stuck-border: #d9c8ef;
+  --chip-bg: #f0f2f6; --chip-ink: #5b6575; --idle: #939cac;
+  --radius: 9px; --radius-sm: 5px; --shadow: none;
+  --font: 'Cabin', -apple-system, system-ui, sans-serif; --display: var(--font);
+  --bird-mark: #4a74e2; --bird-mark-wing: #315bd5;
+  --belly: #edf3ff; --leg: #6d7d99; --eye: #253354; --beak: #eaa642;
+  --panel: #fff; --panel-you: #fff; --panel-go: #fff; --panel-info: #fff; --panel-lilac: #fff;
+  --inset: #f5f7fa; --alert-bg: #fff4dc; --alert-border: #e6c681; --green: #23805b;
   background: var(--bg); color: var(--text); font-family: var(--font);
 }
 
-
-/* Shared chrome. */
-html[data-theme] body { font-family: var(--font); }
-html[data-theme] a { color: var(--link); }
-html[data-theme] button { background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-sm); }
-html[data-theme] button.secondary, html[data-theme] button.text { background: var(--surface-2); color: var(--text); border-color: var(--border); }
-html[data-theme] :focus-visible { outline-color: var(--focus); }
-html[data-theme] .masthead { border-bottom-color: var(--border); }
-html[data-theme] .brand { color: var(--text); }
-html[data-theme] .brand svg { stroke: var(--accent); }
-html[data-theme] .tabs a { color: var(--muted); }
-html[data-theme] .tabs a:hover { color: var(--text); background: var(--raised); }
-html[data-theme] .tabs a[aria-current='page'] { color: var(--text); background: var(--surface-2); }
-.wordmark { display: none; }
-
-/* Roost birds: the sprite is rendered once; each bird is a <use> of it. Decoration never carries data;
-   every state also has its word, colour or count. */
+/* Bird artwork stays in the logo; status text and dots carry the data. */
 .sprite-host { position: absolute; width: 0; height: 0; overflow: hidden; }
-.bird, .egg, .nest, .masthead-wire, .tab-bird, .sect-bird, .calm .tier-head { display: none; }
+.bird, .egg, .nest, .masthead-wire, .tab-bird, .sect-bird, .wordmark { display: none; }
 .bd-eye { fill: var(--eye); }
 .bd-body { fill: var(--b); } .bd-tail, .bd-wing { fill: var(--bw); } .bd-wing.back { fill: var(--b); }
 .bd-belly { fill: var(--belly); } .bd-beak { fill: var(--beak); } .bd-eye { fill: var(--eye); }
@@ -60,141 +37,144 @@ html[data-theme] .tabs a[aria-current='page'] { color: var(--text); background: 
 .ns-back { fill: var(--nest); stroke: var(--nest-line); stroke-width: 3; stroke-linecap: round; }
 .ns-twig { fill: none; stroke: var(--nest-line); stroke-width: 2; stroke-linecap: round; }
 
-html[data-theme='roost'] {
-  .bird { display: inline-block; flex: none; width: 34px; height: 34px; align-self: center; }
-  .bird.ok, .bird.idle { --b: var(--bird-ok); --bw: var(--bird-ok-wing); }
-  .bird.you { --b: var(--bird-you); --bw: var(--bird-you-wing); }
-  .bird.working { --b: var(--bird-working); --bw: var(--bird-working-wing); }
-  .bird.stuck { --b: var(--bird-stuck); --bw: var(--bird-stuck-wing); }
-  .bird.failed { --b: var(--bird-failed); --bw: var(--bird-failed-wing); }
-  .bird.quiet { --b: var(--bird-quiet); --bw: var(--bird-quiet-wing); }
-  .brand-mark { --b: var(--bird-mark); --bw: var(--bird-mark-wing); }
-  .egg { display: inline-block; flex: none; width: 24px; height: 24px; margin-right: 4px; vertical-align: middle; align-self: center; }
-  .nest { display: block; flex: none; width: 76px; height: 52px; }
-  .nest:not(.n-empty) { margin-top: 4px; }
-  .brand-mark svg { stroke: none; width: 44px; height: 44px; }
-  .rows li .bird { margin: -4px 0; }
-  .empty { display: flex; align-items: center; gap: 8px; }
-  .empty .bird { width: 28px; height: 28px; opacity: .85; }
-  .empty-nest { display: flex; align-items: center; gap: 14px; }
-  .autos td:first-child .bird { width: 28px; height: 28px; margin-right: 6px; vertical-align: middle; }
-  /* Same 16px slot as the status dot, so every status label starts in line. */
-  .autos td:first-child .egg { width: 16px; height: 16px; margin: 0 4px 0 -4px; vertical-align: -3px; }
-  .card-top .bird { width: 30px; height: 30px; margin: -3px 0 -3px -2px; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  html[data-theme='roost'] .bird.you { animation: roost-call 1.8s ease-in-out infinite; }
-  html[data-theme='roost'] .bird.working { animation: roost-fly 2.8s ease-in-out infinite; }
-}
-@keyframes roost-call { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes roost-fly { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(2px, -3px) rotate(-5deg); } }
 
-/* Roost layout: the section title sits in a left column, content on the right, and every section opens with a wire. */
-.wire-line { fill: none; stroke: var(--wire, currentColor); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 html[data-theme='roost'] {
-  body { font-size: 15px; }
-  .masthead-wire { display: block; width: 100%; height: 22px; margin: 2px 0 0; overflow: visible; }
-  .masthead { border: 0; padding: 34px 0 0; margin: 0; align-items: flex-end; }
-  .brand { font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0; gap: 10px; }
-  .brand-mark svg { width: 52px; height: 52px; }
-  .brand-mark { margin-bottom: 2px; }
-  .tabs { margin: 0 0 6px 28px; gap: 2px; }
-  .tabs a { position: relative; border-radius: 0; padding: 6px 12px; font-size: 16px; font-weight: 600; color: var(--muted); }
-  .tabs a:hover { background: none; color: var(--text); }
-  .tabs a[aria-current='page'] { background: none; color: var(--text); }
-  .tab-bird .bird { width: 32px; height: 32px; }
-  .tab-bird { display: block; position: absolute; left: 50%; bottom: 100%; width: 32px; height: 32px; margin: 0 0 -9px -16px; }
-  .masthead [role='status'] { margin: 0 0 12px; font-size: 13px; }
-  .wordmark { display: block; margin: 4px 0 26px; font-size: 14px; } .wordmark strong { display: none; }
-  a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
-  #app { max-width: 1080px; }
-  #app.wide { max-width: 1600px; }
-  .tier { position: relative; display: grid; grid-template-columns: 220px minmax(0, 1fr); column-gap: 32px; align-items: start; margin: 0 0 18px; padding: 26px 28px 28px; border: 0; border-radius: 6px; background: var(--panel); box-shadow: none; }
-  .tier:has(> .sect-bird) { margin-top: 44px; }
-  .tier.you { background: var(--panel-you); } .tier.go, .tier.calm { background: var(--panel-go); } .tier.info { background: var(--panel-info); } .tier.lilac { background: var(--panel-lilac); }
-  .tier > * { grid-column: 2; min-width: 0; }
-  .tier > .tier-head { grid-column: 1; grid-row: 1 / span 8; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; }
-  .calm > .tier-head { display: flex; }
-  .tier h2 { font-family: var(--display); font-weight: 400; font-size: 27px; line-height: 1.1; }
-  .tier h2 .count { display: block; margin: 6px 0 0; padding: 0; min-width: 0; background: none; color: var(--muted); font: 600 15px var(--font); text-align: left; }
-  .tier h3 .count { display: inline; margin: 0 0 0 6px; }
-  .tier .rows li > .bird, .tier .group .rows .bird { display: none; }
-  .tier.alarm h2, .tier.alarm h2 .count { color: #fff6e0; }
-  .tier.alarm { background: var(--alarm-bg); --muted: #ffe9df; --line: #e46f58; --text: #fff6e0; --link: #fff6e0; color: #fff6e0; }
-  .tier.alarm .bird.failed { --b: #fff6e0; --bw: #ffc3b1; }
-  .tier.alarm .bd-belly { fill: #ffb9a3; }
-  .tier.alarm .chip { background: #fff6e0; color: #8c1d0c; }
-  .tier.alarm .pills li { background: transparent; box-shadow: inset 0 0 0 1px #ffb9a3; color: #fff6e0; }
-  .tier.alarm .pills li.none { box-shadow: none; border-color: #ffb9a3; }
-  .tier.alarm a { text-decoration-color: #fff6e0; }
-  .tier h3 { font-size: 16px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; margin: 0 0 4px; }
-  .tier h3 .count { margin-left: 6px; }
-  .tier .tier-head .now-muted { font-size: 13.5px; line-height: 1.4; }
-  .groups { gap: 26px; }
-  .sect-bird { display: block; position: absolute; right: 28px; top: -37px; }
-  .sect-bird .bird { width: 40px; height: 40px; }
-  .calm .dot { display: none; }
-  .autos .bird { display: none; } .autos tr.waiting .dot { display: none; }
-  .presence { display: inline-block; box-shadow: none; }
-  .card-top .bird { display: none; }
-  .tier.calm p { font-size: 15.5px; }
-  .tier.brief { display: block; }
-  .tier.brief summary h2 { font-size: 27px; }
-  .rows li { font-size: 15px; padding: 9px 0; }
-  .rows .title { font-weight: 600; }
-  .chip, .badge { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 700; border-radius: 3px; padding: 1px 8px; }
-  .chip.vendor, .chip.error { background: var(--alarm-bg); color: #fff6e0; }
-  .badge.you { background: var(--you); color: var(--you-ink); } .badge.failed { background: #8c2114; color: #fff6e0; }
-  .badge.stuck { background: var(--stuck-bg); color: var(--stuck-ink); } .badge.working { background: var(--info-bg); color: var(--info-ink); }
-  .pills li { background: var(--raised); }
-  .autos th { font-size: 13.5px; color: var(--muted); }
+  body { font: 14px/1.45 var(--font); }
+  main, #app, #app.wide { max-width: none; margin: 0 0 0 204px; padding: 24px 28px 40px; min-width: 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { background: var(--accent); color: var(--accent-ink); border-radius: var(--radius-sm); font-weight: 600; padding: 6px 11px; }
+  button.secondary, button.text, button.more { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  button:hover { filter: none; box-shadow: inset 0 0 0 100px #526ba00b; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  h1, h2, h3, p { overflow-wrap: anywhere; }
+  h1 { font-family: var(--font); font-size: 24px; font-weight: 700; letter-spacing: -.025em; }
+
+  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; width: 204px; display: flex; flex-direction: column; overflow-y: auto; padding: 22px 12px 16px; background: var(--surface); border-right: 1px solid var(--border); }
+  .sidebar .brand { display: flex; align-items: center; gap: 8px; margin: 0 8px 22px; font: 700 23px var(--font); letter-spacing: -.04em; color: var(--text); text-decoration: none; }
+  .brand-mark { display: inline-flex; --b: var(--bird-mark); --bw: var(--bird-mark-wing); }
+  .brand-mark svg { width: 33px; height: 33px; stroke: none; }
+  .sidebar nav { display: grid; gap: 20px; }
+  .nav-label { color: var(--muted); margin: 0 10px 6px; font-size: 11px; font-weight: 600; letter-spacing: .025em; }
+  .nav-group > a { display: flex; align-items: center; gap: 9px; min-height: 35px; padding: 6px 9px; margin: 2px 0; color: #4e5869; font-weight: 600; font-size: 13px; border-radius: 6px; text-decoration: none; }
+  .nav-group > a:hover { background: var(--surface-2); }
+  .nav-group > a[aria-current='page'] { background: #edf2ff; color: #284fb5; }
+  .nav-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; }
+  .nav-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-icon.blue { color: #426ad4; background: #edf2ff; }
+  .nav-icon.orange { color: #b77719; background: #fff4df; }
+  .nav-icon.green { color: #27856b; background: #eaf7f0; }
+  .nav-icon.purple { color: #8a60c8; background: #f3edfc; }
+  .nav-icon.slate { color: #6d7b8e; background: #f0f3f7; }
+  .sidebar-foot { margin-top: auto; padding: 28px 10px 0; color: var(--muted); font-size: 11px; }
+  .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin: 0 0 22px; }
+  .page-heading h1 { margin: 0; line-height: 1.3; }
+  .page-heading h1:focus { outline: none; }
+  .page-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+  .page-heading [role='status'] { flex: none; max-width: 40%; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
+
+  .tier, #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { margin: 0 0 14px; padding: 15px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .tier.alarm { border-color: var(--alarm-border); background: var(--alarm-bg); }
+  .tier.go, .tier.you { border-left: 1px solid var(--border); }
+  .tier-head { display: flex; align-items: center; gap: 6px 18px; margin: 0 0 10px; }
+  .tier h2, #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2, #deploys h2 { font: 600 15px/1.4 var(--font); color: var(--text); }
+  .tier.alarm h2 { color: var(--alarm-ink); }
+  .tier h3 { font: 600 12px/1.5 var(--font); color: var(--muted); letter-spacing: 0; text-transform: none; margin: 0 0 5px; }
+  .tier-head > .now-muted { flex: 1; min-width: 180px; font-size: 12px; line-height: 1.4; }
+  .count { display: inline-block; background: var(--chip-bg); color: var(--chip-ink); border-radius: 5px; padding: 1px 6px; min-width: 20px; margin-left: 5px; font: 600 11px/1.5 var(--font); vertical-align: 1px; }
+  .tier.you .tier-head .count { background: var(--you-bg); color: var(--you-ink); }
+  .tier.go .tier-head .count { background: var(--go-bg); color: var(--go-ink); }
+  .tier.calm { padding: 12px 18px; }
+  .tier.calm p { font-size: 13px; }
+  .tier.calm .tier-head { display: none; }
+  .pills { gap: 5px; }
+  .pills li { font-size: 11px; background: var(--surface-2); }
+  .rows li { padding: 8px 0; gap: 5px 10px; font-size: 13px; align-items: center; }
+  .rows .title { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+  .rows .detail, td .detail { font-size: 12px; }
+  .rows .when { font-size: 11px; }
+  .rows button.open { padding: 3px 8px; font-size: 11px; white-space: nowrap; }
+  .groups { gap: 14px; }
+  .group .rows li { font-size: 13px; }
+  .empty, .empty-nest { margin: 5px 0; font-size: 12px; }
+  .chip, .badge { padding: 2px 6px; border-radius: 5px; font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .chip.vendor, .chip.error { background: var(--alarm-chip); color: var(--alarm-ink); }
+  .presence { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--idle); align-self: center; }
+  .presence.you { background: var(--you); } .presence.failed { background: var(--alarm); }
+  .presence.stuck { background: var(--stuck); } .presence.working { background: var(--go); }
+  .budget { font-size: 13px; }
+  .kinds { gap: 6px; margin-bottom: 12px; }
+  .kinds li { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 12px; }
+  .table-scroll { overflow-x: auto; }
+  .autos { font-size: 13px; min-width: 640px; }
+  .autos th { padding: 8px 10px; background: var(--surface-2); font-size: 11px; color: var(--muted); }
+  .autos td { padding: 8px 10px; vertical-align: middle; }
+  .autos th:first-child { width: 140px; }
+  .autos th:nth-child(4) { width: 100px; }
+  .autos th:nth-child(5) { width: 145px; }
+  .autos tbody tr:nth-child(even) { background: #fafbfc; }
+  .autos tbody tr:hover { background: #f3f6fc; }
   .autos tr.overdue td:first-child { color: var(--you); }
   .autos tr.failed td:first-child, .autos tr.unreadable td:first-child { color: var(--alarm); }
-  .spark polyline { stroke: var(--you); }
-  .epic meter { accent-color: var(--accent); }
-  button { font-weight: 700; border-radius: 3px; }
-  button.text, button.more { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  /* Work page */
-  #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { margin: 0 0 18px; padding: 24px 28px 26px; border: 0; border-radius: 6px; background: var(--panel); }
-  #merge { background: var(--panel-go); } #security { background: var(--panel-lilac); } #ease { background: var(--panel-you); } #ticket-work { background: var(--panel-info); } #deploys { background: var(--panel-go); }
-  #brief { margin-top: 18px; }
+  .autos .dot { width: 6px; height: 6px; margin-right: 7px; }
+  .brief summary { align-items: center; }
+  .brief-body { font-size: 13px; }
+  .tier.brief summary h2 { font-size: 15px; margin: 0; }
+  .spark polyline { stroke: var(--info); }
+  .epic meter, meter { accent-color: var(--go); }
+  footer.errors { font-size: 12px; overflow-wrap: anywhere; }
+  .toast { background: var(--surface); box-shadow: 0 4px 20px #1b2b4920; }
+
+  /* Map and the existing Work panels share the same compact surface treatment. */
+  .summary { margin: 0 0 16px; gap: 8px; }
+  .summary .badge { padding: 4px 9px; }
+  .columns { gap: 12px; }
+  .column, .runs { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .column h2, .runs h2 { font: 600 14px var(--font); text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 12px; }
+  .card { padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: none; }
+  .node.you > .card { background: #fffdf7; box-shadow: inset 2px 0 var(--you-border); }
+  .node.failed > .card { background: var(--alarm-bg); box-shadow: inset 2px 0 var(--alarm); }
+  .node.stuck > .card, .node.working > .card { box-shadow: none; }
+  .card .comment { opacity: 1; }
   .heading .eyebrow { display: none; }
-  h1 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0; }
-  #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2, #deploys h2 { font-family: var(--display); font-weight: 400; font-size: 27px; }
-  #claude-tips { border-radius: 6px; background: var(--panel); border: 0; }
-  .masthead .local { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
-  /* Map */
-  .summary { margin: 4px 0 26px; gap: 10px; }
-  .summary .badge { padding: 4px 11px; font-size: 14px; }
-  .column, .runs { padding: 18px 18px 14px; border-radius: 6px; background: var(--panel); }
-  .column.c-status-6 { background: var(--panel-info); } .column.c-status-7 { background: var(--panel-go); } .column.c-status-5 { background: var(--panel-lilac); }
-  .runs { margin-bottom: 18px; }
-  .column h2, .runs h2 { font-family: var(--display); font-weight: 400; font-size: 24px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 6px; }
-  .column h2 .count, .runs h2 .count { background: none; color: var(--muted); padding: 0 0 0 6px; font: 600 15px var(--font); }
-  .card { background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 10px 10px 11px; }
-  .node.you > .card { background: rgba(255, 201, 51, .14); box-shadow: inset 4px 0 0 var(--you); }
-  .node.failed > .card { background: #8c2114; box-shadow: none; --muted: #ffe9df; color: #fff6e0; }
-  .node.failed > .card .name, .node.failed > .card .open-ws, .node.failed > .card .comment { color: #fff6e0; }
-  .node.failed > .card .bird.failed { --b: #fff6e0; --bw: #ffc3b1; } .node.failed > .card .bd-belly { fill: #ffb9a3; }
-  .node.stuck > .card, .node.working > .card { box-shadow: none; border-color: var(--line); background: none; }
-  .node.quiet > .card { opacity: 1; border-bottom-style: dashed; }
-  .node.quiet > .card .name, .node.quiet > .card .open-ws { color: var(--muted); }
-  .tree ul { border-left-color: var(--border); }
-  .card .comment { opacity: 1; color: var(--text); }
-  .toast { background: var(--surface); }
-}
-@media (max-width: 760px) {
-  html[data-theme='roost'] .tier { grid-template-columns: 1fr; }
-  html[data-theme='roost'] .tier > *, html[data-theme='roost'] .tier > .tier-head { grid-column: 1; grid-row: auto; }
-  html[data-theme='roost'] .tier { padding-inline: 16px; }
+  #brief h1 { font-size: 20px; }
+  #claude-tips { background: var(--surface); border-color: var(--border); }
+  .connection { margin-bottom: 16px; font-size: 12px; }
 }
 
-/* Presence dots: the small status dot on Map cards and Now rows. */
-.presence { display: none; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--idle); box-shadow: 0 0 0 3px var(--surface); align-self: center; }
-.presence.you { background: var(--you); }
-.presence.failed { background: var(--alarm); }
-.presence.stuck { background: var(--stuck); }
-.presence.working { background: var(--go); }
-
-/* The name in the masthead. */
-html[data-theme] .brand-mark { display: inline-flex; }
+@media (max-width: 1000px) {
+  html[data-theme='roost'] {
+    main, #app, #app.wide { margin-left: 184px; padding: 20px; }
+    .sidebar { width: 184px; }
+    .autos th:first-child { width: 115px; }
+    .autos th:nth-child(3) { width: 50px; }
+    .autos th:nth-child(4), .autos th:nth-child(5) { width: 90px; }
+    .autos th, .autos td { padding: 7px 6px; }
+    .autos td:first-child, .autos td:nth-child(4), .autos td:nth-child(5) { white-space: normal; overflow-wrap: anywhere; }
+  }
+}
+@media (max-width: 700px) {
+  html[data-theme='roost'] {
+    main, #app, #app.wide { margin-left: 0; padding: 140px 12px 24px; }
+    main [id] { scroll-margin-top: 116px; }
+    .sidebar { inset: 0 0 auto; width: auto; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--border); overflow: visible; }
+    .sidebar .brand { margin: 0 0 7px; font-size: 20px; }
+    .brand-mark svg { width: 26px; height: 26px; }
+    .sidebar nav { display: flex; gap: 4px; overflow-x: auto; padding: 3px 2px 7px; }
+    .nav-group { display: contents; }
+    .nav-label, .sidebar-foot { display: none; }
+    .nav-group > a { flex: none; min-height: 34px; padding: 5px 8px; }
+    .page-heading { align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .page-heading [role='status'] { max-width: 100%; text-align: left; }
+    .tier, #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { padding: 12px; }
+    .tier-head > .now-muted { min-width: 100%; }
+    .autos { font-size: 12px; }
+    .autos th:first-child { width: 83px; }
+    .autos th:nth-child(3) { width: 36px; }
+    .autos th:nth-child(4), .autos th:nth-child(5) { width: 58px; }
+    .autos th, .autos td { padding: 7px 4px; }
+    .autos .dot { margin-right: 4px; }
+    .columns, .runs > .tree { grid-template-columns: minmax(0, 1fr); }
+    .releases .epic { margin-left: 0; }
+  }
+}

@@ -1,23 +1,18 @@
-// Shared by the Now and Map pages.
+// Shared page heading and actions for Overview, focused views and Map.
 import { h } from './vendor/preact.js';
 import htm from './vendor/htm.js';
-import { Bird, Branch, Sprite } from './roost.js';
+import { PAGES, Sidebar } from './roost.js';
 
 const html = htm.bind(h);
 
-const PAGES = [['/', 'Now'], ['/map', 'Map'], ['/work', 'Work']];
-
 export function Masthead({ page, status }) {
-  const brand = window.pano.brand();
+  const current = PAGES.find(item => item.href === page) || PAGES[0];
   return html`
-    <header class="masthead">
-      <div class="brand" title=${brand.name}><span class="brand-mark" dangerouslySetInnerHTML=${{ __html: brand.mark }} /><span class="brand-name">${brand.name}</span></div>
-      <nav class="tabs" aria-label="Pages">${PAGES.map(([href, label]) => html`<a href=${href} aria-current=${page === href ? 'page' : null}>${page === href && html`<span class="tab-bird"><${Bird} state="you" /></span>`}${label}</a>`)}</nav>
+    <${Sidebar} page=${current.href} />
+    <header class="page-heading">
+      <div><h1 tabindex="-1">${current.label}</h1><p>${current.description}</p></div>
       <span class="now-muted" role="status">${status}</span>
-    </header>
-    <${Sprite} />
-    <${Branch} />
-    <div class="wordmark"><strong>${brand.name}</strong><span class="now-muted">${brand.tagline}</span></div>`;
+    </header>`;
 }
 
 
