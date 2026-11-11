@@ -103,6 +103,27 @@ test('attention separates waiting, blockers, failed runs and FYIs without losing
   assert.ok(out.attention.failed[0].ask.includes('build exited 1'));
 });
 
+test('closed workspaces show under FYI for 3 days, newest first, linking the ticket or post', () => {
+  const { parseClosed } = require('./now-api');
+  const now = Date.parse('2026-11-11T21:00:00Z');
+  const closed = parseClosed([
+    '2026-11-11T16:20:33-0500 closed ease-1 https://team-branch.slack.com/archives/C1/p1 | Ease · Example post | skipped: already planned',
+    '2026-11-11T12:00:00-0500 closed nt-2 https://github.com/gobranch/branch/issues/2 | #2 Example ticket | not an easy win: needs a product call',
+    '2026-11-01T12:00:00-0500 closed nt-3 https://github.com/gobranch/branch/issues/3 | #3 Old | skipped',
+    'garbage line'
+  ].join('\n'), 'vm');
+  assert.equal(closed.length, 3);
+  const base = { automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, map: { value: { hosts: [] } },
+    ease: { value: { posts: [] } }, merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] } };
+  const fyi = assemble({ ...base, closed: { value: closed }, now }).attention.fyi;
+  assert.deepEqual(fyi.map(a => a.name), ['Ease · Example post', '#2 Example ticket']);
+  assert.deepEqual(fyi.map(a => a.linkText), ['View post', 'View ticket']);
+  assert.equal(fyi[1].ask, 'Workspace closed, not an easy win: needs a product call');
+  assert.equal(fyi[1].url, 'https://github.com/gobranch/branch/issues/2');
+  assert.equal(fyi[1].workspaceKey, null);
+  assert.deepEqual(assemble({ ...base, closed: { error: 'coder: connection refused' }, now }).errors.map(e => e.source), ['closed']);
+});
+
 test('Ease actions follow their current workspace status without disappearing when the map is unavailable', () => {
   const base = {
     automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] },

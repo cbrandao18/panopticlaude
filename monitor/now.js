@@ -141,7 +141,7 @@ const AttentionRow = ({ item: a, state }) => html`
     <span class="title">${a.ask}</span>
     <span class="detail">${a.name}${a.host ? ` · ${hostLabel(a.host)}` : ''}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
     ${a.workspaceKey !== null && html`<button class="text open" type="button" onClick=${() => openInOrca(a.workspaceKey || a.key, a.name)}>Open in Orca</button>`}
-    ${a.workspaceKey === null && a.url && html`<a class="run-link" href=${a.url}>View run</a>`}
+    ${a.workspaceKey === null && a.url && html`<a class="run-link" href=${a.url}>${a.linkText || 'View run'}</a>`}
   </li>`;
 
 function Attention({ data }) {

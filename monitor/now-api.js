@@ -381,7 +381,23 @@ function stalled(workspaces, now, automations = []) {
     && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, now = Date.now() }) {
+// Workspaces that process-updates run-cleanup/close-done-workspaces.py removed after their agent decided not to build.
+// Each machine logs `<iso> closed <workspace> <url> | <name> | <reason>`.
+const CLOSED_LOG = '.local/state/workspace-cleanup/closed.log';
+const CLOSED_MS = 3 * 86400000;
+function parseClosed(text, host) {
+  return text.split('\n').map((line) => /^(\S+) closed (\S+) (\S+) \| (.*?) \| (.*)$/.exec(line.trim()))
+    .filter((m) => m && Number.isFinite(Date.parse(m[1])))
+    .map(([, at, ws, url, name, reason]) => ({ key: `closed|${host}|${ws}|${at}`, workspaceKey: null, host, name, ask: `Workspace closed, ${reason}`,
+      url, linkText: url.includes('slack.com') ? 'View post' : 'View ticket', at: Date.parse(at) }));
+}
+async function readClosed(host = runOnHost) {
+  const vm = parseClosed(await host(`tail -n 200 ~/${CLOSED_LOG} 2>/dev/null; true`), 'vm');
+  const mac = await fs.readFile(path.join(os.homedir(), CLOSED_LOG), 'utf8').catch(() => '');
+  return [...vm, ...parseClosed(mac, 'mac')];
+}
+
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, closed = { value: [] }, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -458,7 +474,9 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
       ask: 'New-ticket intake run failed.', url: run.url, at: run.at });
   }
 
-  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake })
+  attention.fyi.push(...(closed.value || []).filter((c) => now - c.at < CLOSED_MS).sort((a, b) => b.at - a.at));
+
+  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, closed })
     .filter(([, r]) => r.error)
     .map(([source, r]) => ({ source, error: clip(r.error, 300) }));
   for (const h of map.value?.hosts || []) if (h.error) errors.push({ source: `map (${h.label})`, error: h.error });
@@ -504,13 +522,14 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
       settle(readFindings),
       settle(readJobs),
       settle(slots),
-      settle(intake)
+      settle(intake),
+      settle(() => readClosed(host))
     ])
-      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns]) =>
-        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns })))
+      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns, closed]) =>
+        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns, closed })))
       .finally(() => { pending = null; });
     return pending;
   };
 }
 
-module.exports = { medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { parseClosed, readClosed, medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
