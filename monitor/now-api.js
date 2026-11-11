@@ -7,6 +7,7 @@ const { runOnHost } = require('./security-api');
 const { readWorkers } = require('./workers-api');
 const { readSlots, summarize: summarizeSlots } = require('./slots-api');
 const { readIntake, summarize: summarizeIntake } = require('./intake-api');
+const { readPlans } = require('./plans-api');
 
 const fs = require('node:fs/promises');
 const os = require('node:os');
@@ -397,7 +398,7 @@ async function readClosed(host = runOnHost) {
   return [...vm, ...parseClosed(mac, 'mac')];
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, closed = { value: [] }, now = Date.now() }) {
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -476,7 +477,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
   attention.fyi.push(...(closed.value || []).filter((c) => now - c.at < CLOSED_MS).sort((a, b) => b.at - a.at));
 
-  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, closed })
+  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, plans, closed })
     .filter(([, r]) => r.error)
     .map(([source, r]) => ({ source, error: clip(r.error, 300) }));
   for (const h of map.value?.hosts || []) if (h.error) errors.push({ source: `map (${h.label})`, error: h.error });
@@ -499,13 +500,15 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     slotsError: slots.error ? clip(slots.error, 300) : null,
     intake: intakeCard,
     intakeError: intake.error ? clip(intake.error, 300) : null,
+    plans: plans.value || null,
+    plansError: plans.error ? clip(plans.error, 300) : null,
     errors
   };
 }
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host), intake = () => readIntake(run) }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host), intake = () => readIntake(run), plans = () => readPlans() }, ttl = 60000) {
   let cached = null;
   let pending = null;
   return () => {
@@ -523,10 +526,11 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
       settle(readJobs),
       settle(slots),
       settle(intake),
+      settle(plans),
       settle(() => readClosed(host))
     ])
-      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns, closed]) =>
-        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns, closed })))
+      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns, planDocs, closed]) =>
+        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns, plans: planDocs, closed })))
       .finally(() => { pending = null; });
     return pending;
   };

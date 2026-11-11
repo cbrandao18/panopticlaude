@@ -110,3 +110,8 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .intake-counts { margin: 0 0 12px; font-size: 14px; }
 .intake-counts .n.failed:not(.zero) { color: var(--alarm-ink); font-weight: 700; }
 .intake-counts .n.zero { color: var(--muted); }
+.chip.plan-building { background: var(--go-bg); color: var(--go-ink); }
+.chip.plan-approved, .chip.plan-draft { background: var(--you-bg); color: var(--you-ink); }
+.rows li.plan .plan-next { flex-basis: 100%; color: var(--text); }
+.rows li.plan .plan-file { flex-basis: 100%; font-size: 12px; overflow-wrap: anywhere; }
+.rows li.plan .stale { color: var(--alarm-ink); font-weight: 600; }

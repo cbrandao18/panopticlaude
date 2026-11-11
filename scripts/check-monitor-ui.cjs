@@ -16,6 +16,7 @@ async function main() {
       fyi: [{ key: 'fyi', name: 'Example workspace', ask: 'Preview available' }], stalled: []
     },
     slots: null, slotsError: 'Fixture queue unavailable',
+    plans: { upcoming: [{ file: 'superpowers/plans/2026-01-01-example-plan-with-a-long-file-name.md', kind: 'plan', status: 'building', title: 'Example plan', next: 'Approve the example step, which has a long description to wrap on narrow screens', updatedAt: Date.now() - 9 * 86400000, stale: true }], counts: { building: 1, done: 3 }, unlabeled: [] },
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };
   const server = createMonitor({ jobs: [], readNow: async () => data,
@@ -37,7 +38,7 @@ async function main() {
     assert.equal(await page.locator('.tier:has(#ship-title) .rows li').count(), 5);
     const views = [['needs-you', 'Needs you', 'Work status'], ['ready', 'Ready to ship', 'Ready to ship'],
       ['health', 'Health', 'Down'], ['automations', 'Automations', 'Automations'],
-      ['queue', 'Agent queue', 'Agent slots'], ['projects', 'Projects', 'Project watch'], ['brief', 'Daily brief', 'Daily brief']];
+      ['queue', 'Agent queue', 'Agent slots'], ['plans', 'Plans', 'Upcoming plans'], ['projects', 'Projects', 'Project watch'], ['brief', 'Daily brief', 'Daily brief']];
     for (const [hash, title, section] of views) {
       await page.locator(`.sidebar a[href="/#${hash}"]`).click();
       await page.waitForFunction(title => document.querySelector('.page-heading h1')?.textContent === title, title);
@@ -74,7 +75,7 @@ async function main() {
     await page.locator('.sidebar a[href="/#automations"]').focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.activeElement?.matches('.page-heading h1'));
-    for (const route of ['/#automations', '/map', '/work']) {
+    for (const route of ['/#automations', '/#plans', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();
       for (const width of [1440, 768, 390]) {

@@ -320,6 +320,34 @@ function Intake({ data }) {
     </${Section}>`;
 }
 
+const PLAN_STATUS = { building: 'Building', approved: 'Approved', draft: 'Draft', 'on-hold': 'On hold' };
+
+function Plans({ data }) {
+  const s = data.plans;
+  const note = 'Plans, specs and designs in process-updates/docs that aren’t done or superseded, from each doc’s front matter.';
+  if (!s) {
+    return html`
+      <${Section} id="plans" title="Upcoming plans" tone="info" note=${note}>
+        <p class="warning">Couldn't read the plan docs${data.plansError ? `: ${data.plansError}` : '.'}</p>
+      </${Section}>`;
+  }
+  const finished = (s.counts.done || 0) + (s.counts.superseded || 0);
+  return html`
+    <${Section} id="plans" title="Upcoming plans" tone="info" count=${s.upcoming.length} note=${note}>
+      ${s.upcoming.length ? html`<${More} items=${s.upcoming} row=${(p) => html`
+        <li key=${p.file} class="plan">
+          <span class=${`chip plan-${p.status}`}>${PLAN_STATUS[p.status]}</span>
+          <span class="title">${p.title || p.file}</span>
+          ${p.kind !== 'doc' && html`<span class="detail">${p.kind}</span>`}
+          <span class="when">${p.stale ? html`<span class="stale">No change in ${ago(p.updatedAt).replace(' ago', '')}</span>` : `Updated ${ago(p.updatedAt)}`}</span>
+          <span class="detail plan-next">${p.next ? `Next: ${p.next}` : 'No next step written'}</span>
+          <span class="detail plan-file">${p.file}</span>
+        </li>`} />` : html`<p class="now-muted empty">No upcoming plans.</p>`}
+      ${s.unlabeled.length > 0 && html`<p class="warning">Missing status or next step: ${s.unlabeled.join(', ')}</p>`}
+      <p class="now-muted">${finished} done or superseded, not shown.</p>
+    </${Section}>`;
+}
+
 const STATUS = { failed: 'Failed', overdue: 'Missed run', unreadable: 'Unreadable', running: 'Running', completed: 'Run finished', paused: 'Paused', waiting: 'Not run yet', skipped: 'Skipped', cancelled: 'Stopped' };
 
 function Automations({ data }) {
@@ -356,7 +384,7 @@ function Brief({ expanded = false }) {
     </details>`;
 }
 
-const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'automations': Automations };
+const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'plans': Plans, 'automations': Automations };
 const currentView = () => {
   const hash = window.location.hash.slice(1);
   return Object.hasOwn(VIEWS, hash) || hash === 'brief' ? hash : '';
@@ -384,6 +412,7 @@ function App() {
       <${Ready} data=${data} />
       <${Attention} data=${data} />
       <${Releases} data=${data} />
+      <${Plans} data=${data} />
       <${Slots} data=${data} />
       <${Intake} data=${data} />
       <${Automations} data=${data} />
