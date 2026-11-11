@@ -382,15 +382,18 @@ function stalled(workspaces, now, automations = []) {
     && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
 }
 
-// Workspaces that process-updates run-cleanup/close-done-workspaces.py removed after their agent decided not to build.
-// Each machine logs `<iso> closed <workspace> <url> | <name> | <reason>`.
+// Workspaces that process-updates run-cleanup/close-done-workspaces.py removed once their work finished.
+// Each machine logs `<iso> closed <workspace> <url or -> | <name> | <reason>`. A reason with "; open ask:" still
+// carries a request from the workspace's last note, so it's listed under Waiting on you for longer.
 const CLOSED_LOG = '.local/state/workspace-cleanup/closed.log';
 const CLOSED_MS = 3 * 86400000;
+const OPEN_ASK_MS = 7 * 86400000;
+const linkText = (url) => (url.includes('slack.com') ? 'View post' : url.includes('/pull/') ? 'View PR' : 'View ticket');
 function parseClosed(text, host) {
   return text.split('\n').map((line) => /^(\S+) closed (\S+) (\S+) \| (.*?) \| (.*)$/.exec(line.trim()))
     .filter((m) => m && Number.isFinite(Date.parse(m[1])))
     .map(([, at, ws, url, name, reason]) => ({ key: `closed|${host}|${ws}|${at}`, workspaceKey: null, host, name, ask: `Workspace closed, ${reason}`,
-      url, linkText: url.includes('slack.com') ? 'View post' : 'View ticket', at: Date.parse(at) }));
+      ...(url === '-' ? {} : { url, linkText: linkText(url) }), openAsk: reason.includes('; open ask:'), at: Date.parse(at) }));
 }
 async function readClosed(host = runOnHost) {
   const vm = parseClosed(await host(`tail -n 200 ~/${CLOSED_LOG} 2>/dev/null; true`), 'vm');
@@ -475,7 +478,9 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
       ask: 'New-ticket intake run failed.', url: run.url, at: run.at });
   }
 
-  attention.fyi.push(...(closed.value || []).filter((c) => now - c.at < CLOSED_MS).sort((a, b) => b.at - a.at));
+  const recentClosed = (closed.value || []).filter((c) => now - c.at < (c.openAsk ? OPEN_ASK_MS : CLOSED_MS)).sort((a, b) => b.at - a.at);
+  attention.waiting.agents.push(...recentClosed.filter((c) => c.openAsk));
+  attention.fyi.push(...recentClosed.filter((c) => !c.openAsk));
 
   const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, plans, closed })
     .filter(([, r]) => r.error)

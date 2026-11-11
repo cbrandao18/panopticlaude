@@ -122,6 +122,14 @@ test('closed workspaces show under FYI for 3 days, newest first, linking the tic
   assert.equal(fyi[1].url, 'https://github.com/gobranch/branch/issues/2');
   assert.equal(fyi[1].workspaceKey, null);
   assert.deepEqual(assemble({ ...base, closed: { error: 'coder: connection refused' }, now }).errors.map(e => e.source), ['closed']);
+  const pr = parseClosed([
+    '2026-11-08T12:00:00-0500 closed todo-4 https://github.com/gobranch/branch/pull/40 | #4 Example | PR #40 merged; open ask: You: file a same-bug ticket, approve #40',
+    '2026-11-11T12:00:00-0500 closed todo-5 https://github.com/gobranch/branch/pull/50 | #5 Example | PR #50 merged; last note: You: merge #50',
+    '2026-11-11T12:00:00-0500 closed mention-6 - | Ping | reply draft saved in Slack: answered'
+  ].join('\n'), 'vm');
+  const out = assemble({ ...base, closed: { value: pr }, now }).attention;
+  assert.deepEqual(out.waiting.agents.map(a => a.name), ['#4 Example']);
+  assert.deepEqual(out.fyi.map(a => [a.name, a.linkText, a.url]), [['#5 Example', 'View PR', 'https://github.com/gobranch/branch/pull/50'], ['Ping', undefined, undefined]]);
 });
 
 test('Ease actions follow their current workspace status without disappearing when the map is unavailable', () => {
