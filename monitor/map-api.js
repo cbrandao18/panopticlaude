@@ -25,6 +25,17 @@ function orcaRunner(run = promisify(execFile)) {
 
 const clip = (text, n) => (typeof text === 'string' && text.length > n ? `${text.slice(0, n)}…` : text || '');
 
+// A human request is not evidence of a blocker; only explicit status markers override it.
+function commentAttention(comment = '') {
+  const text = typeof comment === 'string' ? comment.trim() : '';
+  const body = text.replace(/^(You|Agent):\s*/i, '');
+  const explicit = /^(Blocked|Failed|FYI|Complete|Completed):\s*(\S.*)$/i.exec(body);
+  if (explicit) return { state: /^(complete|completed)$/i.test(explicit[1]) ? 'fyi' : explicit[1].toLowerCase(), reason: explicit[2] };
+  if (/^Agent:\s*(done|finished|complete|completed)(\b|[.!:])/i.test(text)) return { state: 'fyi', reason: body };
+  if (/^You:/i.test(text) && body) return { state: 'waiting', reason: body };
+  return null;
+}
+
 function workspace(host, w) {
   const pr = w.linkedPR;
   return {
@@ -37,6 +48,7 @@ function workspace(host, w) {
     status: w.workspaceStatus,
     parent: w.parentWorktreeId ? `${host}|${w.parentWorktreeId}` : null,
     comment: w.comment || '',
+    attention: commentAttention(w.comment),
     pinned: Boolean(w.isPinned),
     lastActivityAt: w.lastActivityAt || w.createdAt || 0,
     live: w.liveTerminalCount || 0,
@@ -113,4 +125,4 @@ async function openWorkspace(key, map, orca = orcaRunner()) {
   return { opened: Boolean(focus?.navigated) };
 }
 
-module.exports = { createMapReader, orcaRunner, readHost, openWorkspace };
+module.exports = { createMapReader, orcaRunner, readHost, openWorkspace, commentAttention };

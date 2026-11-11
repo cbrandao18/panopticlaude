@@ -100,8 +100,23 @@ html[data-theme='roost'] {
   .chip, .badge { padding: 2px 6px; border-radius: 5px; font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 600; }
   .chip.vendor, .chip.error { background: var(--alarm-chip); color: var(--alarm-ink); }
   .presence { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--idle); align-self: center; }
-  .presence.you { background: var(--you); } .presence.failed { background: var(--alarm); }
+  .presence.you, .presence.waiting { background: var(--info); }
+  .presence.blocked { background: var(--you); } .presence.failed { background: var(--alarm); }
   .presence.stuck { background: var(--stuck); } .presence.working { background: var(--go); }
+  .status-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .status-filter { display: inline-flex; align-items: center; gap: 7px; }
+  .status-filter.waiting { --status-bg: var(--info-bg); --status-ink: var(--info-ink); --status-border: var(--info-border); }
+  .status-filter.blocked { --status-bg: var(--you-bg); --status-ink: var(--you-ink); --status-border: var(--you-border); }
+  .status-filter.failed { --status-bg: var(--alarm-chip); --status-ink: var(--alarm-ink); --status-border: var(--alarm-border); }
+  .status-filter.fyi { --status-bg: var(--chip-bg); --status-ink: var(--chip-ink); --status-border: var(--border); }
+  button.status-filter { background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: 7px; }
+  button.status-filter[aria-pressed='true'] { background: var(--status-bg); color: var(--status-ink); border-color: var(--status-border); }
+  .status-filter .count { margin: 0; background: transparent; color: inherit; padding: 0 2px; }
+  .status-description { margin: 12px 0 18px; font-size: 12px; }
+  .attention-backlog { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 0; }
+  .attention-backlog summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .tier > .attention-backlog { margin-top: 16px; }
+  .run-link { margin-left: auto; font-size: 12px; }
   .budget { font-size: 13px; }
   .kinds { gap: 6px; margin-bottom: 12px; }
   .kinds li { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); font-size: 12px; }
@@ -132,7 +147,10 @@ html[data-theme='roost'] {
   .column, .runs { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
   .column h2, .runs h2 { font: 600 14px var(--font); text-transform: none; letter-spacing: 0; color: var(--text); margin: 0 0 12px; }
   .card { padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: none; }
-  .node.you > .card { background: #fffdf7; box-shadow: inset 2px 0 var(--you-border); }
+  .badge.you { background: var(--info-bg); color: var(--info-ink); }
+  .badge.blocked { background: var(--you-bg); color: var(--you-ink); }
+  .node.you > .card { background: #f8faff; border-color: var(--info-border); box-shadow: inset 2px 0 var(--info-border); }
+  .node.blocked > .card { background: #fffdf7; border-color: var(--you-border); box-shadow: inset 2px 0 var(--you-border); }
   .node.failed > .card { background: var(--alarm-bg); box-shadow: inset 2px 0 var(--alarm); }
   .node.stuck > .card, .node.working > .card { box-shadow: none; }
   .card .comment { opacity: 1; }

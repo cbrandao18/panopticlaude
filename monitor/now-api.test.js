@@ -79,6 +79,46 @@ test('isFix matches fix and hotfix titles', () => {
   assert.equal(isFix('feat: z'), false);
 });
 
+test('attention separates waiting, blockers, failed runs and FYIs without losing review backlog', () => {
+  const now = Date.now();
+  const ws = (key, comment) => ({ key, name: key, host: 'vm', comment, agents: [], lastActivityAt: now - 3600000 });
+  const out = assemble({
+    automations: { value: [{ key: 'failed-auto', name: 'Example automation', status: 'failed' }, { key: 'late', status: 'overdue' }] },
+    statuses: { value: [] }, reviews: { value: [{ url: 'https://example.com/review', title: 'Review requested' }] },
+    map: { value: { hosts: [{ workspaces: [ws('request', 'You: approve the change'), ws('blocker', 'You: Blocked: access expired'),
+      ws('info', 'You: FYI: preview ready'), ws('done', 'Agent: finished the report'), ws('stalled', 'Agent: fixing'),
+      ws('failure', 'Failed: build exited 1')], runs: [{ key: 'run', objective: 'Example run', tasks: [
+        { title: 'Failed task', status: 'failed', workspace: 'failure' }, { title: 'Successful task', status: 'completed' }
+      ] }] }] } },
+    ease: { value: { posts: [] } }, merge: { value: { ready: [], waiting: [] } }, releases: { value: [] },
+    findings: { value: null }, jobs: { value: [{ name: 'drafts', hasInbox: true, unread: 4 }] }, now
+  });
+  assert.deepEqual(out.attention.waiting.agents.map(a => a.key), ['request']);
+  assert.equal(out.attention.waiting.reviews.length, 1);
+  assert.equal(out.attention.waiting.drafts[0].unread, 4);
+  assert.deepEqual(out.attention.blocked.map(a => a.key), ['blocker']);
+  assert.deepEqual(out.attention.stalled.map(a => a.key), ['stalled']);
+  assert.deepEqual(out.attention.fyi.map(a => a.key), ['info', 'done']);
+  assert.deepEqual(out.attention.failed.map(a => a.key), ['failure', 'failed-auto']);
+  assert.ok(out.attention.failed[0].ask.includes('build exited 1'));
+});
+
+test('Ease actions follow their current workspace status without disappearing when the map is unavailable', () => {
+  const base = {
+    automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] },
+    ease: { value: { posts: [{ title: 'Example Ease request', whose: 'you', workspace: { name: 'Ease example' },
+      actions: [{ state: 'open', text: 'Review example' }] }] } },
+    merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] }
+  };
+  for (const [marker, state] of [['Blocked', 'blocked'], ['Failed', 'failed'], ['FYI', 'fyi']]) {
+    const out = assemble({ ...base, map: { value: { hosts: [{ workspaces: [{ key: 'ease', name: 'Ease example', comment: `You: ${marker}: Example reason` }] }] } } });
+    assert.equal(out.attention.waiting.ease.length, 0, marker);
+    assert.equal(out.attention[state].length, 1, marker);
+    assert.equal(out.blocked.ease.length, 1, 'Older open browser tabs retain their data');
+  }
+  assert.equal(assemble({ ...base, map: { error: 'unreachable' } }).attention.waiting.ease.length, 1);
+});
+
 test('assemble keeps sources independent and builds the tiers', () => {
   const out = assemble({
     automations: { value: [{ name: 'sweep', status: 'failed', host: 'vm', error: 'exit 1' }, { name: 'ok', status: 'completed', host: 'mac' }] },

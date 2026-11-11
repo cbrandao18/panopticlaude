@@ -4,6 +4,22 @@ const { createMapReader } = require('./map-api');
 
 const ws = (id, extra = {}) => ({ worktreeId: id, displayName: id, branch: `refs/heads/${id}`, agents: [], ...extra });
 
+test('attention distinguishes requests, explicit blockers, failure and informational completion', () => {
+  const { commentAttention } = require('./map-api');
+  assert.deepEqual(commentAttention('You: approve the change'), { state: 'waiting', reason: 'approve the change' });
+  assert.deepEqual(commentAttention('You: Blocked: credentials expired'), { state: 'blocked', reason: 'credentials expired' });
+  assert.deepEqual(commentAttention('Agent: Blocked: upstream service unavailable'), { state: 'blocked', reason: 'upstream service unavailable' });
+  assert.deepEqual(commentAttention('Failed: test run exited 1'), { state: 'failed', reason: 'test run exited 1' });
+  assert.deepEqual(commentAttention('You: FYI: preview is available'), { state: 'fyi', reason: 'preview is available' });
+  assert.equal(commentAttention('Agent: finished the report').state, 'fyi');
+  assert.equal(commentAttention('You: review the blocked-state design').state, 'waiting');
+  assert.equal(commentAttention('You: Blocked:' ).state, 'waiting');
+  assert.equal(commentAttention('Agent: finishing the report'), null);
+  assert.equal(commentAttention('Agent: working'), null);
+  assert.equal(commentAttention(null), null);
+  assert.equal(commentAttention('  '), null);
+});
+
 function fakeOrca(calls = []) {
   return async (args) => {
     calls.push(args);

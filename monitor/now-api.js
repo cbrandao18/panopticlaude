@@ -1,8 +1,8 @@
-// The Now page: what is down, what is ready to ship, what is blocked on Christie, how live releases are
+// The overview: what is down, ready to ship, waiting or blocked, how live releases are
 // going, and every automation's latest status. Read-only. Each source fails on its own and shows as an error.
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const { orcaRunner } = require('./map-api');
+const { orcaRunner, commentAttention } = require('./map-api');
 const { runOnHost } = require('./security-api');
 const { readWorkers } = require('./workers-api');
 const { readSlots, summarize: summarizeSlots } = require('./slots-api');
@@ -376,7 +376,7 @@ function stalled(workspaces, now, automations = []) {
   const running = (w) => (w.agents || []).some((a) => a.state !== 'done') || (!(w.agents || []).length && w.live > 0);
   const byKey = new Map(workspaces.map((w) => [w.key, w]));
   const scheduled = new Set(automations.filter((a) => a.enabled && a.workspace).map((a) => `${a.host}|${a.workspace}`));
-  return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !scheduled.has(w.key)
+  return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !commentAttention(w.comment) && !scheduled.has(w.key)
     && now - (w.lastActivityAt || now) > STALL_MS && !running(w) && !(byKey.has(w.parent) && running(byKey.get(w.parent))));
 }
 
@@ -413,11 +413,40 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     .map((w) => ({ key: w.key, host: w.host, name: w.name, ask: w.comment.replace(/^You:\s*/i, ''), pr: w.pr, at: w.lastActivityAt }))
     .concat(stalled(workspaces, now, automations.value || []).map((w) => ({ key: w.key, host: w.host, name: w.name, ask: `Restart or update: no agent behind "${clip(w.comment, 60)}"`, pr: w.pr, at: w.lastActivityAt, stalled: true })))
     .sort((a, b) => b.at - a.at);
-  const easeYou = (ease.value?.posts || []).filter((p) => p.whose === 'you').map((p) => {
+  const easeRequests = (ease.value?.posts || []).filter((p) => p.whose === 'you');
+  const easeYou = easeRequests.map((p) => {
     const action = (p.actions || []).find((a) => a.state === 'open');
     return { title: p.title, link: p.link, next: action?.text || p.workspace?.comment?.replace(/^You:\s*/i, '') || '', nextUrl: action?.url || null };
   });
   const drafts = (jobs.value || []).filter((j) => j.hasInbox && j.unread).map((j) => ({ name: j.name, unread: j.unread }));
+
+  const waitingEase = easeYou.filter((_, i) => {
+    const workspace = workspaces.find(w => w.name === easeRequests[i].workspace?.name);
+    const state = commentAttention(workspace?.comment)?.state;
+    return !state || state === 'waiting';
+  });
+  const attention = { waiting: { agents: [], reviews: reviews.value || [], ease: waitingEase, drafts }, blocked: [], failed: [], fyi: [], stalled: agents.filter(a => a.stalled) };
+  const workspaceByKey = new Map(workspaces.map(w => [w.key, w]));
+  for (const w of [...workspaces].sort((a, b) => (b.lastActivityAt || 0) - (a.lastActivityAt || 0))) {
+    const state = commentAttention(w.comment);
+    if (!state || (state.state === 'waiting' && easeWorkspaces.has(w.name))) continue;
+    const row = { key: w.key, host: w.host, name: w.name, ask: state.reason, pr: w.pr, at: w.lastActivityAt };
+    (state.state === 'waiting' ? attention.waiting.agents : attention[state.state]).push(row);
+  }
+  for (const host of map.value?.hosts || []) for (const run of host.runs || []) for (const [i, task] of (run.tasks || []).entries()) {
+    if (task.status !== 'failed') continue;
+    const w = workspaceByKey.get(task.workspace);
+    // A workspace's explicit current status supersedes an older failed run.
+    if (w && commentAttention(w.comment)) continue;
+    const key = task.workspace || `${run.key}|${i}`;
+    if (attention.failed.some(row => row.key === key)) continue;
+    attention.failed.push({ key, workspaceKey: w?.key || null, host: w?.host || host.id, name: w?.name || task.title || run.objective,
+      ask: `Task failed: ${task.title || run.objective}`, url: '/map' });
+  }
+  for (const a of automations.value || []) if (a.status === 'failed') {
+    attention.failed.push({ key: a.key || `automation|${a.host}|${a.name}`, workspaceKey: null, host: a.host, name: a.name,
+      ask: a.error || 'Latest run failed.', url: '/work#jobs' });
+  }
 
   const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots })
     .filter(([, r]) => r.error)
@@ -434,6 +463,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     ready,
     waitingPrs: merge.value?.waiting || [],
     blocked: { agents, reviews: reviews.value || [], ease: easeYou, drafts },
+    attention,
     // A local workspace's row opens it in Orca.
     releases: (releases.value || []).map((r) => (r.workspace ? { ...r, key: workspaces.find((w) => w.path === r.workspace)?.key || null } : r)),
     automations: automations.value || [],

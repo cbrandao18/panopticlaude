@@ -28,6 +28,7 @@ const ago = (ms) => {
 
 // What state a workspace is in, most urgent first; CSS keys off the string.
 function stateOf(ws, now = Date.now()) {
+  if (ws.attention) return ws.attention.state === 'waiting' ? 'you' : ws.attention.state;
   if (/^You:/i.test(ws.comment)) return 'you';
   if (ws.failed) return 'failed';
   if (ws.agents.some((a) => !['done', 'working'].includes(a.state))) return 'stuck';
@@ -37,8 +38,8 @@ function stateOf(ws, now = Date.now()) {
   if (ws.activeAt && now - ws.activeAt > QUIET_AFTER) return 'quiet';
   return 'idle';
 }
-const RANK = { you: 0, failed: 1, stuck: 2, working: 3, idle: 4, quiet: 5 };
-const LABEL = { you: 'Needs you', failed: 'Failed', stuck: 'Stuck', working: 'Working', idle: '', quiet: '' };
+const RANK = { you: 0, blocked: 1, failed: 2, stuck: 3, working: 4, fyi: 5, idle: 6, quiet: 7 };
+const LABEL = { you: 'Waiting on you', blocked: 'Blocked', failed: 'Failed', stuck: 'Needs check', working: 'Active', fyi: 'FYI', idle: '', quiet: '' };
 
 function build(data) {
   const all = data.hosts.flatMap((host) => host.workspaces);
@@ -65,7 +66,7 @@ function build(data) {
   const liveRuns = runs
     .map((r) => ({ ...r, failed: r.tasks.some((t) => t.status === 'failed'), open: r.tasks.some((t) => !['completed', 'failed'].includes(t.status)) }))
     .filter((r) => r.open || r.failed);
-  const counts = { you: 0, failed: 0, stuck: 0, working: 0 };
+  const counts = { you: 0, blocked: 0, failed: 0, stuck: 0, working: 0 };
   for (const ws of byKey.values()) if (ws.state in counts) counts[ws.state]++;
   return { columns, runs: liveRuns, counts, rank };
 }
@@ -80,7 +81,7 @@ function Node({ ws, showQuiet, rank }) {
           <span class="host">${ws.host === 'vm' ? 'VM' : 'Mac'}</span>
         </div>
         ${LABEL[ws.state] && html`<span class=${`badge ${ws.state}`}>${LABEL[ws.state]}</span>`}
-        ${ws.comment && html`<p class="comment">${ws.comment.replace(/^(You|Agent):\s*/i, '')}</p>`}
+        ${ws.comment && html`<p class="comment">${ws.attention?.reason || ws.comment.replace(/^(You|Agent):\s*/i, '')}</p>`}
         <p class="meta">
           ${ws.pr && html`<a href=${ws.pr.url}>PR #${ws.pr.number}</a> · `}
           ${ws.agents.filter((a) => a.state === 'working').length > 0 && `${ws.agents.filter((a) => a.state === 'working').length} working · `}
@@ -146,9 +147,10 @@ function App() {
     <${Masthead} page="/map" status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Reading Orca on the Mac and the VM…'} />
     ${view && html`
       <div class="summary">
-        <span class="badge you">${view.counts.you} need you</span>
+        <span class="badge you">${view.counts.you} waiting on you</span>
+        <span class="badge blocked">${view.counts.blocked} blocked</span>
         <span class="badge failed">${view.counts.failed} failed</span>
-        <span class="badge stuck">${view.counts.stuck} stuck</span>
+        <span class="badge stuck">${view.counts.stuck} need checking</span>
         <span class="badge working">${view.counts.working} working</span>
         <label class="toggle"><input type="checkbox" checked=${showQuiet} onChange=${(e) => setShowQuiet(e.currentTarget.checked)} /> Show quiet workspaces</label>
       </div>

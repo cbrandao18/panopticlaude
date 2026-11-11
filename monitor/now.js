@@ -120,30 +120,61 @@ function Ready({ data }) {
     </${Section}>`;
 }
 
-function Group({ label, items, row, empty }) {
-  return html`
-    <div class="group">
-      <h3>${label} <span class="count">${items.length}</span></h3>
-      ${items.length ? html`<${More} items=${items} row=${row} />` : html`<p class="now-muted empty"><${Bird} state="idle" />${empty}</p>`}
-    </div>`;
+function Group({ label, items, row, empty, collapsed = false }) {
+  const heading = html`${label} <span class="count">${items.length}</span>`;
+  const content = items.length ? html`<${More} items=${items} row=${row} />` : html`<p class="now-muted empty">${empty}</p>`;
+  return collapsed
+    ? html`<details class="group attention-backlog"><summary>${heading}</summary>${content}</details>`
+    : html`<div class="group"><h3>${heading}</h3>${content}</div>`;
 }
 
-function Blocked({ data }) {
-  const { agents, reviews, ease, drafts } = data.blocked;
-  const total = agents.length + reviews.length + ease.length + drafts.length;
+const ATTENTION = {
+  waiting: ['Waiting on you', 'Questions, approvals and reviews awaiting your response.'],
+  blocked: ['Blocked', 'Work with an explicitly reported obstacle. The reason appears on each row.'],
+  failed: ['Failed', 'Reported failures from workspaces, run tasks and the latest automation runs.'],
+  fyi: ['FYI', 'Completed work and informational updates. No response required.']
+};
+
+const AttentionRow = ({ item: a, state }) => html`
+  <li>
+    <span class=${`presence ${state}`} aria-hidden="true"></span>
+    <span class="title">${a.ask}</span>
+    <span class="detail">${a.name}${a.host ? ` · ${hostLabel(a.host)}` : ''}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
+    ${a.workspaceKey !== null && html`<button class="text open" type="button" onClick=${() => openInOrca(a.workspaceKey || a.key, a.name)}>Open in Orca</button>`}
+    ${a.workspaceKey === null && a.url && html`<a class="run-link" href=${a.url}>View run</a>`}
+  </li>`;
+
+function Attention({ data }) {
+  const [selected, setSelected] = useState('waiting');
+  // Keep a tab opened during the server update readable until its next refresh.
+  const attention = data.attention || { waiting: data.blocked, blocked: [], failed: [], fyi: [], stalled: [] };
+  const { agents, reviews, ease, drafts } = attention.waiting;
+  const counts = { waiting: agents.length + reviews.length + ease.length + drafts.length,
+    blocked: attention.blocked.length, failed: attention.failed.length, fyi: attention.fyi.length };
   return html`
-    <${Section} id="blocked" title="Blocked on you" count=${total} tone=${total ? 'you' : ''} bird=${total ? 'you' : ''}>
-      <div class="groups">
-        <${Group} label="Agents waiting" items=${agents} empty="No agent is waiting on you."
-          row=${(a) => html`<li key=${a.key}><span class="presence you" aria-hidden="true"></span><${Bird} state="you" /><span class="title">${a.ask}</span><span class="detail">${a.name} · ${hostLabel(a.host)}${a.pr ? html` · <a href=${a.pr.url}>PR #${a.pr.number}</a>` : ''}</span>
-            <button class="text open" type="button" onClick=${() => openInOrca(a.key, a.name)}>Open in Orca</button></li>`} />
-        <${Group} label="Reviews requested" items=${reviews} empty="No reviews requested."
-          row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>#${r.number} ${r.title}</a> <span class="detail">· ${r.author}</span></span></li>`} />
-        <${Group} label="Ease decisions" items=${ease} empty="No Ease & effort post needs you."
-          row=${(e) => html`<li key=${e.link || e.title}><span class="title"><${Link} href=${e.nextUrl}>${e.next}</${Link}></span><span class="detail"><${Link} href=${e.link}>${e.title}</${Link}></span></li>`} />
-        <${Group} label="Held drafts" items=${drafts} empty="No unread assess-assumptions drafts."
-          row=${(d) => html`<li key=${d.name}><span class="title"><a href="/work#jobs">${d.name}</a></span><span class="detail">${d.unread} unread</span></li>`} />
+    <${Section} id="attention" title="Work status">
+      <div class="status-filters" role="group" aria-label="Work status filters">
+        ${Object.entries(ATTENTION).map(([state, [label]]) => html`
+          <button key=${state} type="button" class=${`status-filter ${state}`} aria-pressed=${selected === state} onClick=${() => setSelected(state)}>
+            <span class=${`presence ${state}`} aria-hidden="true"></span>${label}<span class="count">${counts[state]}</span>
+          </button>`)}
       </div>
+      <p class="now-muted status-description">${ATTENTION[selected][1]}</p>
+      ${selected === 'waiting' ? html`
+        <div class="groups">
+          <${Group} label="Requests and decisions" items=${agents} empty="No workspace is waiting for your response."
+            row=${a => html`<${AttentionRow} key=${a.key} item=${a} state="waiting" />`} />
+          <${Group} label="Review backlog" items=${reviews} empty="No reviews requested." collapsed
+            row=${r => html`<li key=${r.url}><span class="title"><a href=${r.url}>#${r.number} ${r.title}</a> <span class="detail">· ${r.author}</span></span></li>`} />
+          ${ease.length > 0 && html`<${Group} label="Ease decisions" items=${ease} empty="No decisions pending."
+            row=${e => html`<li key=${e.link || e.title}><span class="title"><${Link} href=${e.nextUrl}>${e.next}</${Link}></span><span class="detail"><${Link} href=${e.link}>${e.title}</${Link}></span></li>`} />`}
+          ${drafts.length > 0 && html`<${Group} label="Draft inboxes" items=${drafts} collapsed
+            row=${d => html`<li key=${d.name}><span class="title"><a href="/work#jobs">${d.name}</a></span><span class="detail">${d.unread} unread</span></li>`} />`}
+        </div>` : attention[selected].length ? html`
+          <${More} key=${selected} items=${attention[selected]} row=${a => html`<${AttentionRow} key=${a.key} item=${a} state=${selected} />`} />`
+          : html`<p class="now-muted empty">${{ blocked: 'No explicit blockers reported.', failed: 'No failed runs or workspace failures reported.', fyi: 'No informational updates reported.' }[selected]}</p>`}
+      ${attention.stalled.length > 0 && html`<${Group} label="Needs restart" items=${attention.stalled} collapsed
+        row=${a => html`<${AttentionRow} key=${a.key} item=${a} state="stuck" />`} />`}
     </${Section}>`;
 }
 
@@ -290,7 +321,7 @@ function Brief({ expanded = false }) {
     </details>`;
 }
 
-const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Blocked, 'projects': Releases, 'queue': Slots, 'automations': Automations };
+const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'automations': Automations };
 const currentView = () => {
   const hash = window.location.hash.slice(1);
   return Object.hasOwn(VIEWS, hash) || hash === 'brief' ? hash : '';
@@ -316,7 +347,7 @@ function App() {
     ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
       <${Down} data=${data} />
       <${Ready} data=${data} />
-      <${Blocked} data=${data} />
+      <${Attention} data=${data} />
       <${Releases} data=${data} />
       <${Slots} data=${data} />
       <${Automations} data=${data} />

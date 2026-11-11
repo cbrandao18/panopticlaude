@@ -8,6 +8,13 @@ async function main() {
     refreshedAt: Date.now(), down: [], vendors: [], unwatched: [], waitingPrs: [],
     ready: Array.from({ length: 7 }, (_, i) => ({ number: i + 1, title: `Example change ${i + 1}`, url: `https://example.com/pull/${i + 1}` })),
     blocked: { agents: [], reviews: [], ease: [], drafts: [] }, releases: [], errors: [],
+    attention: {
+      waiting: { agents: [{ key: 'request', name: 'Example workspace', ask: 'Approve the example change', host: 'vm' }],
+        reviews: [{ url: 'https://example.com/review', number: 99, title: 'Example review', author: 'example' }], ease: [], drafts: [] },
+      blocked: [{ key: 'blocked', name: 'Example workspace', ask: 'Access expired', host: 'vm' }],
+      failed: [{ key: 'failed', workspaceKey: null, name: 'Example run', ask: 'Run exited 1', url: '/work#jobs' }],
+      fyi: [{ key: 'fyi', name: 'Example workspace', ask: 'Preview available' }], stalled: []
+    },
     slots: null, slotsError: 'Fixture queue unavailable',
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };
@@ -28,7 +35,7 @@ async function main() {
     await page.locator('.sidebar').waitFor({ timeout: 5000 });
     await page.locator('.autos tbody tr').waitFor();
     assert.equal(await page.locator('.tier:has(#ship-title) .rows li').count(), 5);
-    const views = [['needs-you', 'Needs you', 'Blocked on you'], ['ready', 'Ready to ship', 'Ready to ship'],
+    const views = [['needs-you', 'Needs you', 'Work status'], ['ready', 'Ready to ship', 'Ready to ship'],
       ['health', 'Health', 'Down'], ['automations', 'Automations', 'Automations'],
       ['queue', 'Agent queue', 'Agent slots'], ['projects', 'Projects', 'Project watch'], ['brief', 'Daily brief', 'Daily brief']];
     for (const [hash, title, section] of views) {
@@ -37,6 +44,21 @@ async function main() {
       assert.equal(await page.locator('.sidebar [aria-current="page"]').count(), 1);
       assert.equal(await page.locator('.tier').count(), 1, `${title} has only its own content`);
       assert.match(await page.locator('.tier h2').first().textContent(), new RegExp(section));
+      if (hash === 'needs-you') {
+        assert.equal(await page.getByRole('button', { name: 'Waiting on you 2', exact: true }).getAttribute('aria-pressed'), 'true');
+        assert.equal(await page.getByText('Example review', { exact: false }).isVisible(), false, 'Review backlog starts collapsed');
+        await page.locator('summary').filter({ hasText: 'Review backlog' }).click();
+        assert.equal(await page.getByText('#99 Example review', { exact: true }).isVisible(), true);
+        for (const [state, label, content] of [['blocked', 'Blocked', 'Access expired'], ['failed', 'Failed', 'Run exited 1'], ['fyi', 'FYI', 'Preview available']]) {
+          await page.getByRole('button', { name: `${label} 1`, exact: true }).click();
+          assert.equal(await page.getByText(content, { exact: true }).isVisible(), true);
+          assert.equal(await page.getByText('Approve the example change', { exact: true }).count(), 0);
+          assert.equal(await page.locator(`.status-filter.${state}`).getAttribute('aria-pressed'), 'true');
+        }
+        await page.getByRole('button', { name: 'Waiting on you 2', exact: true }).focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await page.getByText('Approve the example change', { exact: true }).isVisible(), true);
+      }
       if (hash === 'ready') {
         assert.equal(await page.locator('.rows li').count(), 7, 'Focused lists start expanded');
         await page.getByRole('button', { name: 'Show fewer' }).click();
