@@ -15,6 +15,7 @@ const { createSecurityReader } = require('./security-api');
 const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
+const { readPlan } = require('./plans-api');
 const { createTipsReader } = require('./claude-tips-api');
 const { createNowReader } = require('./now-api');
 
@@ -76,6 +77,9 @@ const assets = {
   '/vendor/preact.js': ['vendor/preact.js', 'text/javascript'],
   '/vendor/hooks.js': ['vendor/hooks.js', 'text/javascript'],
   '/vendor/htm.js': ['vendor/htm.js', 'text/javascript'],
+  '/vendor/marked.js': ['vendor/marked.js', 'text/javascript'],
+  '/plan': ['plan.html', 'text/html'],
+  '/plan.js': ['plan.js', 'text/javascript'],
   '/work': ['index.html', 'text/html'],
   '/app.js': ['app.js', 'text/javascript'],
   '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
@@ -274,6 +278,7 @@ function createMonitor({
   fileEase = fileTicket,
   declineEase = declineTicket,
   readTips = createTipsReader(),
+  readPlanDoc = readPlan,
   readNow = null,
   openInOrca = openWorkspace,
   openUrl = (href) => exec('/usr/bin/open', [href], { timeout: 10000 }),
@@ -331,6 +336,10 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/now') {
         return send(200, await readNow());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/plan') {
+        const doc = await readPlanDoc(url.searchParams.get('file'));
+        return doc ? send(200, doc) : send(404, { error: 'No such plan.' });
       }
       if (req.method === 'GET' && url.pathname === '/api/brief') {
         return send(200, await readBrief());

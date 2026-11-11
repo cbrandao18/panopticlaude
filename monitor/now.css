@@ -115,3 +115,18 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .rows li.plan .plan-next { flex-basis: 100%; color: var(--text); }
 .rows li.plan .plan-file { flex-basis: 100%; font-size: 12px; overflow-wrap: anywhere; }
 .rows li.plan .stale { color: var(--alarm-ink); font-weight: 600; }
+.plan-doc { overflow-wrap: anywhere; }
+.plan-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.markdown { font-size: 14.5px; line-height: 1.6; color: var(--text); }
+.markdown > :first-child { margin-top: 0; }
+.markdown h1 { font-size: 24px; margin: 0 0 12px; }
+.markdown h2 { font-size: 18px; margin: 24px 0 8px; }
+.markdown h3 { font-size: 15px; margin: 18px 0 6px; }
+.markdown ul, .markdown ol { padding-left: 22px; }
+.markdown code { font-size: 12.5px; background: var(--chip-bg); padding: 1px 4px; border-radius: 4px; }
+.markdown pre { background: var(--chip-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; }
+.markdown pre code { background: none; padding: 0; }
+.markdown blockquote { margin: 8px 0; padding: 6px 12px; border-left: 4px solid var(--border); color: var(--muted); }
+.markdown table { display: block; overflow-x: auto; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+.markdown th { background: var(--chip-bg); }

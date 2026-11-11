@@ -46,4 +46,15 @@ function summarize(docs, now = Date.now()) {
   return { upcoming, counts, unlabeled, dir: DOCS };
 }
 
-module.exports = { readPlans, parseDoc, summarize, ORDER };
+// Only plan docs Roost lists: a .md file at the top of docs/ or in superpowers/specs or superpowers/plans.
+const PLAN_FILE = /^(superpowers\/(specs|plans)\/)?[\w.-]+\.md$/;
+
+// One doc for the plan page: its front matter fields and the markdown after the front matter. Null when not found.
+async function readPlan(file, dir = DOCS) {
+  if (typeof file !== 'string' || !PLAN_FILE.test(file) || file.includes('..')) return null;
+  const text = await fs.readFile(path.join(dir, file), 'utf8').catch((e) => (e.code === 'ENOENT' ? null : Promise.reject(e)));
+  if (text == null) return null;
+  return { file, ...parseDoc(text), markdown: text.replace(/^---\n[\s\S]*?\n---\n/, '') };
+}
+
+module.exports = { readPlans, readPlan, parseDoc, summarize, ORDER };

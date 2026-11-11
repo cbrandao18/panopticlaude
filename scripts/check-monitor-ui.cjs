@@ -20,6 +20,8 @@ async function main() {
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };
   const server = createMonitor({ jobs: [], readNow: async () => data,
+    readPlanDoc: async (file) => (file === 'example.md' ? { file, title: 'Example plan', status: 'draft', next: 'Approve the example',
+      markdown: '# Example plan\n\n| Source | A long column of text that has to wrap or scroll on a phone screen |\n|---|---|\n| one | two |\n\nSee [the other plan](superpowers/plans/other.md#steps).\n' } : null),
     readBrief: async () => ({ html: '<p>Example daily brief.</p>', writtenAt: Date.now() }) });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   let browser;
@@ -29,7 +31,7 @@ async function main() {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     // Other pages only need their shared navigation checked here; keep their readers offline.
-    await page.route('**/api/**', route => ['/api/now', '/api/brief'].includes(new URL(route.request().url()).pathname)
+    await page.route('**/api/**', route => ['/api/now', '/api/brief', '/api/plan'].includes(new URL(route.request().url()).pathname)
       ? route.continue() : route.fulfill({ status: 503, json: { error: 'Offline fixture' } }));
     const base = `http://127.0.0.1:${server.address().port}`;
     await page.goto(base);
@@ -75,7 +77,11 @@ async function main() {
     await page.locator('.sidebar a[href="/#automations"]').focus();
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.activeElement?.matches('.page-heading h1'));
-    for (const route of ['/#automations', '/#plans', '/map', '/work']) {
+    await page.goto(`${base}/plan?file=example.md`);
+    await page.locator('.markdown table').waitFor();
+    assert.equal(await page.locator('.markdown a').getAttribute('href'), '/plan?file=superpowers%2Fplans%2Fother.md#steps');
+    assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Plans');
+    for (const route of ['/#automations', '/#plans', '/plan?file=example.md', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();
       for (const width of [1440, 768, 390]) {

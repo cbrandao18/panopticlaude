@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { parseDoc, readPlans } = require('./plans-api');
+const { parseDoc, readPlans, readPlan } = require('./plans-api');
 
 test('parseDoc reads front matter and the first heading', () => {
   assert.deepStrictEqual(parseDoc('---\nstatus: draft\nnext: Approve it\n---\n\n# Easy-win loop\n\nBody'),
@@ -29,5 +29,19 @@ test('readPlans lists upcoming plans by status, flags stale and unlabeled docs',
   assert.strictEqual(r.upcoming[1].kind, 'plan');
   assert.deepStrictEqual(r.counts, { draft: 1, building: 1, done: 1, missing: 1, approved: 1 });
   assert.deepStrictEqual(r.unlabeled, ['d.md', 'superpowers/plans/e.md']);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('readPlan returns a listed doc without its front matter and refuses other paths', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-'));
+  fs.mkdirSync(path.join(dir, 'superpowers/specs'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'superpowers/specs/x.md'), '---\nstatus: draft\nnext: Approve\n---\n\n# X\n\nBody\n');
+  const doc = await readPlan('superpowers/specs/x.md', dir);
+  assert.strictEqual(doc.title, 'X');
+  assert.strictEqual(doc.status, 'draft');
+  assert.strictEqual(doc.markdown, '\n# X\n\nBody\n');
+  for (const bad of ['../x.md', 'superpowers/../../x.md', 'handoffs/x.md', 'x.txt', '/etc/passwd', 'missing.md', undefined]) {
+    assert.strictEqual(await readPlan(bad, dir), null, String(bad));
+  }
   fs.rmSync(dir, { recursive: true });
 });

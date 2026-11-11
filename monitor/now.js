@@ -337,7 +337,7 @@ function Plans({ data }) {
       ${s.upcoming.length ? html`<${More} items=${s.upcoming} row=${(p) => html`
         <li key=${p.file} class="plan">
           <span class=${`chip plan-${p.status}`}>${PLAN_STATUS[p.status]}</span>
-          <span class="title">${p.title || p.file}</span>
+          <span class="title"><a href=${`/plan?file=${encodeURIComponent(p.file)}`}>${p.title || p.file}</a></span>
           ${p.kind !== 'doc' && html`<span class="detail">${p.kind}</span>`}
           <span class="when">${p.stale ? html`<span class="stale">No change in ${ago(p.updatedAt).replace(' ago', '')}</span>` : `Updated ${ago(p.updatedAt)}`}</span>
           <span class="detail plan-next">${p.next ? `Next: ${p.next}` : 'No next step written'}</span>
