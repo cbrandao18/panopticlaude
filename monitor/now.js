@@ -285,6 +285,41 @@ function Slots({ data }) {
     </${Section}>`;
 }
 
+const OUTCOME = [['success', 'succeeded'], ['skipped', 'skipped'], ['failed', 'failed'], ['running', 'in progress']];
+
+function Intake({ data }) {
+  const s = data.intake;
+  const note = 'ai-new-ticket.yml in gobranch/branch, last 24 hours. Skipped runs are normal: most issue comments need no run.';
+  if (!s) {
+    return html`
+      <${Section} id="intake" title="New-ticket intake" tone="info" note=${note}>
+        <p class="warning">Couldn't read the intake workflow${data.intakeError ? `: ${data.intakeError}` : '.'}</p>
+      </${Section}>`;
+  }
+  const others = Object.keys(s.counts).filter((k) => !OUTCOME.some(([o]) => o === k));
+  return html`
+    <${Section} id="intake" title="New-ticket intake" tone=${s.live ? 'info' : 'you'} count=${s.reviews.length || null} note=${note}>
+      <div class="budget">
+        ${s.live
+          ? html`<span class="chip intake-live">Live</span><span class="now-muted">Writes to tickets (AI_INTAKE_LIVE is true)</span>`
+          : html`<span class="chip intake-dry">Dry run</span><strong>Writes nothing to tickets.</strong>
+              <span class="now-muted">AI_INTAKE_LIVE is ${s.liveValue ? `"${s.liveValue}"` : 'not set'}; set it to true to go live.</span>`}
+      </div>
+      <p class="intake-counts">
+        <a href=${s.url}>${s.total} ${s.total === 1 ? 'run' : 'runs'}</a>:
+        ${[...OUTCOME, ...others.map((k) => [k, k.replace(/_/g, ' ')])].map(([k, label], i) => html`${i ? ' · ' : ' '}<span class=${`n ${k} ${s.counts[k] ? '' : 'zero'}`}>${s.counts[k] || 0} ${label}</span>`)}
+        <span class="now-muted"> · checked ${clock(s.at)}</span>
+      </p>
+      <div class="groups">
+        <${Group} label="Needs review" items=${s.reviews} empty="No ticket needs review."
+          row=${(r) => html`<li key=${`${r.url}${r.issue}`}><span class="title"><a href=${r.url}>#${r.issue}: ${r.items} ${r.items === 1 ? 'item needs' : 'items need'} review</a></span><span class="when">${when(r.at)}</span></li>`} />
+        <${Group} label="Failed runs" items=${s.failed} empty="No failed runs."
+          row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>${r.title}</a></span><span class="when">${when(r.at)}</span></li>`} />
+      </div>
+      ${s.unchecked > 0 && html`<p class="now-muted">${s.unchecked} older finished ${s.unchecked === 1 ? 'run wasn’t' : 'runs weren’t'} checked for review items.</p>`}
+    </${Section}>`;
+}
+
 const STATUS = { failed: 'Failed', overdue: 'Missed run', unreadable: 'Unreadable', running: 'Running', completed: 'Run finished', paused: 'Paused', waiting: 'Not run yet', skipped: 'Skipped', cancelled: 'Stopped' };
 
 function Automations({ data }) {
@@ -350,6 +385,7 @@ function App() {
       <${Attention} data=${data} />
       <${Releases} data=${data} />
       <${Slots} data=${data} />
+      <${Intake} data=${data} />
       <${Automations} data=${data} />
       <${Brief} />
       ` : html`<p class="now-muted" role="status">${error || 'Loading your dashboard…'}</p>`}
