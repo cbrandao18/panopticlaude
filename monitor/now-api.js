@@ -480,6 +480,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
   const recentClosed = (closed.value || []).filter((c) => now - c.at < (c.openAsk ? OPEN_ASK_MS : CLOSED_MS)).sort((a, b) => b.at - a.at);
   attention.waiting.agents.push(...recentClosed.filter((c) => c.openAsk));
+  attention.waiting.agents.sort((a, b) => (b.at || 0) - (a.at || 0));
   attention.fyi.push(...recentClosed.filter((c) => !c.openAsk));
 
   const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, plans, closed })
