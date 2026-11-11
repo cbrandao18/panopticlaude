@@ -5,7 +5,7 @@ const { createMonitor } = require('../monitor/server');
 
 async function main() {
   const data = {
-    refreshedAt: Date.now(), down: [], vendors: [], unwatched: [], waitingPrs: [],
+    refreshedAt: Date.now(), down: [], vendors: [], unwatched: [], waitingPrs: [], reviewPrs: [{ number: 90, title: 'Example draft', url: 'https://example.com/pull/90' }],
     ready: Array.from({ length: 7 }, (_, i) => ({ number: i + 1, title: `Example change ${i + 1}`, url: `https://example.com/pull/${i + 1}` })),
     blocked: { agents: [], reviews: [], ease: [], drafts: [] }, releases: [], errors: [],
     attention: {
@@ -45,7 +45,7 @@ async function main() {
       await page.locator(`.sidebar a[href="/#${hash}"]`).click();
       await page.waitForFunction(title => document.querySelector('.page-heading h1')?.textContent === title, title);
       assert.equal(await page.locator('.sidebar [aria-current="page"]').count(), 1);
-      assert.equal(await page.locator('.tier').count(), 1, `${title} has only its own content`);
+      assert.equal(await page.locator('.tier').count(), hash === 'ready' ? 2 : 1, `${title} has only its own content`);
       assert.match(await page.locator('.tier h2').first().textContent(), new RegExp(section));
       if (hash === 'needs-you') {
         assert.equal(await page.getByRole('button', { name: 'Waiting on you 2', exact: true }).getAttribute('aria-pressed'), 'true');
@@ -63,9 +63,10 @@ async function main() {
         assert.equal(await page.getByText('Approve the example change', { exact: true }).isVisible(), true);
       }
       if (hash === 'ready') {
-        assert.equal(await page.locator('.rows li').count(), 7, 'Focused lists start expanded');
+        assert.equal(await page.locator('.tier:has(#ship-title) .rows li').count(), 7, 'Focused lists start expanded');
         await page.getByRole('button', { name: 'Show fewer' }).click();
-        assert.equal(await page.locator('.rows li').count(), 5);
+        assert.equal(await page.locator('.tier:has(#ship-title) .rows li').count(), 5);
+        assert.equal(await page.getByText('#90 Example draft', { exact: true }).isVisible(), true, 'Green drafts list under Ready to ship');
       }
     }
     await page.goBack();

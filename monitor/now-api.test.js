@@ -155,13 +155,14 @@ test('assemble keeps sources independent and builds the tiers', () => {
     reviews: { error: 'gh: not logged in' },
     map: { value: { hosts: [{ label: 'VM', workspaces: [{ key: 'k', host: 'vm', name: 'W', comment: 'You: approve #1', lastActivityAt: 5 }, { key: 'j', comment: 'Agent: busy' }, { key: 'e', name: 'Ease · P', comment: 'You: decide' }] }] } },
     ease: { value: { posts: [{ title: 'P', whose: 'you', workspace: { name: 'Ease · P', comment: 'clear 123: raw note' }, actions: [{ text: 'done', state: 'done' }, { text: 'decide', state: 'open', url: 'u' }] }, { title: 'Q', whose: 'agent' }] } },
-    merge: { value: { ready: [{ number: 2, title: 'feat: a' }, { number: 3, title: 'fix: b' }], waiting: [] } },
+    merge: { value: { ready: [{ number: 2, title: 'feat: a' }, { number: 3, title: 'fix: b' }], waiting: [], review: [{ number: 4, title: 'feat: c' }] } },
     releases: { value: [] },
     findings: { value: null },
     jobs: { value: [{ name: 'assess', hasInbox: true, unread: 2 }] }
   });
   assert.deepEqual(out.down.map((d) => d.kind), ['vendor', 'automation']);
   assert.deepEqual(out.ready.map((p) => p.number), [3, 2]);
+  assert.deepEqual(out.reviewPrs.map((p) => p.number), [4]);
   assert.deepEqual(out.blocked.agents.map((a) => a.ask), ['approve #1']);
   assert.deepEqual(out.blocked.ease.map((e) => e.next), ['decide']);
   assert.deepEqual(out.blocked.drafts, [{ name: 'assess', unread: 2 }]);

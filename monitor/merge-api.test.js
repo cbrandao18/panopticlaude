@@ -23,3 +23,18 @@ test('a failed read returns an error instead of throwing', async () => {
   assert.match(data.error, /not logged in/);
   assert.deepEqual(data.ready, []);
 });
+
+test('review holds drafts with every check passed and no conflicts', () => {
+  const ok = [{ __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SUCCESS' }, { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'SKIPPED' },
+    { __typename: 'StatusContext', state: 'SUCCESS' }];
+  const draft = (number, mergeStateStatus, statusCheckRollup) => pr(number, mergeStateStatus, { isDraft: true, statusCheckRollup });
+  const { review, ready } = split([
+    draft(3, 'BLOCKED', ok), draft(1, 'BEHIND', ok),
+    draft(4, 'BLOCKED', [...ok, { __typename: 'CheckRun', status: 'COMPLETED', conclusion: 'FAILURE' }]),
+    draft(5, 'BLOCKED', [...ok, { __typename: 'CheckRun', status: 'IN_PROGRESS', conclusion: null }]),
+    draft(6, 'BLOCKED', [...ok, { __typename: 'StatusContext', state: 'PENDING' }]),
+    draft(7, 'DIRTY', ok), draft(8, 'BLOCKED', []), pr(9, 'CLEAN', { statusCheckRollup: ok })
+  ]);
+  assert.deepEqual(review.map((p) => p.number), [1, 3]);
+  assert.deepEqual(ready.map((p) => p.number), [9]);
+});

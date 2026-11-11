@@ -497,6 +497,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     unwatched: UNWATCHED,
     ready,
     waitingPrs: merge.value?.waiting || [],
+    reviewPrs: merge.value?.review || [],
     blocked: { agents, reviews: reviews.value || [], ease: easeYou, drafts },
     attention,
     // A local workspace's row opens it in Orca.

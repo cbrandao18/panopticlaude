@@ -104,7 +104,7 @@ function Down({ data }) {
 }
 
 function Ready({ data }) {
-  const { ready, waitingPrs } = data;
+  const { ready, waitingPrs, reviewPrs } = data;
   return html`
     <${Section} id="ship" title="Ready to ship" count=${ready.length} tone=${ready.length ? 'go' : ''}
       note=${waitingPrs.length ? `${waitingPrs.length} more of your PRs are waiting on something` : ''}>
@@ -117,6 +117,13 @@ function Ready({ data }) {
             </li>`} />`
         : html`<p class="now-muted empty-nest"><${Nest} eggs=${0} />None of your PRs can merge right now.</p>`}
       ${ready.length > 0 && html`<${Nest} eggs=${ready.length} />`}
+    </${Section}>
+    <${Section} id="review" title="Ready to open for review" count=${reviewPrs.length} tone=${reviewPrs.length ? 'go' : ''}
+      note="Drafts with every check passing and no conflicts">
+      ${reviewPrs.length
+        ? html`<${More} items=${reviewPrs} row=${(pr) => html`
+            <li key=${pr.number}><span class="title"><a href=${pr.url}>#${pr.number} ${pr.title}</a></span></li>`} />`
+        : html`<p class="now-muted empty">No green drafts right now.</p>`}
     </${Section}>`;
 }
 

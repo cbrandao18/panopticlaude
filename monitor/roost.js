@@ -8,7 +8,7 @@ const html = htm.bind(h);
 export const PAGES = [
   { group: 'Workspace', href: '/', label: 'Overview', color: 'blue', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z', description: 'A quick look at your agents, work and systems.' },
   { group: 'Workspace', href: '/#needs-you', label: 'Needs you', color: 'blue', icon: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4', description: 'Requests, blockers and failures, with a separate review backlog.' },
-  { group: 'Workspace', href: '/#ready', label: 'Ready to ship', color: 'green', icon: 'M4 12l5 5L20 6', description: 'Pull requests that are ready to merge.' },
+  { group: 'Workspace', href: '/#ready', label: 'Ready to ship', color: 'green', icon: 'M4 12l5 5L20 6', description: 'Pull requests ready to merge, and green drafts ready for review.' },
   { group: 'Workspace', href: '/map', label: 'Map', color: 'purple', icon: 'M9 3h6v5H9zM2 16h6v5H2zM16 16h6v5h-6zM12 8v4M5 16v-4h14v4', description: 'Workspaces, agents and the work connecting them.' },
   { group: 'Operations', href: '/#health', label: 'Health', color: 'green', icon: 'M2 12h5l3-8 4 16 3-8h5', description: 'Vendor health, failed runs and production signals.' },
   { group: 'Operations', href: '/#automations', label: 'Automations', color: 'purple', icon: 'M13 2L4 14h7l-1 8 10-12h-7z', description: 'Schedules and run status across your Mac and VM.' },
