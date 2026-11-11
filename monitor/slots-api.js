@@ -1,6 +1,8 @@
 // The VM's agent slot queue (process-updates slots/slots.py): what runs per kind, what starts next, what just
 // started or got skipped. One `slots.py status --json` call over the same host runner as the other VM cards.
 const STUCK_MS = 15 * 60000;
+// slots.py START_GRACE: a fresh start holds its slot this long, so a slot can free up only 20 min after the last start.
+const GRACE_MS = 20 * 60000;
 const SCRIPT = '. ~/orca/projects/daily-brief/env.sh && /usr/bin/python3 ~/branch-agents/projects/process-updates/slots/slots.py status --json';
 const REPO = 'https://github.com/gobranch/branch';
 
@@ -38,7 +40,7 @@ function summarize(status, workspaces = [], now = Date.now()) {
   const queue = status.queue.map((q) => ({ ...q, what: describe(q.key), waitedMs: now - Date.parse(q.queuedAt), workspace: q.workspace ? ws(q.workspace) : null }));
   const recent = status.recent.map(parseRecent);
   const lastStart = recent.find((r) => r.verb === 'started')?.at || 0;
-  const stuck = !status.paused && queue.some((q) => q.fitsNow && q.waitedMs > STUCK_MS) && now - lastStart > STUCK_MS;
+  const stuck = !status.paused && queue.some((q) => q.fitsNow && q.waitedMs > STUCK_MS) && now - lastStart > GRACE_MS + STUCK_MS;
   return {
     at: Date.parse(status.at),
     budget: status.budget,

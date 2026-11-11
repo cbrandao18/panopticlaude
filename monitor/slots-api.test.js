@@ -53,6 +53,9 @@ test('summarize matches VM workspaces by folder name and flags a stuck queue', (
   assert.equal(summarize(status({ queue: [{ ...status().queue[0], fitsNow: false }] }), [], NOW).stuck, false);
   const fresh = status({ recent: [{ at: '2026-11-10T16:55:00-05:00', text: 'started bugfix bugfix:38599: started' }] });
   assert.equal(summarize(fresh, [], NOW).stuck, false);
+  // A start 25 min ago held its slot for 20 min; the next timer tick hasn't run yet.
+  const graceJustEnded = status({ recent: [{ at: '2026-11-10T16:35:00-05:00', text: 'started bugfix bugfix:38599: started' }] });
+  assert.equal(summarize(graceJustEnded, [], NOW).stuck, false);
   assert.equal(summarize(status({ queue: [] }), [], NOW).stuck, false);
 });
 
