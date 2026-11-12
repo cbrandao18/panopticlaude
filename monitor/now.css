@@ -54,6 +54,7 @@ button.more { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
 .epic meter { width: 90px; }
 /* After a meter, the button sits beside it instead of splitting the free space. */
 .releases .epic + button.open { margin-left: 0; }
+.rows .when + button.open { margin-left: 0; }
 
 .budget { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; margin-bottom: 12px; }
 .budget meter { width: 140px; }

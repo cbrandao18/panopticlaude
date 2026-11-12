@@ -2,7 +2,7 @@
 import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
-import { Masthead, openInOrca } from './ui.js';
+import { Masthead, openInOrca, say } from './ui.js';
 import { Bird, Nest, StatusBird, PAGES } from './roost.js';
 
 const html = htm.bind(h);
@@ -301,8 +301,25 @@ function Slots({ data }) {
 
 const OUTCOME = [['success', 'succeeded'], ['skipped', 'skipped'], ['failed', 'failed'], ['running', 'in progress']];
 
+// Hides the row at once; the server keeps it hidden on later reads.
+async function markIntakeReviewed(r, hide) {
+  try {
+    const res = await fetch('/api/intake/reviewed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' },
+      body: JSON.stringify({ key: r.key })
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    hide(r.key);
+  } catch (e) {
+    say(e.message || `Couldn't mark #${r.issue} reviewed.`);
+  }
+}
+
 function Intake({ data }) {
-  const s = data.intake;
+  const [hidden, setHidden] = useState(() => new Set());
+  const hide = (key) => setHidden((h) => new Set(h).add(key));
+  const s = data.intake && { ...data.intake, reviews: data.intake.reviews.filter((r) => !hidden.has(r.key)) };
   const note = 'ai-new-ticket.yml in gobranch/branch, last 24 hours. Skipped runs are normal: most issue comments need no run.';
   if (!s) {
     return html`
@@ -326,7 +343,8 @@ function Intake({ data }) {
       </p>
       <div class="groups">
         <${Group} label="Needs review" items=${s.reviews} empty="No ticket needs review."
-          row=${(r) => html`<li key=${`${r.url}${r.issue}`}><span class="title"><a href=${r.url}>#${r.issue}: ${r.items} ${r.items === 1 ? 'item needs' : 'items need'} review</a></span><span class="when">${when(r.at)}</span></li>`} />
+          row=${(r) => html`<li key=${`${r.url}${r.issue}`}><span class="title"><a href=${r.url}>#${r.issue}: ${r.items} ${r.items === 1 ? 'item needs' : 'items need'} review</a></span><span class="when">${when(r.at)}</span>
+            <button class="text open" type="button" onClick=${() => markIntakeReviewed(r, hide)}>Reviewed</button></li>`} />
         <${Group} label="Failed runs" items=${s.failed} empty="No failed runs."
           row=${(r) => html`<li key=${r.url}><span class="title"><a href=${r.url}>${r.title}</a></span><span class="when">${when(r.at)}</span></li>`} />
       </div>

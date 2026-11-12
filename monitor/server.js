@@ -19,6 +19,7 @@ const { createBriefReader } = require('./brief-api');
 const { readPlan } = require('./plans-api');
 const { createTipsReader } = require('./claude-tips-api');
 const { createNowReader } = require('./now-api');
+const { saveReviewed } = require('./intake-api');
 
 const exec = promisify(execFile);
 const expand = (value) => value?.replace(/^~(?=\/|$)/, os.homedir());
@@ -285,7 +286,8 @@ function createMonitor({
   postDraft = createPoster(),
   renderMarkdown = renderGithubMarkdown,
   readSeen = lib.loadInboxSeen,
-  writeSeen = lib.saveInboxSeen
+  writeSeen = lib.saveInboxSeen,
+  markIntakeReviewed = saveReviewed
 }) {
   const filing = new Set();
   const findingsJob = jobs.find((job) => job.findings);
@@ -372,6 +374,27 @@ function createMonitor({
         if (typeof key !== 'string') return send(400, { error: 'Invalid request.' });
         const result = await openInOrca(key, await readMap());
         return send(result.opened ? 200 : 409, result);
+      }
+      if (req.method === 'POST' && url.pathname === '/api/intake/reviewed') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Review requests must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 2048) return send(413, { error: 'Request is too large.' });
+        }
+        let key;
+        try {
+          key = JSON.parse(body).key;
+        } catch {
+          return send(400, { error: 'Invalid request.' });
+        }
+        if (typeof key !== 'string' || !/^https:\/\/github\.com\/gobranch\/branch\/actions\/runs\/\d+#\d+$/.test(key)) {
+          return send(400, { error: 'Invalid request.' });
+        }
+        markIntakeReviewed(key);
+        return send(200, { reviewed: key });
       }
       if (req.method === 'POST' && url.pathname === '/api/open') {
         if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {

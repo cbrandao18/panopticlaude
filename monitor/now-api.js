@@ -6,7 +6,7 @@ const { orcaRunner, commentAttention } = require('./map-api');
 const { runOnHost } = require('./security-api');
 const { readWorkers } = require('./workers-api');
 const { readSlots, summarize: summarizeSlots } = require('./slots-api');
-const { readIntake, summarize: summarizeIntake } = require('./intake-api');
+const { readIntake, summarize: summarizeIntake, loadReviewed, hideReviewed } = require('./intake-api');
 const { readPlans } = require('./plans-api');
 
 const fs = require('node:fs/promises');
@@ -521,10 +521,10 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host, run), intake = () => readIntake(run), plans = () => readPlans() }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host, run), intake = () => readIntake(run), plans = () => readPlans(), readReviewed = loadReviewed }, ttl = 60000) {
   let cached = null;
   let pending = null;
-  return () => {
+  const read = () => {
     if (cached && Date.now() - cached.refreshedAt < ttl) return Promise.resolve(cached);
     pending ||= Promise.all([
       settle(() => Promise.all([readAutomations(orca), workers(), medic().catch(() => null)]).then(([rows, w, m]) => [...(m ? [m] : []), ...sortAutomations([...rows, ...w])])),
@@ -547,6 +547,8 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
       .finally(() => { pending = null; });
     return pending;
   };
+  // Checked-off rows hide on the next read, not when the cache next refreshes.
+  return () => read().then((c) => ({ ...c, intake: hideReviewed(c.intake, readReviewed()) }));
 }
 
 module.exports = { parseClosed, readClosed, medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };

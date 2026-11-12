@@ -1,6 +1,9 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { readIntake, summarize, outcome, reviewCache, MAX_REVIEWED_RUNS } = require('./intake-api');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { readIntake, summarize, outcome, reviewCache, MAX_REVIEWED_RUNS, loadReviewed, saveReviewed, hideReviewed } = require('./intake-api');
 const { assemble } = require('./now-api');
 
 const NOW = Date.parse('2026-11-11T20:00:00Z');
@@ -57,7 +60,7 @@ test('readIntake counts the last 24 hours and reads needs-review annotations fro
   assert.equal(card.live, true);
   assert.deepEqual(card.counts, { success: 1, skipped: 1, failed: 1, running: 1 });
   assert.deepEqual(card.failed.map((r) => r.title), ['Ticket 3']);
-  assert.deepEqual(card.reviews, [{ issue: 38751, items: 2, url: 'https://github.com/gobranch/branch/actions/runs/1', at: Date.parse('2026-11-11T19:00:00Z') }]);
+  assert.deepEqual(card.reviews, [{ issue: 38751, items: 2, url: 'https://github.com/gobranch/branch/actions/runs/1', at: Date.parse('2026-11-11T19:00:00Z'), key: 'https://github.com/gobranch/branch/actions/runs/1#38751' }]);
   // Skipped, in-progress and older-than-24h runs get no job lookup.
   assert.deepEqual(gh.calls.filter((c) => c.startsWith('run view')).map((c) => c.split(' ')[2]).sort(), ['1', '3']);
   // A completed run is read once; the next refresh only lists runs.
@@ -92,4 +95,15 @@ test('assemble puts failed intake runs on Down, not skipped ones, and reports an
   const broken = assemble({ ...base, intake: { error: 'gh: not logged in' } });
   assert.deepEqual([broken.intake, broken.intakeError], [null, 'gh: not logged in']);
   assert.ok(broken.errors.some((e) => e.source === 'intake'));
+});
+
+test('saveReviewed records a key and prunes ones older than two days; hideReviewed drops those rows', () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'intake-')), 'reviewed.json');
+  assert.deepEqual(loadReviewed(file), {});
+  saveReviewed('old', NOW - 3 * 86400000, file);
+  saveReviewed('a', NOW, file);
+  assert.deepEqual(loadReviewed(file), { a: NOW });
+  const card = { total: 2, reviews: [{ key: 'a' }, { key: 'b' }] };
+  assert.deepEqual(hideReviewed(card, loadReviewed(file)), { total: 2, reviews: [{ key: 'b' }] });
+  assert.equal(hideReviewed(null, {}), null);
 });
