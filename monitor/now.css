@@ -141,7 +141,6 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .chip.stage.done, .chip.stage.dropped { background: var(--go-bg); color: var(--go-ink); }
 .chip.stage.building { background: var(--info-bg); color: var(--info-ink); }
 .chip.stage.refine, .chip.stage.triage, .chip.stage.unowned { background: var(--you-bg); color: var(--you-ink); }
-.backlog-question { margin: 0 0 12px; font-size: 14px; }
 
 .eval-totals li { font-size: 14px; }
 .eval-grid { border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
@@ -163,3 +162,27 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .eval-fields th, .eval-fields td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
 .eval-fields tr.mismatch td { background: var(--alarm-bg); color: var(--alarm-ink); font-weight: 600; }
 .autos .row-links { margin-left: 6px; font-size: 12px; white-space: nowrap; }
+
+.backlog-row .title { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.backlog-row .ws-note { margin-top: 0; }
+.tier .rows li.backlog-row { align-items: flex-start; }
+.backlog-row > .chip { margin-top: 2px; }
+.backlog-row > .detail { margin-top: 3px; }
+.changes { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 2px 0 0; padding: 0; }
+.tier .rows .changes li { display: inline-block; font-size: 12px; font-weight: 400; padding: 1px 8px; border: 1px solid var(--border); border-top: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); }
+.changes li b { font-weight: 600; color: var(--muted); margin-right: 2px; }
+.changes a { color: inherit; text-decoration: none; }
+.changes a:hover, .changes a:focus-visible { text-decoration: underline; }
+.ask { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); max-width: 80ch; }
+.why { font-size: 13px; font-weight: 400; color: var(--muted); }
+.why summary { cursor: pointer; width: fit-content; }
+.why p { margin: 4px 0 0; }
+.answer { display: grid; gap: 6px; width: 100%; font-weight: 400; margin-top: 2px; }
+.answer-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.answer-buttons button { padding: 3px 10px; font-size: 12.5px; }
+.answer-text textarea { width: 100%; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); resize: vertical; }
+.answer-confirm { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.answered { margin: 0; font-size: 13px; font-weight: 400; color: var(--go-ink); }
+.backlog-question { margin: 0 0 14px; font-size: 14px; }
+.backlog-question p { margin: 0 0 6px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

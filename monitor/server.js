@@ -11,7 +11,7 @@ const { createPoster, receipt, digest, draftKey } = require('./posting');
 const { createMapReader, openWorkspace } = require('./map-api');
 const { createEaseReader, fileTicket, declineTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
-const { createBacklogReader } = require('./backlog-api');
+const { createBacklogReader, answer: answerBacklog } = require('./backlog-api');
 const { readEvals } = require('./evals-api');
 const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
@@ -290,6 +290,7 @@ function createMonitor({
   markIntakeReviewed = saveReviewed
 }) {
   const filing = new Set();
+  const answering = new Set();
   const findingsJob = jobs.find((job) => job.findings);
   readNow ||= createNowReader({
     readMap,
@@ -342,6 +343,34 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/backlog') {
         return send(200, await readBacklog());
+      }
+      if (req.method === 'POST' && url.pathname === '/api/backlog/answer') {
+        if (req.headers['x-panopticlaude'] !== '1' || !req.headers['content-type']?.startsWith('application/json')) {
+          return send(403, { error: 'Answers must come from the monitor.' });
+        }
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 16384) return send(413, { error: 'Request is too large.' });
+        }
+        let input;
+        try {
+          input = JSON.parse(body);
+        } catch {
+          return send(400, { error: 'Invalid request.' });
+        }
+        const lock = `${input?.number ?? input?.question}`;
+        if (answering.has(lock)) return send(409, { error: 'Already answering this one.' });
+        answering.add(lock);
+        try {
+          const result = await answerBacklog(input || {}, { read: readBacklog });
+          setTimeout(() => readBacklog.clear?.(), 20000);
+          return send(200, result);
+        } catch (error) {
+          return send(error.status || 502, { error: error.status ? error.message : `GitHub refused it: ${String(error.stderr || error.message).trim().slice(0, 300)}` });
+        } finally {
+          answering.delete(lock);
+        }
       }
       if (req.method === 'GET' && url.pathname === '/api/security') {
         return send(200, await readSecurity());

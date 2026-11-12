@@ -435,29 +435,139 @@ function Trend({ trend }) {
   return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label=${`Still to sort: ${trend.map((t) => `${day(t.date)} ${t.remaining}`).join(', ')}`}><polyline points=${points} /></svg>`;
 }
 
-function BacklogTicket({ t, why }) {
-  const facts = [t.size != null && `size ${num(t.size)}`, t.priority ? `priority ${num(t.priority)}` : ''].filter(Boolean).join(' · ');
+function Changes({ items }) {
+  if (!items?.length) return null;
+  return html`<ul class="changes" aria-label="What changed">
+    ${items.map((c, i) => {
+      const body = html`<b>${c.label}</b>${c.from ? html` ${c.from} <span aria-hidden="true">→</span><span class="sr-only">to</span>` : ''}${c.to ? ` ${c.to}` : ''}`;
+      return html`<li key=${i}>${c.url ? html`<a href=${c.url}>${body}</a>` : body}</li>`;
+    })}
+  </ul>`;
+}
+
+async function postJson(route, body) {
+  const res = await fetch(route, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// What each kind of ask offers. GitHub writes (team, status, close, comment) ask for a second click first.
+const CHOICES = {
+  'Close recommended': [['close', 'not planned', 'Close: not planned'], ['close', 'completed', 'Close: done'], ['keep', '', 'Keep open']],
+  'Dev team unclear': [['team', 'Staff', 'Staff'], ['team', 'Non-Staff', 'Non-Staff'], ['team', 'Integrations', 'Integrations'], ['close', 'not planned', 'Close: not planned']],
+  'Product decisions': [['status', 'To Do (Dev)', 'Ready: To Do'], ['status', 'Needs Refinement', 'Needs refinement'], ['close', 'not planned', 'Close: not planned']],
+  'Refinement blocked': [['status', 'To Do (Dev)', 'Ready: To Do'], ['close', 'not planned', 'Close: not planned']]
+};
+const GITHUB_ACTIONS = ['team', 'status', 'close', 'comment'];
+const describeAnswer = (a) => ({
+  team: `Dev Team → ${a.value}`, status: `Status → ${a.value}`, close: `Closed: ${a.value}`, keep: 'Keep open',
+  skip: 'Skipped for a week', note: 'Note for the agents', comment: 'Commented', question: `Answered ${a.value}`
+}[a.action] || a.action);
+
+function Answer({ t, section, onDone }) {
+  const [text, setText] = useState('');
+  const [writing, setWriting] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const send = async (action, value = '') => {
+    setBusy(true);
+    setError('');
+    try {
+      const body = { number: t.number, action, value };
+      if (action === 'comment' || action === 'close') body.comment = text;
+      if (action !== 'comment' && action !== 'close' && text) body.note = text;
+      const r = await postJson('/api/backlog/answer', body);
+      onDone({ action, value, note: body.note, at: r.at, url: r.url, warning: r.warning });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+      setConfirm(null);
+    }
+  };
+  const pick = (action, value, label) => (GITHUB_ACTIONS.includes(action) ? setConfirm({ action, value, label }) : send(action, value));
+  const choices = [...(CHOICES[section] || []), ['skip', '', 'Skip a week']];
   return html`
-    <li key=${t.number}>
+    <div class="answer">
+      <div class="answer-buttons" role="group" aria-label=${`Answer #${t.number}`}>
+        ${choices.map(([action, value, label]) => html`<button key=${label} type="button" class="secondary" disabled=${busy} onClick=${() => pick(action, value, label)}>${label}</button>`)}
+        ${!writing && html`<button type="button" class="text" onClick=${() => setWriting(true)}>Write a comment or note</button>`}
+      </div>
+      ${writing && html`<label class="answer-text"><span class="sr-only">Your words on #${t.number}</span>
+        <textarea rows="3" autofocus placeholder="A comment for the ticket (posts as you), or a private note for the agents" value=${text} onInput=${(e) => setText(e.target.value)}></textarea>
+      </label>`}
+      ${text.trim() && html`<div class="answer-buttons">
+        <button type="button" class="secondary" disabled=${busy} onClick=${() => pick('comment', '', 'Post as comment')}>Post as comment</button>
+        <button type="button" class="secondary" disabled=${busy} onClick=${() => send('note')}>Save as private note</button>
+      </div>`}
+      ${confirm && html`<p class="answer-confirm" role="alert">
+        ${confirm.action === 'comment' ? `Post this on #${t.number} as you?` : `${confirm.label} on #${t.number}${confirm.action === 'close' && text.trim() ? ', with your text as the closing comment' : ''}? This writes to GitHub as you.`}
+        <button type="button" disabled=${busy} onClick=${() => send(confirm.action, confirm.value)}>${busy ? 'Sending…' : 'Confirm'}</button>
+        <button type="button" class="text" disabled=${busy} onClick=${() => setConfirm(null)}>Cancel</button>
+      </p>`}
+      ${error && html`<p class="warning" role="alert">${error}</p>`}
+    </div>`;
+}
+
+function BacklogTicket({ t, why, section, answered, onAnswer }) {
+  const facts = [t.size != null && `size ${num(t.size)}`, t.priority ? `priority ${num(t.priority)}` : ''].filter(Boolean).join(' · ');
+  const reason = why || t.verdict;
+  const done = answered || t.answer;
+  return html`
+    <li key=${t.number} class="backlog-row">
       <span class=${`chip stage ${t.stage}`}>${STAGE[t.stage] || t.stage}</span>
-      <span class="title grow">
-        <a href=${t.url}>#${t.number}</a> <span class="what-title">${t.title}</span>
-        ${(why || t.verdict) && html`<span class="ws-note">${why || t.verdict}</span>`}
-        ${t.prep && html`<span class="ws-note">Prep: ${t.prep.recommendation}</span>`}
-      </span>
-      ${t.pr && html`<a class="detail" href=${t.pr.url}>PR #${t.pr.number} ${t.pr.state === 'MERGED' ? 'merged' : t.pr.isDraft ? 'draft' : 'open'}</a>`}
+      <div class="title grow">
+        <span><a href=${t.url}>#${t.number}</a> <span class="what-title">${t.title}</span></span>
+        <${Changes} items=${t.changes} />
+        ${t.prep && html`<span class="ws-note"><b>Prep:</b> ${t.prep.recommendation}</span>`}
+        ${reason && (section
+          ? html`<p class="ask">${reason}</p>`
+          : html`<details class="why"><summary>Why</summary><p>${reason}</p></details>`)}
+        ${done
+          ? html`<p class="answered">You: ${describeAnswer(done)}${done.note ? ` · “${done.note}”` : ''} · ${when(Date.parse(done.at))}${done.url ? html` · <a href=${done.url}>on GitHub</a>` : ''}${done.warning ? html` <span class="warning">${done.warning}</span>` : ''}</p>`
+          : section && html`<${Answer} t=${t} section=${section} onDone=${(a) => onAnswer(t.number, a)} />`}
+      </div>
       ${facts && html`<span class="detail">${facts}</span>`}
     </li>`;
 }
 
+function Question({ q }) {
+  const [answer, setAnswer] = useState(q.answer);
+  const [error, setError] = useState('');
+  const send = async (value) => {
+    try {
+      const r = await postJson('/api/backlog/answer', { action: 'question', question: q.text, value });
+      setAnswer({ value, at: r.at });
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+  return html`
+    <div class="backlog-question">
+      <p>${q.text}</p>
+      ${answer
+        ? html`<p class="answered">You answered ${answer.value} · ${when(Date.parse(answer.at))}. The next pass reads it.</p>`
+        : html`<div class="answer-buttons"><button type="button" class="secondary" onClick=${() => send('yes')}>Yes</button><button type="button" class="secondary" onClick=${() => send('no')}>No</button></div>`}
+      ${error && html`<p class="warning" role="alert">${error}</p>`}
+    </div>`;
+}
+
 function Backlog() {
   const { data, error } = usePoll('/api/backlog', 300000);
+  const [mine, setMine] = useState({});
   if (!data) return html`<section class="tier"><h2>Backlog</h2><p class="now-muted" role="status">${error || 'Loading the backlog…'}</p></section>`;
   if (data.error) {
     return html`<${Section} id="backlog" title="Backlog" tone="info"><p class="warning">Couldn't read the backlog status: ${data.error}</p></${Section}>`;
   }
+  const onAnswer = (n, a) => setMine((m) => ({ ...m, [n]: a }));
   const first = data.trend[0];
-  const asks = data.needsYou.reduce((n, a) => n + a.tickets.length, 0);
+  const prev = data.trend.filter((t) => !t.baseline && t.date < data.date).at(-1);
+  const open = data.needsYou.map((a) => ({ ...a, tickets: a.tickets.filter((t) => !mine[t.number]) }));
+  const asks = open.reduce((n, a) => n + a.tickets.length, 0);
+  const answeredHere = data.needsYou.flatMap((a) => a.tickets.filter((t) => mine[t.number]).map((t) => ({ ...t, answer: mine[t.number], section: a.section })));
+  const answered = [...answeredHere, ...(data.answered || [])];
   const row = (t) => html`<${BacklogTicket} key=${t.number} t=${t} />`;
   const easy = data.tiers.find((t) => t.id === 'easy');
   const easyDone = easy ? easy.tickets.filter(isClosed).length : 0;
@@ -469,6 +579,7 @@ function Backlog() {
         <span><strong>${data.remaining} of ${data.total}</strong> still to sort</span>
         <meter min="0" max=${data.total || 1} value=${data.total - data.remaining} aria-label="Tickets sorted"></meter>
         <${Trend} trend=${data.trend} />
+        ${prev && html`<span class="now-muted">${prev.remaining === data.remaining ? `Same as ${day(prev.date)}` : prev.remaining > data.remaining ? `${prev.remaining - data.remaining} sorted since ${day(prev.date)}` : `${data.remaining - prev.remaining} more to sort than ${day(prev.date)}`}</span>`}
         ${first && first.date !== data.date && html`<span class="now-muted">${first.remaining} on ${day(first.date)}, when the pass started</span>`}
       </div>
       <ul class="pills stages" aria-label="Tickets by stage">
@@ -476,6 +587,16 @@ function Backlog() {
           <li key=${k} class=${SORTED_STAGES.includes(k) ? '' : 'bad'}>${STAGE[k]} ${data.counts[k]}</li>`)}
       </ul>
       <p class="now-muted">Sorted means prioritized, being built, closed or with another team.${data.prepped > 0 ? ` ${data.prepped} prepped overnight for you: see the Prep notes under Needs you.` : ''}</p>
+    </${Section}>
+    <${Section} id="backlog-changed" title="What changed" tone="info" count=${data.recent?.length || null}
+      note=${data.since ? `Since ${day(data.since)}, from the hourly checks.` : 'Day-over-day changes start with tomorrow’s first check. Each ticket’s tags show everything since the pass.'}>
+      ${data.recent?.length
+        ? html`<${More} items=${data.recent} expanded=${false} row=${(t) => html`
+            <li key=${t.number} class="backlog-row">
+              <span class=${`chip stage ${t.stage}`}>${STAGE[t.stage] || t.stage}</span>
+              <div class="title grow"><span><a href=${t.url}>#${t.number}</a> <span class="what-title">${t.title}</span></span><${Changes} items=${t.changes} /></div>
+            </li>`} />`
+        : data.since && html`<p class="now-muted empty">Nothing moved since ${day(data.since)}.</p>`}
     </${Section}>
     <${Section} id="backlog-next" title="Build next" tone="go"
       note="Easy wins first, then prioritized Staff tickets by size, highest priority first.">
@@ -487,14 +608,19 @@ function Backlog() {
       </div>
     </${Section}>
     <${Section} id="backlog-you" title="Needs you" tone="you" count=${asks}
-      note="The pass's asks that are still open on GitHub. Each drops off once the ticket moves.">
-      ${data.questions.map((q) => html`<p key=${q} class="backlog-question">${q}</p>`)}
+      note="The pass's asks still open. Answer here: GitHub changes ask you to confirm, and notes reach only the agents.">
+      ${(data.questions || []).map((q) => html`<${Question} key=${q.text} q=${q} />`)}
       <div class="groups">
-        ${data.needsYou.filter((a) => a.tickets.length).map((a) => html`
+        ${open.filter((a) => a.tickets.length).map((a) => html`
           <${Group} key=${a.section} label=${a.action} items=${a.tickets} empty="" expanded=${false}
-            row=${(t) => html`<${BacklogTicket} key=${t.number} t=${t} why=${t.why} />`} />`)}
+            row=${(t) => html`<${BacklogTicket} key=${t.number} t=${t} why=${t.why} section=${a.section} onAnswer=${onAnswer} />`} />`)}
       </div>
     </${Section}>
+    ${answered.length > 0 && html`
+      <${Section} id="backlog-answered" title="Your answers" tone="info" count=${answered.length}
+        note="Answers stay here; the ticket's tags show when GitHub has caught up.">
+        <${More} items=${answered} expanded=${false} row=${(t) => html`<${BacklogTicket} key=${t.number} t=${t} why=${t.why} answered=${t.answer} />`} />
+      </${Section}>`}
     ${data.remainingTickets.length > 0 && html`
       <${Section} id="backlog-rest" title="Still to sort" tone="info" count=${data.remainingTickets.length}
         note="Unsorted tickets with no question for you. The next pass picks them up.">
