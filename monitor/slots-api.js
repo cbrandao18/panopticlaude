@@ -8,7 +8,7 @@ const exec = require('node:util').promisify(execFile);
 const SCRIPT = '. ~/orca/projects/daily-brief/env.sh && /usr/bin/python3 ~/branch-agents/projects/process-updates/slots/slots.py status --json';
 const REPO = 'https://github.com/gobranch/branch';
 
-const numberOf = (key) => /(?:^|:)(?:review|bugfix|nt):(\d+)/.exec(key)?.[1];
+const numberOf = (key) => /(?:^|:)(?:review|bugfix|nt|bl|prep):(\d+)/.exec(key)?.[1];
 
 // PR and ticket titles for the queued and recent rows, in one GitHub query. Titles are extra: a failure leaves them out.
 async function readTitles(keys, run) {
@@ -36,9 +36,9 @@ async function readSlots(host, run = exec) {
   return { ...status, titles: await readTitles(keys, run) };
 }
 
-// Keys hold a PR or issue number (review:<N>:<date>, bugfix:<N>, nt:<N>) or a Slack ts (hotfix:<ts>, …).
+// Keys hold a PR or issue number (review:<N>:<date>, bugfix:<N>, nt:<N>, bl:<N>, prep:<first N>:<date>) or a Slack ts (hotfix:<ts>, …).
 function describe(key, titles = {}) {
-  const n = /(?:^|:)(review|bugfix|nt):(\d+)/.exec(key);
+  const n = /(?:^|:)(review|bugfix|nt|bl|prep):(\d+)/.exec(key);
   if (n) return { label: `#${n[2]}`, url: `${REPO}/${n[1] === 'review' ? 'pull' : 'issues'}/${n[2]}`, ...(titles[n[2]] && { title: titles[n[2]] }) };
   const ts = /(?:^|:)(?:hotfix|mention|ease):(\d+)\.\d+/.exec(key);
   if (ts) {

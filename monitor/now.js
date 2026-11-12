@@ -228,7 +228,7 @@ function Releases({ data }) {
     </${Section}>`;
 }
 
-const KIND = { hotfix: 'Hotfix', review: 'Review', mention: 'Ping reply', bugfix: 'Bug fix', ease: 'Ease', easywin: 'Easy win', todo: 'Staff To Do' };
+const KIND = { hotfix: 'Hotfix', review: 'Review', mention: 'Ping reply', bugfix: 'Bug fix', ease: 'Ease', easywin: 'Easy win', todo: 'Staff To Do', backlog: 'Backlog build', prep: 'Backlog prep' };
 const VERB = { queued: 'Queued', started: 'Started', skipped: 'Skipped', error: 'Error', retry: 'Retry', expired: 'Expired', other: 'Log' };
 const waited = (ms) => (ms < 3600000 ? `${Math.max(1, Math.round(ms / 60000))}m` : `${Math.round(ms / 3600000)}h`);
 const What = ({ what }) => html`<${Link} href=${what.url}>${what.label}</${Link}>${what.at ? ` from ${when(what.at)}` : ''}${what.title ? html` <span class="what-title">${what.title}</span>` : ''}`;
@@ -425,6 +425,7 @@ function BacklogTicket({ t, why }) {
       <span class="title grow">
         <a href=${t.url}>#${t.number}</a> <span class="what-title">${t.title}</span>
         ${(why || t.verdict) && html`<span class="ws-note">${why || t.verdict}</span>`}
+        ${t.prep && html`<span class="ws-note">Prep: ${t.prep.recommendation}</span>`}
       </span>
       ${t.pr && html`<a class="detail" href=${t.pr.url}>PR #${t.pr.number} ${t.pr.state === 'MERGED' ? 'merged' : t.pr.isDraft ? 'draft' : 'open'}</a>`}
       ${facts && html`<span class="detail">${facts}</span>`}
@@ -456,7 +457,7 @@ function Backlog() {
         ${Object.keys(STAGE).filter((k) => data.counts[k]).map((k) => html`
           <li key=${k} class=${SORTED_STAGES.includes(k) ? '' : 'bad'}>${STAGE[k]} ${data.counts[k]}</li>`)}
       </ul>
-      <p class="now-muted">Sorted means prioritized, being built, closed or with another team.</p>
+      <p class="now-muted">Sorted means prioritized, being built, closed or with another team.${data.prepped > 0 ? ` ${data.prepped} prepped overnight for you: see the Prep notes under Needs you.` : ''}</p>
     </${Section}>
     <${Section} id="backlog-next" title="Build next" tone="go"
       note="Easy wins first, then prioritized Staff tickets by size, highest priority first.">

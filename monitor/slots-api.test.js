@@ -27,6 +27,8 @@ test('describe links PRs, tickets and Slack pings', () => {
   assert.equal(describe('nt:38500').url, 'https://github.com/gobranch/branch/issues/38500');
   assert.deepEqual(describe('hotfix:1762811400.123456'), { label: 'Slack message', at: 1762811400000 });
   assert.deepEqual(describe('mystery'), { label: 'mystery' });
+  assert.deepEqual(describe('bl:35118'), { label: '#35118', url: 'https://github.com/gobranch/branch/issues/35118' });
+  assert.equal(describe('prep:27957:2026-11-12').url, 'https://github.com/gobranch/branch/issues/27957');
   assert.equal(describe('review:38647:2026-11-11', { 38647: 'fix(staff-fe): stop the double charge' }).title, 'fix(staff-fe): stop the double charge');
 });
 
