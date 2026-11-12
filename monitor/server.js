@@ -12,6 +12,7 @@ const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader, openWorkspace } = require('./map-api');
 const { createEaseReader, fileTicket, declineTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
+const { createBacklogReader } = require('./backlog-api');
 const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
@@ -272,6 +273,7 @@ function createMonitor({
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
   readSecurity = createSecurityReader({ readMap }),
+  readBacklog = createBacklogReader(),
   readDeploys = createDeploysReader({ root: process.env.DEPLOYS_ROOT || DEFAULT_ROOT }),
   readMerge = createMergeReader(),
   readBrief = createBriefReader({ render: renderGithubMarkdown }),
@@ -343,6 +345,9 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/brief') {
         return send(200, await readBrief());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/backlog') {
+        return send(200, await readBacklog());
       }
       if (req.method === 'GET' && url.pathname === '/api/security') {
         return send(200, await readSecurity());

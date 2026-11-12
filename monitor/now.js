@@ -52,8 +52,9 @@ function usePoll(route, ms) {
 
 const Link = ({ href, children }) => (href ? html`<a href=${href}>${children}</a>` : children);
 
-function More({ items, row }) {
-  const [all, setAll] = useState(() => Boolean(currentView()));
+// Focused pages show every row unless `expanded` says otherwise.
+function More({ items, row, expanded }) {
+  const [all, setAll] = useState(() => expanded ?? Boolean(currentView()));
   const shown = all ? items : items.slice(0, SHOWN);
   return html`
     <ul class="rows">${shown.map(row)}</ul>
@@ -127,9 +128,9 @@ function Ready({ data }) {
     </${Section}>`;
 }
 
-function Group({ label, items, row, empty, collapsed = false }) {
+function Group({ label, items, row, empty, collapsed = false, expanded }) {
   const heading = html`${label} <span class="count">${items.length}</span>`;
-  const content = items.length ? html`<${More} items=${items} row=${row} />` : html`<p class="now-muted empty">${empty}</p>`;
+  const content = items.length ? html`<${More} items=${items} row=${row} expanded=${expanded} />` : html`<p class="now-muted empty">${empty}</p>`;
   return collapsed
     ? html`<details class="group attention-backlog"><summary>${heading}</summary>${content}</details>`
     : html`<div class="group"><h3>${heading}</h3>${content}</div>`;
@@ -397,10 +398,95 @@ function Brief({ expanded = false }) {
     </details>`;
 }
 
+// --- Backlog ---------------------------------------------------------------------------------------------
+
+const STAGE = {
+  done: 'Done', dropped: 'Closed', 'other-team': 'Other team', building: 'Building', ready: 'Prioritized',
+  refine: 'Needs refinement', triage: 'Needs triage', unowned: 'No dev team', 'out-of-scope': 'Out of scope'
+};
+const SORTED_STAGES = ['done', 'dropped', 'other-team', 'building', 'ready'];
+const isClosed = (t) => ['done', 'dropped'].includes(t.stage);
+const num = (n) => (n == null ? '' : Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+function Trend({ trend }) {
+  const w = 160;
+  if (trend.length < 2) return null;
+  const max = Math.max(1, ...trend.map((t) => t.remaining));
+  const step = w / (trend.length - 1);
+  const points = trend.map((t, i) => `${(i * step).toFixed(1)},${(22 - (t.remaining / max) * 20).toFixed(1)}`).join(' ');
+  return html`<svg class="spark" viewBox="0 0 ${w} 24" width=${w} height="24" role="img" aria-label=${`Still to sort: ${trend.map((t) => `${day(t.date)} ${t.remaining}`).join(', ')}`}><polyline points=${points} /></svg>`;
+}
+
+function BacklogTicket({ t, why }) {
+  const facts = [t.size != null && `size ${num(t.size)}`, t.priority ? `priority ${num(t.priority)}` : ''].filter(Boolean).join(' · ');
+  return html`
+    <li key=${t.number}>
+      <span class=${`chip stage ${t.stage}`}>${STAGE[t.stage] || t.stage}</span>
+      <span class="title grow">
+        <a href=${t.url}>#${t.number}</a> <span class="what-title">${t.title}</span>
+        ${(why || t.verdict) && html`<span class="ws-note">${why || t.verdict}</span>`}
+      </span>
+      ${t.pr && html`<a class="detail" href=${t.pr.url}>PR #${t.pr.number} ${t.pr.state === 'MERGED' ? 'merged' : t.pr.isDraft ? 'draft' : 'open'}</a>`}
+      ${facts && html`<span class="detail">${facts}</span>`}
+    </li>`;
+}
+
+function Backlog() {
+  const { data, error } = usePoll('/api/backlog', 300000);
+  if (!data) return html`<section class="tier"><h2>Backlog</h2><p class="now-muted" role="status">${error || 'Loading the backlog…'}</p></section>`;
+  if (data.error) {
+    return html`<${Section} id="backlog" title="Backlog" tone="info"><p class="warning">Couldn't read the backlog status: ${data.error}</p></${Section}>`;
+  }
+  const first = data.trend[0];
+  const asks = data.needsYou.reduce((n, a) => n + a.tickets.length, 0);
+  const row = (t) => html`<${BacklogTicket} key=${t.number} t=${t} />`;
+  const easy = data.tiers.find((t) => t.id === 'easy');
+  const easyDone = easy ? easy.tickets.filter(isClosed).length : 0;
+  return html`
+    <${Section} id="backlog-progress" title="Sorting the Staff backlog" tone="info"
+      note=${`The ${data.total} tickets in the Staff backlog pass, checked hourly on the VM (last ${when(Date.parse(data.at))}).`}>
+      ${data.stale && html`<p class="warning">The last check is over 3 hours old: look at backlog-status in Automations.</p>`}
+      <div class="budget">
+        <span><strong>${data.remaining} of ${data.total}</strong> still to sort</span>
+        <meter min="0" max=${data.total || 1} value=${data.total - data.remaining} aria-label="Tickets sorted"></meter>
+        <${Trend} trend=${data.trend} />
+        ${first && first.date !== data.date && html`<span class="now-muted">${first.remaining} on ${day(first.date)}, when the pass started</span>`}
+      </div>
+      <ul class="pills stages" aria-label="Tickets by stage">
+        ${Object.keys(STAGE).filter((k) => data.counts[k]).map((k) => html`
+          <li key=${k} class=${SORTED_STAGES.includes(k) ? '' : 'bad'}>${STAGE[k]} ${data.counts[k]}</li>`)}
+      </ul>
+      <p class="now-muted">Sorted means prioritized, being built, closed or with another team.</p>
+    </${Section}>
+    <${Section} id="backlog-next" title="Build next" tone="go"
+      note="Easy wins first, then prioritized Staff tickets by size, highest priority first.">
+      <div class="groups">
+        ${data.tiers.filter((t) => t.tickets.length).map((t) => html`
+          <${Group} key=${t.id} label=${t.id === 'easy' ? `${t.label}: ${easyDone} of ${t.tickets.length} done` : t.label}
+            items=${t.id === 'easy' ? [...t.tickets].sort((x, y) => isClosed(x) - isClosed(y)) : t.tickets}
+            empty="" row=${row} collapsed=${t.id === 'unsized'} expanded=${false} />`)}
+      </div>
+    </${Section}>
+    <${Section} id="backlog-you" title="Needs you" tone="you" count=${asks}
+      note="The pass's asks that are still open on GitHub. Each drops off once the ticket moves.">
+      ${data.questions.map((q) => html`<p key=${q} class="backlog-question">${q}</p>`)}
+      <div class="groups">
+        ${data.needsYou.filter((a) => a.tickets.length).map((a) => html`
+          <${Group} key=${a.section} label=${a.action} items=${a.tickets} empty="" expanded=${false}
+            row=${(t) => html`<${BacklogTicket} key=${t.number} t=${t} why=${t.why} />`} />`)}
+      </div>
+    </${Section}>
+    ${data.remainingTickets.length > 0 && html`
+      <${Section} id="backlog-rest" title="Still to sort" tone="info" count=${data.remainingTickets.length}
+        note="Unsorted tickets with no question for you. The next pass picks them up.">
+        <${More} items=${data.remainingTickets} row=${row} expanded=${false} />
+      </${Section}>`}`;
+}
+
 const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'plans': Plans, 'automations': Automations };
 const currentView = () => {
   const hash = window.location.hash.slice(1);
-  return Object.hasOwn(VIEWS, hash) || hash === 'brief' ? hash : '';
+  return Object.hasOwn(VIEWS, hash) || hash === 'brief' || hash === 'backlog' ? hash : '';
 };
 
 function App() {
@@ -420,7 +506,7 @@ function App() {
   const Focused = VIEWS[view];
   return html`
     <${Masthead} page=${page} status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
-    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
+    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : view === 'backlog' ? html`<${Backlog} key="backlog" />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
       <${Down} data=${data} />
       <${Ready} data=${data} />
       <${Attention} data=${data} />

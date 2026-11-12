@@ -135,3 +135,9 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .markdown table { display: block; overflow-x: auto; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
 .markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
 .markdown th { background: var(--chip-bg); }
+
+.chip.stage { min-width: 9.5em; text-align: center; }
+.chip.stage.done, .chip.stage.dropped { background: var(--go-bg); color: var(--go-ink); }
+.chip.stage.building { background: var(--info-bg); color: var(--info-ink); }
+.chip.stage.refine, .chip.stage.triage, .chip.stage.unowned { background: var(--you-bg); color: var(--you-ink); }
+.backlog-question { margin: 0 0 12px; font-size: 14px; }
