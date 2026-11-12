@@ -483,10 +483,95 @@ function Backlog() {
       </${Section}>`}`;
 }
 
+// --- Evals -----------------------------------------------------------------------------------------------
+const EVALS_PLAN = '/plan?file=2026-11-10-in-house-evals-plan.md';
+// Run ids are UTC stamps such as 20261112T150405Z.
+const runTime = (r) => Date.parse(`${r.slice(0, 4)}-${r.slice(4, 6)}-${r.slice(6, 8)}T${r.slice(9, 11)}:${r.slice(11, 13)}:${r.slice(13, 15)}Z`) || null;
+const CHANGE = { regressed: ['▼', 'worse than the previous run'], improved: ['▲', 'better than the previous run'] };
+
+function TrialDetail({ s, task, config }) {
+  const cell = s.cells[task]?.[config];
+  if (!cell) return null;
+  return html`
+    <div class="eval-detail" aria-live="polite">
+      <h3>${task} · ${config}: ${cell.passed} of ${cell.total} passed${cell.previous ? ` (previous run ${cell.previous.passed} of ${cell.previous.total})` : ''}</h3>
+      ${cell.trials.map((t) => {
+        const keys = [...new Set([...Object.keys(t.want || {}), ...Object.keys(t.got || {})])];
+        return html`
+          <div class="eval-trial" key=${t.rep}>
+            <p><span class=${`chip ${t.pass ? 'plan-building' : 'error'}`}>${t.pass ? 'Pass' : 'Fail'}</span>
+              Try ${t.rep + 1} · ${t.secs}s${t.cost != null ? ` · $${t.cost.toFixed(3)}` : ''}${t.model ? ` · ${t.model}` : ''}${t.skill_version ? ` · skill ${t.skill_version}` : ''}</p>
+            ${t.err && html`<p class="warning">Error: ${t.err}</p>`}
+            ${keys.length > 0 && html`
+              <div class="table-scroll"><table class="eval-fields">
+                <thead><tr><th scope="col">Field</th><th scope="col">Expected</th><th scope="col">Got</th></tr></thead>
+                <tbody>${keys.map((k) => {
+                  const want = t.want?.[k] ?? null;
+                  const got = t.got?.[k] ?? null;
+                  return html`<tr key=${k} class=${want === got ? '' : 'mismatch'}><th scope="row">${k}</th><td>${String(want)}</td><td>${String(got)}</td></tr>`;
+                })}</tbody>
+              </table></div>`}
+          </div>`;
+      })}
+    </div>`;
+}
+
+function Suite({ s }) {
+  const [sel, setSel] = useState(null);
+  const regressions = s.tasks.flatMap((task) => s.configs.map((c) => s.cells[task][c]?.change)).filter((c) => c === 'regressed').length;
+  return html`
+    <${Section} id=${`eval-${s.suite}`} title=${s.title || s.suite} tone=${regressions ? 'alarm' : 'info'}
+      note=${`Latest run ${when(runTime(s.run) || s.at)} · ${s.runs} ${s.runs === 1 ? 'run' : 'runs'} saved${regressions ? ` · ${regressions} ${regressions === 1 ? 'cell' : 'cells'} worse than the previous run` : ''}. Click a cell for each try's answers.`}>
+      <ul class="rows eval-totals">
+        ${s.totals.map((t) => html`
+          <li key=${t.config}>
+            <span class="title">${t.config}</span>
+            <span><strong>${t.passed} of ${t.total}</strong> passed${t.errors ? html`, <span class="stale">${t.errors} ${t.errors === 1 ? 'error' : 'errors'}</span>` : ''}</span>
+            <span class="detail">$${t.cost.toFixed(2)} · ${Math.round(t.secs / 60)} min of runs${t.skillVersions.length ? ` · skill ${t.skillVersions.join(', ')}` : ''}</span>
+            ${t.trend.length > 1 && html`<span class="detail">Earlier: ${t.trend.slice(0, -1).slice(-3).map((r) => `${r.passed} of ${r.total} (${when(runTime(r.run))})`).join(', ')}</span>`}
+          </li>`)}
+      </ul>
+      <div class="table-scroll" role="region" aria-label=${`${s.title || s.suite} results by task`} tabindex="0">
+        <table class="eval-grid">
+          <thead><tr><th scope="col">Task</th>${s.configs.map((c) => html`<th scope="col" key=${c}>${c}</th>`)}</tr></thead>
+          <tbody>${s.tasks.map((task) => html`
+            <tr key=${task}><th scope="row">${task}</th>${s.configs.map((c) => {
+              const cell = s.cells[task][c];
+              if (!cell) return html`<td key=${c}>—</td>`;
+              const state = cell.passed === cell.total ? 'pass' : cell.passed ? 'partial' : 'fail';
+              const pressed = sel?.task === task && sel?.config === c;
+              const [mark, why] = CHANGE[cell.change] || [];
+              return html`<td key=${c}><button type="button" class=${`eval-cell ${state}`} aria-pressed=${pressed}
+                aria-label=${`${c} on ${task}: ${cell.passed} of ${cell.total} passed${why ? `, ${why}` : ''}`}
+                onClick=${() => setSel(pressed ? null : { task, config: c })}>${cell.passed}/${cell.total}${mark && html` <span class=${`change ${cell.change}`} aria-hidden="true">${mark}</span>`}</button></td>`;
+            })}</tr>`)}
+          </tbody>
+        </table>
+      </div>
+      ${sel && html`<${TrialDetail} s=${s} task=${sel.task} config=${sel.config} />`}
+      ${s.unreadable > 0 && html`<p class="warning">${s.unreadable} unreadable ${s.unreadable === 1 ? 'line' : 'lines'} in results/${s.suite}.jsonl.</p>`}
+    </${Section}>`;
+}
+
+function Evals() {
+  const { data, error } = usePoll('/api/evals', 300000);
+  if (!data) return html`<section class="tier"><h2>Benchmarks</h2><p class="now-muted" role="status">${error || 'Loading benchmark results…'}</p></section>`;
+  return html`
+    ${data.suites.length
+      ? data.suites.map((s) => html`<${Suite} key=${s.suite} s=${s} />`)
+      : html`<${Section} id="eval-none" title="Benchmarks" tone="info"><p class="now-muted empty">No benchmark results yet. Runners write them to evals/results/.</p></${Section}>`}
+    <${Section} id="eval-scores" title="Scores" tone="info">
+      <p class="now-muted">Not built yet: the judge scoring each job's real runs is build step 1 of the <a href=${EVALS_PLAN}>evals plan</a>.</p>
+    </${Section}>
+    <${Section} id="eval-loops" title="Learning loops" tone="info">
+      <p class="now-muted">Not built yet: misses, judge corrections and proposals arrive with the first loop, build step 5 of the <a href=${EVALS_PLAN}>evals plan</a>.</p>
+    </${Section}>`;
+}
+
 const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'plans': Plans, 'automations': Automations };
 const currentView = () => {
   const hash = window.location.hash.slice(1);
-  return Object.hasOwn(VIEWS, hash) || hash === 'brief' || hash === 'backlog' ? hash : '';
+  return Object.hasOwn(VIEWS, hash) || hash === 'brief' || hash === 'backlog' || hash === 'evals' ? hash : '';
 };
 
 function App() {
@@ -506,7 +591,7 @@ function App() {
   const Focused = VIEWS[view];
   return html`
     <${Masthead} page=${page} status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
-    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : view === 'backlog' ? html`<${Backlog} key="backlog" />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
+    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : view === 'backlog' ? html`<${Backlog} key="backlog" />` : view === 'evals' ? html`<${Evals} key="evals" />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
       <${Down} data=${data} />
       <${Ready} data=${data} />
       <${Attention} data=${data} />

@@ -20,6 +20,15 @@ async function main() {
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };
   const server = createMonitor({ jobs: [], readNow: async () => data,
+    readEvalResults: async () => ({ suites: [{ suite: 'example', title: 'Example suite', run: '20260101T120000Z', at: Date.now(), runs: 2,
+      configs: ['model-a', 'model-b'], tasks: ['task-with-a-long-example-name'],
+      cells: { 'task-with-a-long-example-name': {
+        'model-a': { passed: 1, total: 2, change: 'regressed', previous: { run: '20251231T120000Z', passed: 2, total: 2 },
+          trials: [{ rep: 0, pass: true, secs: 5, cost: 0.01, want: { verdict: 'ready' }, got: { verdict: 'ready' } },
+            { rep: 1, pass: false, secs: 6, cost: 0.01, want: { verdict: 'ready' }, got: { verdict: 'needs-a-much-longer-example-value' } }] },
+        'model-b': { passed: 2, total: 2, trials: [] } } },
+      totals: [{ config: 'model-a', passed: 1, total: 2, errors: 0, cost: 0.02, secs: 11, skillVersions: ['abc1234'], trend: [] },
+        { config: 'model-b', passed: 2, total: 2, errors: 0, cost: 0.02, secs: 9, skillVersions: [], trend: [] }], unreadable: 0 }] }),
     readPlanDoc: async (file) => (file === 'example.md' ? { file, title: 'Example plan', status: 'draft', next: 'Approve the example',
       markdown: '# Example plan\n\n| Source | A long column of text that has to wrap or scroll on a phone screen |\n|---|---|\n| one | two |\n\nSee [the other plan](superpowers/plans/other.md#steps).\n' } : null),
     readBrief: async () => ({ html: '<p>Example daily brief.</p>', writtenAt: Date.now() }) });
@@ -31,7 +40,7 @@ async function main() {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     // Other pages only need their shared navigation checked here; keep their readers offline.
-    await page.route('**/api/**', route => ['/api/now', '/api/brief', '/api/plan'].includes(new URL(route.request().url()).pathname)
+    await page.route('**/api/**', route => ['/api/now', '/api/brief', '/api/plan', '/api/evals'].includes(new URL(route.request().url()).pathname)
       ? route.continue() : route.fulfill({ status: 503, json: { error: 'Offline fixture' } }));
     const base = `http://127.0.0.1:${server.address().port}`;
     await page.goto(base);
@@ -82,7 +91,11 @@ async function main() {
     await page.locator('.markdown table').waitFor();
     assert.equal(await page.locator('.markdown a').getAttribute('href'), '/plan?file=superpowers%2Fplans%2Fother.md#steps');
     assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Plans');
-    for (const route of ['/#automations', '/#plans', '/plan?file=example.md', '/map', '/work']) {
+    await page.goto(`${base}/#evals`);
+    await page.getByRole('button', { name: 'model-a on task-with-a-long-example-name: 1 of 2 passed, worse than the previous run' }).click();
+    assert.equal(await page.locator('.eval-fields tr.mismatch').count(), 1, 'The failing try highlights its mismatched field');
+    assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Evals');
+    for (const route of ['/#automations', '/#plans', '/#evals', '/plan?file=example.md', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();
       for (const width of [1440, 768, 390]) {

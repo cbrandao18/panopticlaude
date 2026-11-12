@@ -14,6 +14,7 @@ export const PAGES = [
   { group: 'Operations', href: '/#automations', label: 'Automations', color: 'purple', icon: 'M13 2L4 14h7l-1 8 10-12h-7z', description: 'Schedules and run status across your Mac and VM.' },
   { group: 'Operations', href: '/#queue', label: 'Agent queue', color: 'blue', icon: 'M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01', description: 'Capacity, queued work and recent agent starts.' },
   { group: 'Operations', href: '/#projects', label: 'Projects', color: 'orange', icon: 'M3 7V4h6l2 3h10v13H3z', description: 'Progress across watched projects and releases.' },
+  { group: 'Operations', href: '/#evals', label: 'Evals', color: 'purple', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2', description: 'How the agent jobs score, and how models and prompts compare on the benchmarks.' },
   { group: 'Operations', href: '/#backlog', label: 'Backlog', color: 'orange', icon: 'M4 6h16M4 12h10M4 18h6', description: 'The Staff backlog pass: what to build next, what needs you, and progress over time.' },
   { group: 'Operations', href: '/#plans', label: 'Plans', color: 'green', icon: 'M9 4h6v3H9zM6 5H5v16h14V5h-1M9 12h6M9 16h4', description: 'Upcoming plans and their next steps.' },
   { group: 'Resources', href: '/#brief', label: 'Daily brief', color: 'blue', icon: 'M5 3h14v18H5zM8 7h8M8 11h8M8 15h5', description: 'Your latest daily brief.' },

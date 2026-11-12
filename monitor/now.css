@@ -141,3 +141,23 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .chip.stage.building { background: var(--info-bg); color: var(--info-ink); }
 .chip.stage.refine, .chip.stage.triage, .chip.stage.unowned { background: var(--you-bg); color: var(--you-ink); }
 .backlog-question { margin: 0 0 12px; font-size: 14px; }
+
+.eval-totals li { font-size: 14px; }
+.eval-grid { border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+.eval-grid th, .eval-grid td { border-top: 1px solid var(--line); padding: 4px 8px; text-align: left; white-space: nowrap; }
+.eval-grid thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.eval-grid tbody th { font-weight: 550; }
+.eval-cell { min-width: 4.2em; padding: 3px 8px; border-radius: 5px; border: 1px solid transparent; font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+.eval-cell.pass { background: var(--go-bg); color: var(--go-ink); }
+.eval-cell.partial { background: var(--you-bg); color: var(--you-ink); }
+.eval-cell.fail { background: var(--alarm-chip); color: var(--alarm-ink); }
+.eval-cell[aria-pressed="true"] { border-color: var(--text); }
+.eval-cell:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: 2px; }
+.eval-cell .change.regressed { color: var(--alarm-ink); }
+.eval-cell .change.improved { color: var(--go-ink); }
+.eval-detail { border-top: 1px solid var(--line); padding-top: 10px; }
+.eval-detail h3 { font-size: 15px; margin: 0 0 8px; }
+.eval-trial p { margin: 6px 0; font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.eval-fields { border-collapse: collapse; font-size: 13px; margin: 4px 0 12px; }
+.eval-fields th, .eval-fields td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+.eval-fields tr.mismatch td { background: var(--alarm-bg); color: var(--alarm-ink); font-weight: 600; }
