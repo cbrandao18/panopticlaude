@@ -3,6 +3,7 @@ import { h, render } from './vendor/preact.js';
 import { useEffect, useState } from './vendor/hooks.js';
 import htm from './vendor/htm.js';
 import { Masthead, openInOrca, say } from './ui.js';
+import { marked } from './vendor/marked.js';
 import { Bird, Nest, StatusBird, PAGES } from './roost.js';
 
 const html = htm.bind(h);
@@ -633,9 +634,12 @@ const EVALS_PLAN = '/plan?file=2026-11-10-in-house-evals-plan.md';
 // Run ids are UTC stamps such as 20261112T150405Z.
 const runTime = (r) => Date.parse(`${r.slice(0, 4)}-${r.slice(4, 6)}-${r.slice(6, 8)}T${r.slice(9, 11)}:${r.slice(11, 13)}:${r.slice(13, 15)}Z`) || null;
 const CHANGE = { regressed: ['▼', 'worse than the previous run'], improved: ['▲', 'better than the previous run'] };
+const cellState = (cell) => (cell.passed === cell.total ? 'pass' : cell.passed ? 'partial' : 'fail');
 
 // Quote text so the string "none" can't be mistaken for an empty (null) value.
-const fieldValue = (v) => (v == null ? html`<span class="eval-null">empty (null)</span>` : typeof v === 'string' ? `"${v}"` : String(v));
+const fieldValue = (v) => (v == null
+  ? html`<span class="eval-null">empty (null)</span>`
+  : html`<code class="eval-val">${typeof v === 'string' ? `"${v}"` : String(v)}</code>`);
 
 // "github.com:owner/repo@sha" in a task's startingRepoRefs.
 const repoRef = (ref) => {
@@ -643,102 +647,155 @@ const repoRef = (ref) => {
   return m ? html`<a href=${`https://github.com/${m[1]}/tree/${m[2]}`}>${m[1]} at ${m[2].slice(0, 10)}</a>` : ref;
 };
 
-function TaskDetail({ s, task }) {
+function EvalTotals({ s }) {
+  const trends = s.totals.filter((t) => t.trend.length > 1);
+  return html`
+    <div class="table-scroll" role="region" aria-label="Totals by model" tabindex="0">
+      <table class="eval-totals">
+        <thead><tr><th scope="col">Model</th><th scope="col">Passed</th><th scope="col">Cost</th><th scope="col">Time</th><th scope="col">Errors</th><th scope="col">Skill version</th></tr></thead>
+        <tbody>${s.totals.map((t) => html`
+          <tr key=${t.config}>
+            <th scope="row">${t.config}</th>
+            <td><span class="eval-score">${t.passed}/${t.total}</span>
+              <meter class="eval-bar" min="0" max=${t.total} value=${t.passed} low=${t.total * 0.6} high=${t.total * 0.9} optimum=${t.total}
+                aria-label=${`${t.passed} of ${t.total} passed`}></meter></td>
+            <td class="eval-num">$${t.cost.toFixed(2)}</td>
+            <td class="eval-num">${Math.max(1, Math.round(t.secs / 60))} min</td>
+            <td class="eval-num">${t.errors ? html`<span class="stale">${t.errors}</span>` : html`<span class="now-muted">none</span>`}</td>
+            <td>${t.skillVersions.length ? t.skillVersions.map((v) => html`<code class="eval-val" key=${v}>${v}</code>`) : html`<span class="now-muted">—</span>`}</td>
+          </tr>`)}
+        </tbody>
+      </table>
+    </div>
+    ${trends.length > 0 && html`<p class="eval-trend">Earlier runs: ${trends.map((t, i) => html`${i ? ' · ' : ''}${t.config} ${t.trend.slice(0, -1).slice(-3).map((r) => `${r.passed}/${r.total} (${when(runTime(r.run))})`).join(', ')}`)}</p>`}`;
+}
+
+function EvalGrid({ s, sel, setSel }) {
+  return html`
+    <div class="table-scroll" role="region" aria-label=${`${s.title || s.suite} results by task`} tabindex="0">
+      <table class="eval-grid">
+        <thead><tr><th scope="col">Task</th>${s.configs.map((c) => html`<th scope="col" key=${c}>${c}</th>`)}</tr></thead>
+        <tbody>${s.tasks.map((task) => {
+          const taskOpen = sel?.task === task && !sel.config;
+          return html`
+          <tr key=${task} class=${sel?.task === task ? 'selected' : ''}>
+            <th scope="row"><button type="button" class="text eval-task" aria-pressed=${taskOpen}
+              onClick=${() => setSel(taskOpen ? null : { task })}>${task}</button></th>
+            ${s.configs.map((c) => {
+              const cell = s.cells[task][c];
+              if (!cell) return html`<td key=${c}>—</td>`;
+              const pressed = sel?.task === task && sel?.config === c;
+              const [mark, why] = CHANGE[cell.change] || [];
+              return html`<td key=${c}><button type="button" class=${`eval-cell ${cellState(cell)}`} aria-pressed=${pressed}
+                aria-label=${`${c} on ${task}: ${cell.passed} of ${cell.total} passed${why ? `, ${why}` : ''}`}
+                onClick=${() => setSel(pressed ? null : { task, config: c })}>${cell.passed}/${cell.total}${mark && html` <span class=${`change ${cell.change}`} aria-hidden="true">${mark}</span>`}</button></td>`;
+            })}
+          </tr>`;
+        })}</tbody>
+      </table>
+    </div>`;
+}
+
+function TaskDetail({ s, task, setSel }) {
   const info = s.taskInfo?.[task];
   const want = s.configs.map((c) => s.cells[task][c]?.trials?.[0]?.want).find(Boolean);
   const t = info?.ticket;
   return html`
-    <div class="eval-detail" aria-live="polite">
-      <h3>${info?.title || task}</h3>
-      <h4>Expected answer</h4>
-      ${info?.successCriteria && html`<p class="eval-criteria">${info.successCriteria}</p>`}
-      ${want && html`
-        <div class="table-scroll"><table class="eval-fields">
-          <thead><tr><th scope="col">Field</th><th scope="col">Expected</th></tr></thead>
-          <tbody>${Object.entries(want).map(([k, v]) => html`<tr key=${k}><th scope="row">${k}</th><td>${fieldValue(v)}</td></tr>`)}</tbody>
-        </table></div>`}
-      ${t && html`
-        <h4>Ticket the model judged</h4>
-        <div class="eval-ticket">
-          <p><strong>${t.title}</strong></p>
-          <p class="detail">${[t.id, t.author_role && `filed by ${t.author_role}`, t.parent && `child of #${t.parent}`, t.created_at && day(t.created_at.slice(0, 10))].filter(Boolean).join(' · ')}</p>
-          ${t.body && html`<pre class="eval-body">${t.body}</pre>`}
-          ${t.code_check && html`<p><strong>Code check given to the model:</strong> ${t.code_check}</p>`}
-        </div>`}
-      ${info?.others.length > 0 && html`
-        <details><summary>Other open tickets it compared against (${info.others.length})</summary>
-          <ul>${info.others.map((o) => html`<li key=${o.id}>${o.id}: ${o.title}</li>`)}</ul>
-        </details>`}
-      ${info?.prompt && html`<details><summary>Full prompt</summary><pre class="eval-body">${info.prompt}</pre></details>`}
-      ${info?.refs.length > 0 && html`<p class="detail">Run against ${info.refs.map((r, i) => html`${i ? ', ' : ''}${repoRef(r)}`)}</p>`}
-      ${!info && html`<p class="warning">No task file at evals/benchmarks/${s.suite}/tasks/${task}.yaml.</p>`}
-    </div>`;
+    <h3>${info?.title || task}</h3>
+    <div class="eval-sub">
+      ${s.configs.filter((c) => s.cells[task][c]).map((c) => {
+        const cell = s.cells[task][c];
+        return html`<button type="button" key=${c} class=${`eval-cell small ${cellState(cell)}`} onClick=${() => setSel({ task, config: c })}
+          aria-label=${`${c}: ${cell.passed} of ${cell.total} passed. Compare its tries`}>${c} ${cell.passed}/${cell.total}</button>`;
+      })}
+    </div>
+    <h4>Expected answer</h4>
+    ${info?.successCriteria && html`<p class="eval-callout">${info.successCriteria}</p>`}
+    ${want && html`<dl class="eval-kv">${Object.entries(want).map(([k, v]) => html`<dt key=${`${k}-k`}>${k}</dt><dd key=${`${k}-v`}>${fieldValue(v)}</dd>`)}</dl>`}
+    ${t && html`
+      <h4>Ticket the model judged</h4>
+      <article class="eval-ticket">
+        <p class="eval-ticket-title">${t.title}</p>
+        <p class="eval-meta">
+          ${[t.id, t.author_role && `Filed by ${t.author_role}`, t.parent && `Child of #${t.parent}`, t.created_at && day(t.created_at.slice(0, 10))]
+            .filter(Boolean).map((m) => html`<span class="chip" key=${m}>${m}</span>`)}
+        </p>
+        ${t.body && html`<div class="markdown" dangerouslySetInnerHTML=${{ __html: marked.parse(t.body) }} />`}
+        ${t.code_check && html`<p class="eval-check"><strong>Code check given to the model:</strong> ${t.code_check}</p>`}
+      </article>`}
+    ${info?.others.length > 0 && html`
+      <details><summary>Other open tickets it compared against (${info.others.length})</summary>
+        <ul>${info.others.map((o) => html`<li key=${o.id}><span class="now-muted">${o.id}</span> ${o.title}</li>`)}</ul>
+      </details>`}
+    ${info?.prompt && html`<details><summary>Full prompt</summary><pre class="eval-prompt">${info.prompt}</pre></details>`}
+    ${info?.refs.length > 0 && html`<p class="eval-refs">Ran against ${info.refs.map((r, i) => html`${i ? ', ' : ''}${repoRef(r)}`)}</p>`}
+    ${!info && html`<p class="warning">No task file at evals/benchmarks/${s.suite}/tasks/${task}.yaml.</p>`}`;
 }
 
-function TrialDetail({ s, task, config, onTask }) {
+function TrialDetail({ s, task, config, setSel }) {
   const cell = s.cells[task]?.[config];
   if (!cell) return null;
+  const tries = cell.trials;
+  const keys = [...new Set(tries.flatMap((t) => [...Object.keys(t.want || {}), ...Object.keys(t.got || {})]))];
+  const want = tries.find((t) => t.want)?.want || {};
+  const meta = [...new Set(tries.map((t) => [t.model, t.skill_version && `skill ${t.skill_version}`].filter(Boolean).join(' · ')))];
   return html`
-    <div class="eval-detail" aria-live="polite">
-      <h3>${task} · ${config}: ${cell.passed} of ${cell.total} passed${cell.previous ? ` (previous run ${cell.previous.passed} of ${cell.previous.total})` : ''}
-        <button type="button" class="text" onClick=${onTask}>See the task</button></h3>
-      ${cell.trials.map((t) => {
-        const keys = [...new Set([...Object.keys(t.want || {}), ...Object.keys(t.got || {})])];
-        return html`
-          <div class="eval-trial" key=${t.rep}>
-            <p><span class=${`chip ${t.pass ? 'plan-building' : 'error'}`}>${t.pass ? 'Pass' : 'Fail'}</span>
-              Try ${t.rep + 1} · ${t.secs}s${t.cost != null ? ` · $${t.cost.toFixed(3)}` : ''}${t.model ? ` · ${t.model}` : ''}${t.skill_version ? ` · skill ${t.skill_version}` : ''}</p>
-            ${t.err && html`<p class="warning">Error: ${t.err}</p>`}
-            ${keys.length > 0 && html`
-              <div class="table-scroll"><table class="eval-fields">
-                <thead><tr><th scope="col">Field</th><th scope="col">Expected</th><th scope="col">Got</th></tr></thead>
-                <tbody>${keys.map((k) => {
-                  const want = t.want?.[k] ?? null;
-                  const got = t.got?.[k] ?? null;
-                  return html`<tr key=${k} class=${want === got ? '' : 'mismatch'}><th scope="row">${k}</th><td>${fieldValue(want)}</td><td>${fieldValue(got)}</td></tr>`;
-                })}</tbody>
-              </table></div>`}
-          </div>`;
-      })}
-    </div>`;
+    <h3>${task}</h3>
+    <div class="eval-sub">
+      <span class=${`eval-cell small static ${cellState(cell)}`}>${config} ${cell.passed}/${cell.total}</span>
+      ${cell.previous && html`<span>previous run ${cell.previous.passed}/${cell.previous.total}</span>`}
+      <button type="button" class="text eval-task" onClick=${() => setSel({ task })}>See the task and expected answer</button>
+    </div>
+    <div class="table-scroll" role="region" aria-label="Expected answer and each try" tabindex="0">
+      <table class="eval-compare">
+        <thead><tr>
+          <th scope="col">Field</th><th scope="col">Expected</th>
+          ${tries.map((t) => html`<th scope="col" key=${t.rep}>Try ${t.rep + 1}
+            <span class=${`chip ${t.pass ? 'plan-building' : 'error'}`}>${t.pass ? 'Pass' : 'Fail'}</span>
+            <span class="detail">${t.secs}s${t.cost != null ? ` · $${t.cost.toFixed(3)}` : ''}</span></th>`)}
+        </tr></thead>
+        <tbody>${keys.map((k) => html`
+          <tr key=${k}>
+            <th scope="row">${k}</th>
+            <td>${fieldValue(want[k] ?? null)}</td>
+            ${tries.map((t) => {
+              const got = t.got?.[k] ?? null;
+              const wrong = got !== (want[k] ?? null);
+              return html`<td key=${t.rep} class=${wrong ? 'mismatch' : ''}>${fieldValue(got)}${wrong && html`<span class="sr-only"> (doesn't match)</span>`}</td>`;
+            })}
+          </tr>`)}
+        </tbody>
+      </table>
+    </div>
+    ${tries.filter((t) => t.err).map((t) => html`<p class="warning" key=${t.rep}>Try ${t.rep + 1} error: ${t.err}</p>`)}
+    ${meta.length > 0 && html`<p class="eval-refs">${meta.join(' / ')}</p>`}`;
 }
 
 function Suite({ s }) {
   const [sel, setSel] = useState(null);
   const regressions = s.tasks.flatMap((task) => s.configs.map((c) => s.cells[task][c]?.change)).filter((c) => c === 'regressed').length;
+  const status = !sel ? '' : sel.config ? `Showing ${sel.config}'s tries on ${sel.task}` : `Showing task ${sel.task}`;
   return html`
     <${Section} id=${`eval-${s.suite}`} title=${s.title || s.suite} tone=${regressions ? 'alarm' : 'info'}
-      note=${`Latest run ${when(runTime(s.run) || s.at)} · ${s.runs} ${s.runs === 1 ? 'run' : 'runs'} saved${regressions ? ` · ${regressions} ${regressions === 1 ? 'cell' : 'cells'} worse than the previous run` : ''}. Click a task for its ticket and expected answer, or a cell for each try's answers.`}>
-      <ul class="rows eval-totals">
-        ${s.totals.map((t) => html`
-          <li key=${t.config}>
-            <span class="title">${t.config}</span>
-            <span><strong>${t.passed} of ${t.total}</strong> passed${t.errors ? html`, <span class="stale">${t.errors} ${t.errors === 1 ? 'error' : 'errors'}</span>` : ''}</span>
-            <span class="detail">$${t.cost.toFixed(2)} · ${Math.round(t.secs / 60)} min of runs${t.skillVersions.length ? ` · skill ${t.skillVersions.join(', ')}` : ''}</span>
-            ${t.trend.length > 1 && html`<span class="detail">Earlier: ${t.trend.slice(0, -1).slice(-3).map((r) => `${r.passed} of ${r.total} (${when(runTime(r.run))})`).join(', ')}</span>`}
-          </li>`)}
-      </ul>
-      <div class="table-scroll" role="region" aria-label=${`${s.title || s.suite} results by task`} tabindex="0">
-        <table class="eval-grid">
-          <thead><tr><th scope="col">Task</th>${s.configs.map((c) => html`<th scope="col" key=${c}>${c}</th>`)}</tr></thead>
-          <tbody>${s.tasks.map((task) => html`
-            <tr key=${task}><th scope="row"><button type="button" class="text eval-task" aria-pressed=${sel?.task === task && !sel.config}
-              onClick=${() => setSel(sel?.task === task && !sel.config ? null : { task })}>${task}</button></th>${s.configs.map((c) => {
-              const cell = s.cells[task][c];
-              if (!cell) return html`<td key=${c}>—</td>`;
-              const state = cell.passed === cell.total ? 'pass' : cell.passed ? 'partial' : 'fail';
-              const pressed = sel?.task === task && sel?.config === c;
-              const [mark, why] = CHANGE[cell.change] || [];
-              return html`<td key=${c}><button type="button" class=${`eval-cell ${state}`} aria-pressed=${pressed}
-                aria-label=${`${c} on ${task}: ${cell.passed} of ${cell.total} passed${why ? `, ${why}` : ''}`}
-                onClick=${() => setSel(pressed ? null : { task, config: c })}>${cell.passed}/${cell.total}${mark && html` <span class=${`change ${cell.change}`} aria-hidden="true">${mark}</span>`}</button></td>`;
-            })}</tr>`)}
-          </tbody>
-        </table>
+      note=${`Latest run ${when(runTime(s.run) || s.at)} · ${s.runs} ${s.runs === 1 ? 'run' : 'runs'} saved${regressions ? ` · ${regressions} ${regressions === 1 ? 'cell' : 'cells'} worse than the previous run` : ''}`}>
+      <${EvalTotals} s=${s} />
+      <div class="eval-results">
+        <div class="eval-matrix"><${EvalGrid} s=${s} sel=${sel} setSel=${setSel} /></div>
+        <aside class=${`eval-panel ${sel ? '' : 'empty'}`} aria-label="Details">
+          <p class="sr-only" aria-live="polite">${status}</p>
+          ${!sel ? html`
+            <p class="eval-empty-title">Pick a task or a score</p>
+            <p>A task shows the ticket the model judged and the expected answer. A score compares each try with the expected answer, field by field.</p>
+            <p class="eval-legend">
+              <span><span class="eval-cell small static pass">2/2</span> all tries passed</span>
+              <span><span class="eval-cell small static partial">1/2</span> some passed</span>
+              <span><span class="eval-cell small static fail">0/2</span> none passed</span>
+              <span>▼ ▲ worse or better than the previous run</span>
+            </p>`
+          : sel.config ? html`<${TrialDetail} s=${s} task=${sel.task} config=${sel.config} setSel=${setSel} />`
+          : html`<${TaskDetail} s=${s} task=${sel.task} setSel=${setSel} />`}
+        </aside>
       </div>
-      ${sel && (sel.config
-        ? html`<${TrialDetail} s=${s} task=${sel.task} config=${sel.config} onTask=${() => setSel({ task: sel.task })} />`
-        : html`<${TaskDetail} s=${s} task=${sel.task} />`)}
       ${s.unreadable > 0 && html`<p class="warning">${s.unreadable} unreadable ${s.unreadable === 1 ? 'line' : 'lines'} in results/${s.suite}.jsonl.</p>`}
     </${Section}>`;
 }

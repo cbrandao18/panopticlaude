@@ -96,11 +96,11 @@ async function main() {
     assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Plans');
     await page.goto(`${base}/#evals`);
     await page.getByRole('button', { name: 'model-a on task-with-a-long-example-name: 1 of 2 passed, worse than the previous run' }).click();
-    assert.equal(await page.locator('.eval-fields tr.mismatch').count(), 1, 'The failing try highlights its mismatched field');
+    assert.equal(await page.locator('.eval-compare td.mismatch').count(), 1, 'The failing try highlights its mismatched field');
     assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Evals');
-    await page.getByRole('button', { name: 'See the task' }).click();
-    assert.equal(await page.locator('.eval-ticket strong').textContent(), 'Example ticket', 'The task view shows the judged ticket');
-    assert.equal(await page.locator('.eval-fields td').first().textContent(), '"ready"', 'Text values are quoted');
+    await page.getByRole('button', { name: 'See the task and expected answer' }).click();
+    assert.equal(await page.locator('.eval-ticket-title').textContent(), 'Example ticket', 'The task view shows the judged ticket');
+    assert.equal(await page.locator('.eval-kv dd').first().textContent(), '"ready"', 'Text values are quoted');
     for (const route of ['/#automations', '/#plans', '/#evals', '/plan?file=example.md', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();
