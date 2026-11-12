@@ -634,12 +634,54 @@ const EVALS_PLAN = '/plan?file=2026-11-10-in-house-evals-plan.md';
 const runTime = (r) => Date.parse(`${r.slice(0, 4)}-${r.slice(4, 6)}-${r.slice(6, 8)}T${r.slice(9, 11)}:${r.slice(11, 13)}:${r.slice(13, 15)}Z`) || null;
 const CHANGE = { regressed: ['▼', 'worse than the previous run'], improved: ['▲', 'better than the previous run'] };
 
-function TrialDetail({ s, task, config }) {
+// Quote text so the string "none" can't be mistaken for an empty (null) value.
+const fieldValue = (v) => (v == null ? html`<span class="eval-null">empty (null)</span>` : typeof v === 'string' ? `"${v}"` : String(v));
+
+// "github.com:owner/repo@sha" in a task's startingRepoRefs.
+const repoRef = (ref) => {
+  const m = /^github\.com:([\w.-]+\/[\w.-]+)@(\w+)$/.exec(ref);
+  return m ? html`<a href=${`https://github.com/${m[1]}/tree/${m[2]}`}>${m[1]} at ${m[2].slice(0, 10)}</a>` : ref;
+};
+
+function TaskDetail({ s, task }) {
+  const info = s.taskInfo?.[task];
+  const want = s.configs.map((c) => s.cells[task][c]?.trials?.[0]?.want).find(Boolean);
+  const t = info?.ticket;
+  return html`
+    <div class="eval-detail" aria-live="polite">
+      <h3>${info?.title || task}</h3>
+      <h4>Expected answer</h4>
+      ${info?.successCriteria && html`<p class="eval-criteria">${info.successCriteria}</p>`}
+      ${want && html`
+        <div class="table-scroll"><table class="eval-fields">
+          <thead><tr><th scope="col">Field</th><th scope="col">Expected</th></tr></thead>
+          <tbody>${Object.entries(want).map(([k, v]) => html`<tr key=${k}><th scope="row">${k}</th><td>${fieldValue(v)}</td></tr>`)}</tbody>
+        </table></div>`}
+      ${t && html`
+        <h4>Ticket the model judged</h4>
+        <div class="eval-ticket">
+          <p><strong>${t.title}</strong></p>
+          <p class="detail">${[t.id, t.author_role && `filed by ${t.author_role}`, t.parent && `child of #${t.parent}`, t.created_at && day(t.created_at.slice(0, 10))].filter(Boolean).join(' · ')}</p>
+          ${t.body && html`<pre class="eval-body">${t.body}</pre>`}
+          ${t.code_check && html`<p><strong>Code check given to the model:</strong> ${t.code_check}</p>`}
+        </div>`}
+      ${info?.others.length > 0 && html`
+        <details><summary>Other open tickets it compared against (${info.others.length})</summary>
+          <ul>${info.others.map((o) => html`<li key=${o.id}>${o.id}: ${o.title}</li>`)}</ul>
+        </details>`}
+      ${info?.prompt && html`<details><summary>Full prompt</summary><pre class="eval-body">${info.prompt}</pre></details>`}
+      ${info?.refs.length > 0 && html`<p class="detail">Run against ${info.refs.map((r, i) => html`${i ? ', ' : ''}${repoRef(r)}`)}</p>`}
+      ${!info && html`<p class="warning">No task file at evals/benchmarks/${s.suite}/tasks/${task}.yaml.</p>`}
+    </div>`;
+}
+
+function TrialDetail({ s, task, config, onTask }) {
   const cell = s.cells[task]?.[config];
   if (!cell) return null;
   return html`
     <div class="eval-detail" aria-live="polite">
-      <h3>${task} · ${config}: ${cell.passed} of ${cell.total} passed${cell.previous ? ` (previous run ${cell.previous.passed} of ${cell.previous.total})` : ''}</h3>
+      <h3>${task} · ${config}: ${cell.passed} of ${cell.total} passed${cell.previous ? ` (previous run ${cell.previous.passed} of ${cell.previous.total})` : ''}
+        <button type="button" class="text" onClick=${onTask}>See the task</button></h3>
       ${cell.trials.map((t) => {
         const keys = [...new Set([...Object.keys(t.want || {}), ...Object.keys(t.got || {})])];
         return html`
@@ -653,7 +695,7 @@ function TrialDetail({ s, task, config }) {
                 <tbody>${keys.map((k) => {
                   const want = t.want?.[k] ?? null;
                   const got = t.got?.[k] ?? null;
-                  return html`<tr key=${k} class=${want === got ? '' : 'mismatch'}><th scope="row">${k}</th><td>${String(want)}</td><td>${String(got)}</td></tr>`;
+                  return html`<tr key=${k} class=${want === got ? '' : 'mismatch'}><th scope="row">${k}</th><td>${fieldValue(want)}</td><td>${fieldValue(got)}</td></tr>`;
                 })}</tbody>
               </table></div>`}
           </div>`;
@@ -666,7 +708,7 @@ function Suite({ s }) {
   const regressions = s.tasks.flatMap((task) => s.configs.map((c) => s.cells[task][c]?.change)).filter((c) => c === 'regressed').length;
   return html`
     <${Section} id=${`eval-${s.suite}`} title=${s.title || s.suite} tone=${regressions ? 'alarm' : 'info'}
-      note=${`Latest run ${when(runTime(s.run) || s.at)} · ${s.runs} ${s.runs === 1 ? 'run' : 'runs'} saved${regressions ? ` · ${regressions} ${regressions === 1 ? 'cell' : 'cells'} worse than the previous run` : ''}. Click a cell for each try's answers.`}>
+      note=${`Latest run ${when(runTime(s.run) || s.at)} · ${s.runs} ${s.runs === 1 ? 'run' : 'runs'} saved${regressions ? ` · ${regressions} ${regressions === 1 ? 'cell' : 'cells'} worse than the previous run` : ''}. Click a task for its ticket and expected answer, or a cell for each try's answers.`}>
       <ul class="rows eval-totals">
         ${s.totals.map((t) => html`
           <li key=${t.config}>
@@ -680,7 +722,8 @@ function Suite({ s }) {
         <table class="eval-grid">
           <thead><tr><th scope="col">Task</th>${s.configs.map((c) => html`<th scope="col" key=${c}>${c}</th>`)}</tr></thead>
           <tbody>${s.tasks.map((task) => html`
-            <tr key=${task}><th scope="row">${task}</th>${s.configs.map((c) => {
+            <tr key=${task}><th scope="row"><button type="button" class="text eval-task" aria-pressed=${sel?.task === task && !sel.config}
+              onClick=${() => setSel(sel?.task === task && !sel.config ? null : { task })}>${task}</button></th>${s.configs.map((c) => {
               const cell = s.cells[task][c];
               if (!cell) return html`<td key=${c}>—</td>`;
               const state = cell.passed === cell.total ? 'pass' : cell.passed ? 'partial' : 'fail';
@@ -693,7 +736,9 @@ function Suite({ s }) {
           </tbody>
         </table>
       </div>
-      ${sel && html`<${TrialDetail} s=${s} task=${sel.task} config=${sel.config} />`}
+      ${sel && (sel.config
+        ? html`<${TrialDetail} s=${s} task=${sel.task} config=${sel.config} onTask=${() => setSel({ task: sel.task })} />`
+        : html`<${TaskDetail} s=${s} task=${sel.task} />`)}
       ${s.unreadable > 0 && html`<p class="warning">${s.unreadable} unreadable ${s.unreadable === 1 ? 'line' : 'lines'} in results/${s.suite}.jsonl.</p>`}
     </${Section}>`;
 }

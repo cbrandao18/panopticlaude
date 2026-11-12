@@ -156,7 +156,7 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .eval-cell .change.regressed { color: var(--alarm-ink); }
 .eval-cell .change.improved { color: var(--go-ink); }
 .eval-detail { border-top: 1px solid var(--line); padding-top: 10px; }
-.eval-detail h3 { font-size: 15px; margin: 0 0 8px; }
+html[data-theme] .tier .eval-detail h3 { font: 600 16px/1.4 var(--font); margin: 0 0 8px; color: var(--text); text-transform: none; letter-spacing: 0; }
 .eval-trial p { margin: 6px 0; font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .eval-fields { border-collapse: collapse; font-size: 13px; margin: 4px 0 12px; }
 .eval-fields th, .eval-fields td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
@@ -186,3 +186,14 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .backlog-question { margin: 0 0 14px; font-size: 14px; }
 .backlog-question p { margin: 0 0 6px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html[data-theme] .tier .eval-detail h4 { font-size: 13px; margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.eval-detail h3 .text { margin-left: 8px; font-size: 13px; font-weight: 500; }
+.eval-criteria { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.eval-ticket { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 4px 0 10px; }
+.eval-ticket p { margin: 4px 0; font-size: 14px; }
+.eval-body { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 13.5px; line-height: 1.5; margin: 6px 0; background: var(--chip-bg); padding: 8px 10px; border-radius: 5px; }
+.eval-detail details { margin: 6px 0; font-size: 14px; }
+.eval-detail details ul { margin: 6px 0; padding-left: 20px; }
+.eval-task { font: inherit; font-weight: 550; text-align: left; padding: 0; border: 0; background: none; color: var(--link); cursor: pointer; }
+.eval-task[aria-pressed="true"] { text-decoration: underline; }
+.eval-null { color: var(--muted); font-style: italic; }

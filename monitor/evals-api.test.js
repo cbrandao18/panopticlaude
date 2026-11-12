@@ -44,3 +44,22 @@ test('readEvals returns no suites when there are no results', async () => {
   assert.deepStrictEqual((await readEvals(dir)).suites, []);
   fs.rmSync(dir, { recursive: true });
 });
+
+test('taskInfo reads quoted and folded task files and pulls out the judged ticket', () => {
+  const { taskInfo } = require('./evals-api');
+  const ticket = { id: 'x', title: 'Example ticket', body: 'Body' };
+  const quoted = taskInfo([
+    `title: "Example task"`,
+    `prompt: ${JSON.stringify(`Judge it.\n\nTicket to judge:\n${JSON.stringify(ticket)}\n\nOther open tickets:\n[{"id":"y","title":"Other","body":"b"}]`)}`,
+    'successCriteria: "shape = null, comment = \\"none\\""',
+    'startingRepoRefs:', '    - github.com:example/repo@abc', 'tags:', '    - one', ''
+  ].join('\n'));
+  assert.deepStrictEqual(quoted.ticket, ticket);
+  assert.deepStrictEqual(quoted.others, [{ id: 'y', title: 'Other' }]);
+  assert.strictEqual(quoted.successCriteria, 'shape = null, comment = "none"');
+  assert.deepStrictEqual([quoted.refs, quoted.tags], [['github.com:example/repo@abc'], ['one']]);
+  const folded = taskInfo('title: "T"\nprompt: >-\n  first line\n  same paragraph\n\n  second paragraph\nsuccessCriteria: >-\n  Pass if yes.\ntags:\n    - a\n');
+  assert.strictEqual(folded.prompt, 'first line same paragraph\nsecond paragraph');
+  assert.strictEqual(folded.successCriteria, 'Pass if yes.');
+  assert.strictEqual(folded.ticket, null);
+});

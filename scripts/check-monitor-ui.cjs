@@ -28,7 +28,10 @@ async function main() {
             { rep: 1, pass: false, secs: 6, cost: 0.01, want: { verdict: 'ready' }, got: { verdict: 'needs-a-much-longer-example-value' } }] },
         'model-b': { passed: 2, total: 2, trials: [] } } },
       totals: [{ config: 'model-a', passed: 1, total: 2, errors: 0, cost: 0.02, secs: 11, skillVersions: ['abc1234'], trend: [] },
-        { config: 'model-b', passed: 2, total: 2, errors: 0, cost: 0.02, secs: 9, skillVersions: [], trend: [] }], unreadable: 0 }] }),
+        { config: 'model-b', passed: 2, total: 2, errors: 0, cost: 0.02, secs: 9, skillVersions: [], trend: [] }], unreadable: 0,
+      taskInfo: { 'task-with-a-long-example-name': { title: 'Example task', successCriteria: 'verdict is ready', refs: ['github.com:example/repo@abc1234'], tags: [], prompt: 'Judge it.',
+        ticket: { id: 'task-with-a-long-example-name', title: 'Example ticket', author_role: 'Staff', body: 'A long example body that has to wrap on a narrow phone screen without scrolling sideways.' },
+        others: [{ id: 'other', title: 'Other example ticket' }] } } }] }),
     readPlanDoc: async (file) => (file === 'example.md' ? { file, title: 'Example plan', status: 'draft', next: 'Approve the example',
       markdown: '# Example plan\n\n| Source | A long column of text that has to wrap or scroll on a phone screen |\n|---|---|\n| one | two |\n\nSee [the other plan](superpowers/plans/other.md#steps).\n' } : null),
     readBrief: async () => ({ html: '<p>Example daily brief.</p>', writtenAt: Date.now() }) });
@@ -95,6 +98,9 @@ async function main() {
     await page.getByRole('button', { name: 'model-a on task-with-a-long-example-name: 1 of 2 passed, worse than the previous run' }).click();
     assert.equal(await page.locator('.eval-fields tr.mismatch').count(), 1, 'The failing try highlights its mismatched field');
     assert.equal(await page.locator('.sidebar [aria-current="page"]').textContent(), 'Evals');
+    await page.getByRole('button', { name: 'See the task' }).click();
+    assert.equal(await page.locator('.eval-ticket strong').textContent(), 'Example ticket', 'The task view shows the judged ticket');
+    assert.equal(await page.locator('.eval-fields td').first().textContent(), '"ready"', 'Text values are quoted');
     for (const route of ['/#automations', '/#plans', '/#evals', '/plan?file=example.md', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();

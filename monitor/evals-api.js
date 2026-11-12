@@ -51,6 +51,47 @@ function summarizeSuite(suite, trials, title = null) {
   return { suite, title, run: latest, at: at.length ? Math.max(...at) : null, runs: runs.length, configs, tasks, cells, totals };
 }
 
+// shortcut: reads only the shapes the benchmark task files use (top-level double-quoted strings, `>-` folded
+// blocks and `- item` lists); use a real YAML parser if task files grow nested maps.
+function parseTaskYaml(text) {
+  const out = {};
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(\w+):\s*(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const [, key, rest] = m;
+    if (rest.startsWith('"')) {
+      try { out[key] = JSON.parse(rest); } catch { out[key] = rest.slice(1, -1); }
+    } else if (/^>-?$/.test(rest)) {
+      const block = [];
+      while (i + 1 < lines.length && (/^\s+\S/.test(lines[i + 1]) || (lines[i + 1].trim() === '' && /^\s+\S/.test(lines[i + 2] || '')))) block.push(lines[++i].trim());
+      // Folded: lines join with spaces, a blank line is a paragraph break.
+      out[key] = block.join('\n').split('\n\n').map((p) => p.replace(/\n/g, ' ')).join('\n');
+    } else if (rest === '') {
+      const list = [];
+      while (i + 1 < lines.length && /^\s+-\s/.test(lines[i + 1])) list.push(lines[++i].replace(/^\s+-\s+/, '').trim());
+      out[key] = list;
+    } else {
+      out[key] = rest;
+    }
+  }
+  return out;
+}
+
+// pm-judge prompts carry the ticket and the other open tickets as JSON; pull them out for a readable view.
+function taskInfo(text) {
+  const y = parseTaskYaml(text);
+  const prompt = typeof y.prompt === 'string' ? y.prompt : '';
+  const json = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  const judged = /Ticket to judge:\n([\s\S]*?)\n\nOther open tickets:/.exec(prompt);
+  const others = /Other open tickets:\n(\[[\s\S]*\])\s*$/.exec(prompt);
+  return {
+    title: y.title || null, prompt, successCriteria: y.successCriteria || null, refs: y.startingRepoRefs || [], tags: y.tags || [],
+    ticket: judged ? json(judged[1]) : null,
+    others: others ? (json(others[1]) || []).map((t) => ({ id: t.id, title: t.title })) : []
+  };
+}
+
 async function readEvals(dir = EVALS) {
   const names = await fs.readdir(path.join(dir, 'results')).catch((e) => (e.code === 'ENOENT' ? [] : Promise.reject(e)));
   const suites = [];
@@ -68,9 +109,15 @@ async function readEvals(dir = EVALS) {
     if (!trials.length) continue;
     const yaml = await fs.readFile(path.join(dir, 'benchmarks', suite, 'suite.yaml'), 'utf8').catch(() => '');
     const title = /^name:\s*"?(.*?)"?\s*$/m.exec(yaml)?.[1] || null;
-    suites.push({ ...summarizeSuite(suite, trials, title), unreadable });
+    const summary = summarizeSuite(suite, trials, title);
+    const tasks = {};
+    for (const task of summary.tasks) {
+      const text = await fs.readFile(path.join(dir, 'benchmarks', suite, 'tasks', `${task}.yaml`), 'utf8').catch(() => null);
+      if (text) tasks[task] = taskInfo(text);
+    }
+    suites.push({ ...summary, taskInfo: tasks, unreadable });
   }
   return { suites, dir };
 }
 
-module.exports = { readEvals, summarizeSuite };
+module.exports = { readEvals, summarizeSuite, parseTaskYaml, taskInfo };
