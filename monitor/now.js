@@ -230,7 +230,13 @@ function Releases({ data }) {
 const KIND = { hotfix: 'Hotfix', review: 'Review', mention: 'Ping reply', bugfix: 'Bug fix', ease: 'Ease', easywin: 'Easy win', todo: 'Staff To Do' };
 const VERB = { queued: 'Queued', started: 'Started', skipped: 'Skipped', error: 'Error', retry: 'Retry', expired: 'Expired', other: 'Log' };
 const waited = (ms) => (ms < 3600000 ? `${Math.max(1, Math.round(ms / 60000))}m` : `${Math.round(ms / 3600000)}h`);
-const What = ({ what }) => html`<${Link} href=${what.url}>${what.label}</${Link}>${what.at ? ` from ${when(what.at)}` : ''}`;
+const What = ({ what }) => html`<${Link} href=${what.url}>${what.label}</${Link}>${what.at ? ` from ${when(what.at)}` : ''}${what.title ? html` <span class="what-title">${what.title}</span>` : ''}`;
+// The workspace's current Orca note, opening the workspace when it's still there.
+const Note = ({ ws, outcome }) => (ws?.comment
+  ? (ws.key
+    ? html`<button class="ws-note" type="button" title=${`Open ${ws.name} in Orca`} onClick=${() => openInOrca(ws.key, ws.name)}>${ws.comment}</button>`
+    : html`<span class="ws-note">${ws.comment}</span>`)
+  : outcome ? html`<span class="ws-note">${outcome}</span>` : null);
 const Workspace = ({ ws }) => (ws.key
   ? html`<button class="ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>`
   : html`<span class="ws">${ws.name}</span>`);
@@ -269,7 +275,7 @@ function Slots({ data }) {
                 <li key=${q.key}>
                   <span class="pos">${q.position}</span>
                   <span class="chip">${KIND[q.kind] || q.kind}</span>
-                  <span class="title"><${What} what=${q.what} /></span>
+                  <span class="title grow"><${What} what=${q.what} /><${Note} ws=${q.workspace} outcome=${q.outcome} /></span>
                   <span class="detail">waited ${waited(q.waitedMs)} · priority ${q.priority}</span>
                   <span class=${`fit ${q.fitsNow ? 'yes' : ''}`}>${q.fitsNow ? 'Fits now' : 'Waiting for room'}</span>
                 </li>`} />`
@@ -282,7 +288,7 @@ function Slots({ data }) {
                 <li key=${`${r.at}${i}`} class=${`verb-${r.verb}`}>
                   <span class=${`chip verb ${r.verb}`}>${VERB[r.verb] || r.verb}</span>
                   ${r.kind && html`<span class="detail">${KIND[r.kind] || r.kind}</span>`}
-                  <span class="title"><${What} what=${r.what} /></span>
+                  <span class="title grow"><${What} what=${r.what} /><${Note} ws=${r.workspace} outcome=${r.outcome} /></span>
                   ${r.note && r.note !== r.verb && html`<span class="detail">${r.note}</span>`}
                   <span class="when">${when(r.at)}</span>
                 </li>`} />`

@@ -419,7 +419,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   down.push(...sweepDown(findings.value));
 
   const workspaces = (map.value?.hosts || []).flatMap((h) => h.workspaces);
-  const slotCard = slots.value ? summarizeSlots(slots.value, workspaces, now) : null;
+  const slotCard = slots.value ? summarizeSlots(slots.value, workspaces, now, ease.value?.posts || []) : null;
   if (slotCard?.stuck) {
     const waiting = slotCard.queue.filter((q) => q.fitsNow).length;
     down.push({ kind: 'automation', title: 'VM slot queue looks stuck', detail: `${waiting} queued ${waiting === 1 ? 'item fits' : 'items fit'} now, but nothing has started for over 15 minutes (slots.timer)` });
@@ -515,7 +515,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host), intake = () => readIntake(run), plans = () => readPlans() }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host, run), intake = () => readIntake(run), plans = () => readPlans() }, ttl = 60000) {
   let cached = null;
   let pending = null;
   return () => {

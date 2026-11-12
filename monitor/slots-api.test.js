@@ -27,6 +27,7 @@ test('describe links PRs, tickets and Slack pings', () => {
   assert.equal(describe('nt:38500').url, 'https://github.com/gobranch/branch/issues/38500');
   assert.deepEqual(describe('hotfix:1762811400.123456'), { label: 'Slack message', at: 1762811400000 });
   assert.deepEqual(describe('mystery'), { label: 'mystery' });
+  assert.equal(describe('review:38647:2026-11-11', { 38647: 'fix(staff-fe): stop the double charge' }).title, 'fix(staff-fe): stop the double charge');
 });
 
 test('parseRecent splits verb, kind, key and the start script note', () => {
@@ -59,10 +60,44 @@ test('summarize matches VM workspaces by folder name and flags a stuck queue', (
   assert.equal(summarize(status({ queue: [] }), [], NOW).stuck, false);
 });
 
+test('summarize gives each row its workspace title and note, and a Slack row the workspace title', () => {
+  const workspaces = [
+    { host: 'vm', path: '/w/review-38647', key: 'vm|abc', name: 'Review #38647 · fix: x', comment: '2 comments posted' },
+    { host: 'vm', path: '/w/ease-1762811400123456', key: 'vm|e', name: '#38362 Refund details in billing', comment: 'You: PM sign-off' }
+  ];
+  const s = summarize(status({
+    recent: [
+      { at: '2026-11-10T16:10:00-05:00', text: 'started review review:38647:2026-11-11: started', workspace: 'review-38647' },
+      { at: '2026-11-10T16:09:00-05:00', text: 'started ease ease:1762811400.123456: started', workspace: 'ease-1762811400123456' },
+      { at: '2026-11-10T16:08:00-05:00', text: 'skipped review review:38600:2026-11-11: skip: merged', workspace: 'review-38600' }
+    ],
+    titles: { 38647: 'fix: x', 38601: 'Bug: refunds stall' }
+  }), workspaces, NOW);
+  assert.deepEqual(s.recent[0].workspace, { name: 'review-38647', key: 'vm|abc', title: 'Review #38647 · fix: x', comment: '2 comments posted' });
+  assert.equal(s.recent[0].what.title, 'fix: x');
+  assert.equal(s.recent[1].what.title, '#38362 Refund details in billing');
+  // A closed workspace: no key, no note.
+  assert.deepEqual(s.recent[2].workspace, { name: 'review-38600', key: null, title: '', comment: '' });
+  assert.equal(s.queue[0].what.title, 'Bug: refunds stall');
+});
+
+test('summarize titles an ease row from its Ease post and links the Slack thread', () => {
+  const posts = [{ ts: '1762811400.123456', title: 'Add the pre-bind ID to the quote PDF', link: 'https://slack/p1', summary: { reason: 'needs a who-sees-it call' } }];
+  const s = summarize(status({ queue: [], recent: [{ at: '2026-11-10T16:09:00-05:00', text: 'started ease ease:1762811400.123456: started', workspace: 'ease-1762811400123456' }] }), [], NOW, posts);
+  assert.deepEqual([s.recent[0].what.title, s.recent[0].what.url, s.recent[0].outcome], ['Add the pre-bind ID to the quote PDF', 'https://slack/p1', 'needs a who-sees-it call']);
+});
+
 test('readSlots runs slots.py status --json on the host and parses it', async () => {
   let script;
-  const data = await readSlots(async (s) => ((script = s), JSON.stringify(status())));
+  let query;
+  const run = async (_cmd, args) => ((query = args[3]), { stdout: JSON.stringify({ data: { repository: { n38601: { title: 'Bug: refunds stall' }, n38590: null, n38647: { title: 'fix: x' } } } }) });
+  const data = await readSlots(async (s) => ((script = s), JSON.stringify(status())), run);
   assert.match(script, /slots\.py status --json$/);
   assert.equal(data.budget, 10);
+  assert.match(query, /n38601: issueOrPullRequest\(number: 38601\)/);
+  assert.deepEqual(data.titles, { 38601: 'Bug: refunds stall', 38647: 'fix: x' });
+  // Titles are extra: a GitHub failure still returns the queue.
+  const offline = await readSlots(async () => JSON.stringify(status()), async () => { throw new Error('gh: offline'); });
+  assert.deepEqual([offline.budget, offline.titles], [10, {}]);
   await assert.rejects(readSlots(async () => 'budget 0/10\n  hotfix 0/2'), /returned text, not JSON: "budget 0\/10"/);
 });
