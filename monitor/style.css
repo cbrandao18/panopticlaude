@@ -137,34 +137,8 @@ h1 {
   margin: 0 0 12px;
   flex-wrap: wrap;
 }
-.jobs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.job {
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 22px;
-  background: var(--panel);
-  display: flex;
-  flex-direction: column;
-}
 .card-top {
   align-items: flex-start;
-}
-.job h2 {
-  font-size: 17px;
-  font-weight: 570;
-  letter-spacing: -.025em;
-  margin: 0 0 9px;
-  overflow-wrap: anywhere;
-}
-.schedule {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 0;
 }
 .status {
   display: inline-flex;
@@ -194,41 +168,6 @@ h1 {
 .status.running {
   color: var(--info-ink);
   background: var(--info-bg);
-}
-.metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 25px 0 22px;
-  margin: 0;
-}
-.metrics dt {
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 7px;
-}
-.metrics dd {
-  margin: 0;
-  font-size: 18px;
-  letter-spacing: -.02em;
-}
-.metrics small {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 6px;
-  letter-spacing: 0;
-}
-.review-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-  font-size: 12px;
-  color: var(--muted);
-  margin: auto 0 17px;
-  min-height: 37px;
 }
 .count {
   background: var(--go-bg);
@@ -430,9 +369,6 @@ footer {
   main {
     padding: 22px 18px;
   }
-  .jobs {
-    grid-template-columns: 1fr;
-  }
   .heading {
     margin: 28px 0;
   }
@@ -444,9 +380,6 @@ footer {
   .card-top {
     flex-direction: column;
     gap: 10px;
-  }
-  .job {
-    padding: 18px;
   }
   .brand {
     font-size: 10px;

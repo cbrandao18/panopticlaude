@@ -444,7 +444,10 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     const action = (p.actions || []).find((a) => a.state === 'open');
     return { title: p.title, link: p.link, next: action?.text || p.workspace?.comment?.replace(/^You:\s*/i, '') || '', nextUrl: action?.url || null };
   });
-  const drafts = (jobs.value || []).filter((j) => j.hasInbox && j.unread).map((j) => ({ name: j.name, unread: j.unread }));
+  const drafts = (jobs.value || []).filter((j) => j.hasInbox && j.unread).map((j) => ({ name: j.name, label: j.label, unread: j.unread }));
+  // Configured jobs open their logs (and findings or drafts) on the Work page.
+  const jobById = new Map((jobs.value || []).filter((j) => j.automationId).map((j) => [j.automationId, j]));
+  const logsUrl = (a) => (jobById.has(a.id) ? `/work#logs=${encodeURIComponent(jobById.get(a.id).label)}` : '/#automations');
 
   const waitingEase = easeYou.filter((_, i) => {
     const workspace = workspaces.find(w => w.name === easeRequests[i].workspace?.name);
@@ -471,7 +474,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   }
   for (const a of automations.value || []) if (a.status === 'failed') {
     attention.failed.push({ key: a.key || `automation|${a.host}|${a.name}`, workspaceKey: null, host: a.host, name: a.name,
-      ask: a.error || 'Latest run failed.', url: '/work#jobs' });
+      ask: a.error || 'Latest run failed.', url: logsUrl(a) });
   }
   for (const run of intakeCard?.failed || []) {
     attention.failed.push({ key: run.url, workspaceKey: null, name: run.title,
@@ -502,7 +505,10 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     attention,
     // A local workspace's row opens it in Orca.
     releases: (releases.value || []).map((r) => (r.workspace ? { ...r, key: workspaces.find((w) => w.path === r.workspace)?.key || null } : r)),
-    automations: automations.value || [],
+    automations: (automations.value || []).map((a) => {
+      const job = jobById.get(a.id);
+      return job ? { ...a, logs: job.label, findings: job.hasFindings } : a;
+    }),
     slots: slotCard,
     slotsError: slots.error ? clip(slots.error, 300) : null,
     intake: intakeCard,

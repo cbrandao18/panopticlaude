@@ -8,7 +8,6 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const lib = require('../lib');
 const { createPoster, receipt, digest, draftKey } = require('./posting');
-const { ticketData, startRefresh } = require('./ticket-work-api');
 const { createMapReader, openWorkspace } = require('./map-api');
 const { createEaseReader, fileTicket, declineTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
@@ -84,8 +83,6 @@ const assets = {
   '/plan.js': ['plan.js', 'text/javascript'],
   '/work': ['index.html', 'text/html'],
   '/app.js': ['app.js', 'text/javascript'],
-  '/ticket-work.js': ['ticket-work.js', 'text/javascript'],
-  '/ticket-work.css': ['ticket-work.css', 'text/css'],
   '/ease.js': ['ease.js', 'text/javascript'],
   '/ease.css': ['ease.css', 'text/css'],
   '/security.js': ['security.js', 'text/javascript'],
@@ -238,6 +235,7 @@ async function jobStatus(job, { run = exec, readSeen = lib.loadInboxSeen } = {})
   }
   return {
     label: job.label,
+    automationId: job.automationId || null,
     name: job.name || job.label.replace(/^com\.[^.]+\./, ''),
     schedule,
     source: job.automationId ? 'orca' : 'launchd',
@@ -269,8 +267,6 @@ async function renderGithubMarkdown(text, repo, run = exec) {
 function createMonitor({
   jobs,
   run,
-  readTickets = ticketData,
-  refreshTickets = startRefresh,
   readMap = createMapReader(),
   readEase = createEaseReader({ readMap }),
   readSecurity = createSecurityReader({ readMap }),
@@ -325,15 +321,6 @@ function createMonitor({
       if (req.method === 'GET' && assets[url.pathname]) {
         const [file, type] = assets[url.pathname];
         return send(200, fs.readFileSync(path.join(__dirname, file)), type);
-      }
-      if (req.method === 'GET' && url.pathname === '/api/ticket-work') {
-        return send(200, readTickets());
-      }
-      if (req.method === 'POST' && url.pathname === '/api/ticket-work/refresh') {
-        if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'Use a JSON request.' });
-        req.resume();
-        const started = refreshTickets();
-        return send(202, { started, message: started ? 'Refresh started.' : 'Refresh already running.' });
       }
       if (req.method === 'GET' && url.pathname === '/api/claude-tips') {
         return send(200, await readTips());

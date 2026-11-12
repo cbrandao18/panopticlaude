@@ -177,7 +177,7 @@ function Attention({ data }) {
           ${ease.length > 0 && html`<${Group} label="Ease decisions" items=${ease} empty="No decisions pending."
             row=${e => html`<li key=${e.link || e.title}><span class="title"><${Link} href=${e.nextUrl}>${e.next}</${Link}></span><span class="detail"><${Link} href=${e.link}>${e.title}</${Link}></span></li>`} />`}
           ${drafts.length > 0 && html`<${Group} label="Draft inboxes" items=${drafts} collapsed
-            row=${d => html`<li key=${d.name}><span class="title"><a href="/work#jobs">${d.name}</a></span><span class="detail">${d.unread} unread</span></li>`} />`}
+            row=${d => html`<li key=${d.name}><span class="title"><a href=${`/work#inbox=${encodeURIComponent(d.label)}`}>${d.name}</a></span><span class="detail">${d.unread} unread</span></li>`} />`}
         </div>` : attention[selected].length ? html`
           <${More} key=${selected} items=${attention[selected]} row=${a => html`<${AttentionRow} key=${a.key} item=${a} state=${selected} />`} />`
           : html`<p class="now-muted empty">${{ blocked: 'No explicit blockers reported.', failed: 'No failed runs or workspace failures reported.', fyi: 'No informational updates reported.' }[selected]}</p>`}
@@ -370,14 +370,14 @@ function Automations({ data }) {
   const paused = data.automations.length - data.automations.filter((a) => a.status !== 'paused').length;
   return html`
     <${Section} id="automations" title="Automations" tone="lilac" count=${rows.length}
-      note=${html`For Orca automations, Run finished means Orca marked it complete, not that the work succeeded. For LaunchAgents and systemd timers, it means the last run exited cleanly. <a href="/work#jobs">Logs</a>`}>
+      note=${html`For Orca automations, Run finished means Orca marked it complete, not that the work succeeded. For LaunchAgents and systemd timers, it means the last run exited cleanly.`}>
       <div class="table-scroll" role="region" aria-label="Automation runs" tabindex="0"><table class="autos">
         <thead><tr><th scope="col">Status</th><th scope="col">Automation</th><th scope="col">Where</th><th scope="col">Last run</th><th scope="col">Next run</th></tr></thead>
         <tbody>
           ${rows.map((a) => html`
             <tr key=${a.key} class=${a.status}>
               <td><span class=${`dot ${a.status}`} aria-hidden="true"></span><${StatusBird} status=${a.status} />${STATUS[a.status] || a.status}</td>
-              <td>${a.name}${a.kind && html`<div class="detail">${a.kind}</div>`}${a.error && html`<div class="detail">${a.error}</div>`}${(a.actions || []).slice(0, 3).map((x) => html`<div class="detail action" title=${x.text}>${x.at ? `${ago(x.at)}: ` : ''}${x.text}</div>`)}</td>
+              <td>${a.name}${a.logs && html` <span class="row-links"><a href=${`/work#logs=${encodeURIComponent(a.logs)}`}>Logs</a>${a.findings && html` · <a href=${`/work#findings=${encodeURIComponent(a.logs)}`}>Findings</a>`}</span>`}${a.kind && html`<div class="detail">${a.kind}</div>`}${a.error && html`<div class="detail">${a.error}</div>`}${(a.actions || []).slice(0, 3).map((x) => html`<div class="detail action" title=${x.text}>${x.at ? `${ago(x.at)}: ` : ''}${x.text}</div>`)}</td>
               <td>${hostLabel(a.host)}</td>
               <td>${a.lastRunAt ? ago(a.lastRunAt) : '—'}</td>
               <td>${a.nextRunAt ? when(a.nextRunAt) : a.schedule || '—'}</td>

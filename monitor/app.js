@@ -1,17 +1,5 @@
 const $ = (id) => document.getElementById(id);
 const state = { jobs: [], view: null, refreshing: false, updatedAt: null };
-const labels = {
-  ok: 'Exit 0',
-  running: 'Running',
-  failed: 'Failed',
-  overdue: 'Log overdue',
-  unknown: 'Check status',
-  waiting: 'Not run yet',
-  completed: 'Run finished',
-  paused: 'Paused',
-  skipped: 'Skipped',
-  cancelled: 'Stopped'
-};
 const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 function age(time) {
   if (!time) {
@@ -34,12 +22,6 @@ function timestamp(time) {
     : 'No timestamp';
 }
 // The server sends schedules as 24-hour "HH:MM", e.g. "Daily at 12:04 · America/New_York".
-function scheduleText(schedule) {
-  return (schedule.length === 5 ? `Daily at ${schedule}` : schedule).replace(
-    /\b(\d{2}):(\d{2})\b/,
-    (match, hour, minute) => `${Number(hour) % 12 || 12}:${minute}${Number(hour) < 12 ? 'am' : 'pm'}`
-  );
-}
 function element(tag, text, className) {
   const node = document.createElement(tag);
   if (text != null) {
@@ -79,72 +61,6 @@ async function api(route, params = {}, options = {}) {
   }
   return result;
 }
-function metric(title, time) {
-  const wrapper = element('div');
-  const dd = element('dd');
-  const value = element('span', age(time));
-  value.dataset.relativeTime = time || '';
-  dd.append(value, element('small', timestamp(time)));
-  wrapper.append(element('dt', title), dd);
-  return wrapper;
-}
-function renderJobs() {
-  const cards = state.jobs.map((job) => {
-    const card = element('article', null, 'job');
-    const top = element('div', null, 'card-top');
-    const title = element('div');
-    title.append(
-      element('h2', job.name),
-      element(
-        'p',
-        job.schedule ? scheduleText(job.schedule) : 'Schedule unavailable',
-        'schedule'
-      )
-    );
-    top.append(title, element('span', labels[job.status], `status ${job.status}`));
-    const metrics = element('dl', null, 'metrics');
-    metrics.append(
-      metric(
-        job.source === 'orca' ? 'Last run started' : 'Last log activity',
-        job.source === 'orca' ? job.lastRunAt : job.lastLogAt
-      ),
-      metric('Next scheduled run', job.nextRunAt)
-    );
-    const review = element('p', null, 'review-line');
-    if (job.hasInbox) {
-      review.append(
-        element('span', String(job.unread), 'count'),
-        element('span', job.unread ? `${job.unread === 1 ? 'file needs' : 'files need'} review` : 'Inbox reviewed')
-      );
-    } else {
-      review.textContent = 'No draft inbox configured';
-    }
-    const actions = element('div', null, 'actions');
-    actions.append(button('View logs', () => openView(job.label, 'log'), 'text'));
-    if (job.hasInbox) {
-      actions.append(button('Inbox', () => openView(job.label, 'inbox'), 'text'));
-    }
-    if (job.hasFindings) {
-      actions.append(button('Findings', () => openView(job.label, 'findings'), 'primary'));
-    }
-    if (job.latestDraft) {
-      actions.append(button('Latest drafts', () => openView(job.label, 'file', job.latestDraft), 'primary'));
-    }
-    card.append(top, metrics);
-    if (job.warnings.length) {
-      card.append(element('p', job.warnings.join(' '), 'warning'));
-    }
-    if (job.status === 'failed' && job.source !== 'orca') {
-      card.append(element('p', `Last process exit code: ${job.exit}. Check the logs for details.`, 'warning'));
-    }
-    if (job.status === 'overdue') {
-      card.append(element('p', 'No run-log update since the scheduled time (15-minute grace period).', 'warning'));
-    }
-    card.append(review, actions);
-    return card;
-  });
-  $('jobs').replaceChildren(...cards);
-}
 async function refresh() {
   if (state.refreshing) {
     return;
@@ -154,10 +70,7 @@ async function refresh() {
   try {
     const result = await api('status');
     // Keep focused buttons stable when nothing has changed.
-    if (JSON.stringify(state.jobs) !== JSON.stringify(result.jobs)) {
-      state.jobs = result.jobs;
-      renderJobs();
-    }
+    state.jobs = result.jobs;
     for (const node of document.querySelectorAll('[data-relative-time]')) {
       node.textContent = age(Number(node.dataset.relativeTime));
     }
@@ -801,5 +714,16 @@ $('close').addEventListener('click', () => {
   state.view = null;
   $('viewer').hidden = true;
 });
-refresh();
+// Roost's Automations rows link here as /work#logs=<label>, #findings=<label> or #inbox=<label>.
+async function openFromHash() {
+  const m = /^#(logs|findings|inbox)=(.+)$/.exec(location.hash);
+  if (!m) return;
+  await refresh();
+  const label = decodeURIComponent(m[2]);
+  if (state.jobs?.some((job) => job.label === label)) {
+    await openView(label, m[1] === 'logs' ? 'log' : m[1]);
+  }
+}
+window.addEventListener('hashchange', openFromHash);
+refresh().then(openFromHash);
 setInterval(refresh, 10000);

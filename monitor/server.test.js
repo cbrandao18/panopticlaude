@@ -385,7 +385,7 @@ test('shot route serves PNGs from shots/ and rejects traversal, symlinks and oth
 
 test('Now, Map and Work pages are served with the vendored helpers; /api/now returns the reader', async (t) => {
   const f = await fixture(t, { readNow: async () => ({ down: [], marker: 'now' }) });
-  for (const [route, text] of [['/', '/now.js'], ['/map', '/map.js'], ['/work', 'id="jobs"'], ['/vendor/preact.js', 'export'], ['/vendor/hooks.js', './preact.js']]) {
+  for (const [route, text] of [['/', '/now.js'], ['/map', '/map.js'], ['/work', 'id="viewer"'], ['/vendor/preact.js', 'export'], ['/vendor/hooks.js', './preact.js']]) {
     const res = await fetch(`${f.base}${route}`);
     assert.equal(res.status, 200, route);
     assert.match(await res.text(), new RegExp(text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')), route);

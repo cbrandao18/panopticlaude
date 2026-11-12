@@ -150,7 +150,7 @@ test('Ease actions follow their current workspace status without disappearing wh
 
 test('assemble keeps sources independent and builds the tiers', () => {
   const out = assemble({
-    automations: { value: [{ name: 'sweep', status: 'failed', host: 'vm', error: 'exit 1' }, { name: 'ok', status: 'completed', host: 'mac' }] },
+    automations: { value: [{ id: 'a1', name: 'sweep', status: 'failed', host: 'vm', error: 'exit 1' }, { name: 'ok', status: 'completed', host: 'mac' }] },
     statuses: { value: [{ name: 'Claude', ok: false, indicator: 'minor', detail: 'Elevated errors', url: 'u' }, { name: 'GitHub', ok: true }] },
     reviews: { error: 'gh: not logged in' },
     map: { value: { hosts: [{ label: 'VM', workspaces: [{ key: 'k', host: 'vm', name: 'W', comment: 'You: approve #1', lastActivityAt: 5 }, { key: 'j', comment: 'Agent: busy' }, { key: 'e', name: 'Ease · P', comment: 'You: decide' }] }] } },
@@ -158,14 +158,17 @@ test('assemble keeps sources independent and builds the tiers', () => {
     merge: { value: { ready: [{ number: 2, title: 'feat: a' }, { number: 3, title: 'fix: b' }], waiting: [], review: [{ number: 4, title: 'feat: c' }] } },
     releases: { value: [] },
     findings: { value: null },
-    jobs: { value: [{ name: 'assess', hasInbox: true, unread: 2 }] }
+    jobs: { value: [{ name: 'assess', label: 'com.x.assess', hasInbox: true, unread: 2 }, { name: 'sweep', label: 'com.x.sweep', automationId: 'a1', hasFindings: true }] }
   });
   assert.deepEqual(out.down.map((d) => d.kind), ['vendor', 'automation']);
   assert.deepEqual(out.ready.map((p) => p.number), [3, 2]);
   assert.deepEqual(out.reviewPrs.map((p) => p.number), [4]);
   assert.deepEqual(out.blocked.agents.map((a) => a.ask), ['approve #1']);
   assert.deepEqual(out.blocked.ease.map((e) => e.next), ['decide']);
-  assert.deepEqual(out.blocked.drafts, [{ name: 'assess', unread: 2 }]);
+  assert.deepEqual(out.blocked.drafts, [{ name: 'assess', label: 'com.x.assess', unread: 2 }]);
+  // A configured job's automation row links to its logs and findings; others don't.
+  assert.deepEqual(out.automations.map((a) => [a.logs, a.findings]), [['com.x.sweep', true], [undefined, undefined]]);
+  assert.equal(out.attention.failed.find((f) => f.name === 'sweep').url, '/work#logs=com.x.sweep');
   assert.deepEqual(out.errors, [{ source: 'reviews', error: 'gh: not logged in' }]);
 });
 

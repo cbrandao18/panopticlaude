@@ -73,11 +73,11 @@ html[data-theme='roost'] {
   .page-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
   .page-heading [role='status'] { flex: none; max-width: 40%; font-size: 12px; text-align: right; overflow-wrap: anywhere; }
 
-  .tier, #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { margin: 0 0 14px; padding: 15px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .tier, #brief, #merge, #security, #ease, #deploys { margin: 0 0 14px; padding: 15px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
   .tier.alarm { border-color: var(--alarm-border); background: var(--alarm-bg); }
   .tier.go, .tier.you { border-left: 1px solid var(--border); }
   .tier-head { display: flex; align-items: center; gap: 6px 18px; margin: 0 0 10px; }
-  .tier h2, #merge h2, #security h2, #ease h2, #ticket-work h2, #jobs h2, #deploys h2 { font: 600 15px/1.4 var(--font); color: var(--text); }
+  .tier h2, #merge h2, #security h2, #ease h2, #deploys h2 { font: 600 15px/1.4 var(--font); color: var(--text); }
   .tier.alarm h2 { color: var(--alarm-ink); }
   .tier h3 { font: 600 12px/1.5 var(--font); color: var(--muted); letter-spacing: 0; text-transform: none; margin: 0 0 5px; }
   .tier-head > .now-muted { flex: 1; min-width: 180px; font-size: 12px; line-height: 1.4; }
@@ -184,7 +184,7 @@ html[data-theme='roost'] {
     .nav-group > a { flex: none; min-height: 34px; padding: 5px 8px; }
     .page-heading { align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .page-heading [role='status'] { max-width: 100%; text-align: left; }
-    .tier, #brief, #merge, #security, #ease, #ticket-work, #jobs, #deploys { padding: 12px; }
+    .tier, #brief, #merge, #security, #ease, #deploys { padding: 12px; }
     .tier-head > .now-muted { min-width: 100%; }
     .autos { font-size: 12px; }
     .autos th:first-child { width: 83px; }

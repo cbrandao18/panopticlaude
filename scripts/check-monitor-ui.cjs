@@ -104,10 +104,10 @@ async function main() {
       }
     }
     // Enough synthetic log content to exercise an existing Work anchor under the mobile header.
-    await page.locator('#jobs').evaluate(node => { node.innerHTML = '<h2>Example jobs</h2>' + '<p>Example job</p>'.repeat(40); });
-    await page.evaluate(() => { location.hash = 'jobs'; });
-    await page.waitForFunction(() => location.hash === '#jobs');
-    const jobs = await page.locator('#jobs').boundingBox();
+    await page.locator('#security').evaluate(node => { node.innerHTML = '<h2>Example section</h2>' + '<p>Example row</p>'.repeat(40); });
+    await page.evaluate(() => { location.hash = 'security'; });
+    await page.waitForFunction(() => location.hash === '#security');
+    const jobs = await page.locator('#security').boundingBox();
     const sidebar = await page.locator('.sidebar').boundingBox();
     assert.ok(jobs.y >= sidebar.y + sidebar.height, 'Work anchors remain below the fixed mobile navigation');
     assert.deepEqual(errors, []);

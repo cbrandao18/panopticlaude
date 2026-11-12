@@ -161,3 +161,4 @@ td .detail.action { white-space: nowrap; overflow: hidden; text-overflow: ellips
 .eval-fields { border-collapse: collapse; font-size: 13px; margin: 4px 0 12px; }
 .eval-fields th, .eval-fields td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
 .eval-fields tr.mismatch td { background: var(--alarm-bg); color: var(--alarm-ink); font-weight: 600; }
+.autos .row-links { margin-left: 6px; font-size: 12px; white-space: nowrap; }
