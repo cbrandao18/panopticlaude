@@ -76,7 +76,9 @@ function summarize(status, workspaces = [], now = Date.now(), easePosts = []) {
   const queue = status.queue.map((q) => withTitle({ ...q, what: describe(q.key, titles), waitedMs: now - Date.parse(q.queuedAt), workspace: detail(q.workspace) }));
   const recent = status.recent.map((r) => parseRecent(r, titles)).map((r) => withTitle({ ...r, workspace: detail(r.workspace) }));
   const lastStart = recent.find((r) => r.verb === 'started')?.at || 0;
-  const stuck = !status.paused && queue.some((q) => q.fitsNow && q.waitedMs > STUCK_MS) && now - lastStart > GRACE_MS + STUCK_MS;
+  // fitsSince: when a night-only item's start window opened, if after it was queued. It can't be stuck before then.
+  const stuck = !status.paused && queue.some((q) => q.fitsNow && now - Date.parse(q.fitsSince || q.queuedAt) > STUCK_MS)
+    && now - lastStart > GRACE_MS + STUCK_MS;
   return {
     at: Date.parse(status.at),
     budget: status.budget,

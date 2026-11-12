@@ -60,6 +60,9 @@ test('summarize matches VM workspaces by folder name and flags a stuck queue', (
   const graceJustEnded = status({ recent: [{ at: '2026-11-10T16:35:00-05:00', text: 'started bugfix bugfix:38599: started' }] });
   assert.equal(summarize(graceJustEnded, [], NOW).stuck, false);
   assert.equal(summarize(status({ queue: [] }), [], NOW).stuck, false);
+  // Queued hours ago but night-only: it could only start once its window opened 5 min ago.
+  const windowJustOpened = status({ queue: [{ ...status().queue[0], queuedAt: '2026-11-10T12:55:00-05:00', fitsSince: '2026-11-10T16:55:00-05:00' }] });
+  assert.equal(summarize(windowJustOpened, [], NOW).stuck, false);
 });
 
 test('summarize gives each row its workspace title and note, and a Slack row the workspace title', () => {
