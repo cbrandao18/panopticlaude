@@ -196,6 +196,34 @@ async function readMedic(dir = MEDIC_STATE) {
   return medicRow({ lastRun: await mtime('last-run'), responderRunning, log });
 }
 
+// --- mac-relay ---------------------------------------------------------------------------------------------
+// The Mac LaunchAgent that delivers messages VM agents queue with mac-send (process-updates relay/). It logs
+// only deliveries and failures, in roost-medic's format; its heartbeat is the last-run file.
+const RELAY_STATE = path.join(os.homedir(), '.local/state/mac-relay');
+const RELAY_EVERY_MS = 60000;
+
+function relayRow({ lastRun, log }, now = Date.now()) {
+  const actions = medicActions(log);
+  let status = 'completed';
+  let error = '';
+  if (!lastRun) status = 'waiting';
+  else if (now - lastRun > 5 * RELAY_EVERY_MS) status = 'overdue';
+  else if (actions[0]?.text.startsWith('failed:') && now - actions[0].at < 10 * RELAY_EVERY_MS) {
+    status = 'failed';
+    error = actions[0].text.replace(/^failed:\s*/, '');
+  }
+  return {
+    key: 'mac|mac-relay', id: 'mac-relay', host: 'mac', name: 'mac-relay (VM agents message Mac agents)', kind: 'LaunchAgent', schedule: 'every 1 min',
+    enabled: true, status, error, lastRunAt: lastRun, nextRunAt: lastRun ? lastRun + RELAY_EVERY_MS : null, actions
+  };
+}
+
+async function readRelay(dir = RELAY_STATE) {
+  const lastRun = await fs.stat(path.join(dir, 'last-run')).then((s) => s.mtimeMs, () => null);
+  const log = await fs.readFile(path.join(dir, 'relay.log'), 'utf8').then((t) => t.slice(-20000), () => '');
+  return relayRow({ lastRun, log });
+}
+
 // --- Status pages ------------------------------------------------------------------------------------------
 
 function statusFromSummary(source, summary) {
@@ -521,13 +549,14 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
 
 const settle = (promise) => Promise.resolve().then(promise).then((value) => ({ value }), (e) => ({ error: e?.message || String(e) }));
 
-function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, workers = () => readWorkers({ run, host }), slots = () => readSlots(host, run), intake = () => readIntake(run), plans = () => readPlans(), readReviewed = loadReviewed }, ttl = 60000) {
+function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs, orca = orcaRunner(), getJson = fetchJson, run = exec, host = runOnHost, medic = readMedic, relay = readRelay, workers = () => readWorkers({ run, host }), slots = () => readSlots(host, run), intake = () => readIntake(run), plans = () => readPlans(), readReviewed = loadReviewed }, ttl = 60000) {
   let cached = null;
   let pending = null;
   const read = () => {
     if (cached && Date.now() - cached.refreshedAt < ttl) return Promise.resolve(cached);
     pending ||= Promise.all([
-      settle(() => Promise.all([readAutomations(orca), workers(), medic().catch(() => null)]).then(([rows, w, m]) => [...(m ? [m] : []), ...sortAutomations([...rows, ...w])])),
+      settle(() => Promise.all([readAutomations(orca), workers(), medic().catch(() => null), relay().catch(() => null)])
+        .then(([rows, w, m, r]) => [...[m, r].filter(Boolean), ...sortAutomations([...rows, ...w])])),
       settle(() => readStatusPages(getJson)),
       settle(() => readMonitors(run)),
       settle(() => readReviewRequests(run)),
@@ -551,4 +580,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   return () => read().then((c) => ({ ...c, intake: hideReviewed(c.intake, readReviewed()) }));
 }
 
-module.exports = { parseClosed, readClosed, medicActions, medicRow, readMedic, automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { parseClosed, readClosed, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };

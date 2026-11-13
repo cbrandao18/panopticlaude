@@ -251,3 +251,16 @@ test('medic: row status from its heartbeat, and its last actions newest first', 
   assert.equal(medicRow({ lastRun: now - 20 * 60000, responderRunning: false, log: '' }, now).status, 'overdue');
   assert.equal(medicRow({ lastRun: null, responderRunning: false, log: '' }, now).status, 'waiting');
 });
+
+test('relay: heartbeat, recent failure, and its last actions', () => {
+  const { relayRow } = require('./now-api');
+  const at = new Date(2026, 10, 12, 21, 30, 5).getTime();
+  const log = ["2026-11-12 9:29:01PM delivered 'v5 retest' to claude_x", '2026-11-12 9:30:05PM failed: couldn\'t reach the VM outbox (dial tcp: timeout)'].join('\n');
+  const failed = relayRow({ lastRun: at, log }, at + 60000);
+  assert.equal(failed.status, 'failed');
+  assert.equal(failed.error, "couldn't reach the VM outbox (dial tcp: timeout)");
+  assert.deepEqual(failed.actions.map((a) => a.text.slice(0, 9)), ['failed: c', "delivered"]);
+  assert.equal(relayRow({ lastRun: at, log }, at + 11 * 60000).status, 'overdue');
+  assert.equal(relayRow({ lastRun: at + 10 * 60000, log }, at + 11 * 60000).status, 'completed');
+  assert.equal(relayRow({ lastRun: null, log: '' }).status, 'waiting');
+});
