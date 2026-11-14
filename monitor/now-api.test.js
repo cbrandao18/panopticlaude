@@ -130,6 +130,8 @@ test('closed workspaces show under FYI for 3 days, newest first, linking the tic
   const out = assemble({ ...base, closed: { value: pr }, now }).attention;
   assert.deepEqual(out.waiting.agents.map(a => a.name), ['#4 Example']);
   assert.deepEqual(out.fyi.map(a => [a.name, a.linkText, a.url]), [['#5 Example', 'View PR', 'https://github.com/gobranch/branch/pull/50'], ['Ping', undefined, undefined]]);
+  const [chat] = parseClosed('2026-11-11T12:00:00-0500 closed process - | Fix the thing | chat done: shipped the fix', 'mac');
+  assert.equal(chat.ask, 'Chat closed, done: shipped the fix');
 });
 
 test('Ease actions follow their current workspace status without disappearing when the map is unavailable', () => {

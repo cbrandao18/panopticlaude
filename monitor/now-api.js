@@ -412,7 +412,8 @@ function stalled(workspaces, now, automations = []) {
 
 // Workspaces that process-updates run-cleanup/close-done-workspaces.py removed once their work finished.
 // Each machine logs `<iso> closed <workspace> <url or -> | <name> | <reason>`. A reason with "; open ask:" still
-// carries a request from the workspace's last note, so it's listed under Waiting on you for longer.
+// carries a request from the workspace's last note, so it's listed under Waiting on you for longer. A reason starting
+// "chat done:" means only one chat tab closed, not the workspace.
 const CLOSED_LOG = '.local/state/workspace-cleanup/closed.log';
 const CLOSED_MS = 3 * 86400000;
 const OPEN_ASK_MS = 7 * 86400000;
@@ -420,7 +421,8 @@ const linkText = (url) => (url.includes('slack.com') ? 'View post' : url.include
 function parseClosed(text, host) {
   return text.split('\n').map((line) => /^(\S+) closed (\S+) (\S+) \| (.*?) \| (.*)$/.exec(line.trim()))
     .filter((m) => m && Number.isFinite(Date.parse(m[1])))
-    .map(([, at, ws, url, name, reason]) => ({ key: `closed|${host}|${ws}|${at}`, workspaceKey: null, host, name, ask: `Workspace closed, ${reason}`,
+    .map(([, at, ws, url, name, reason]) => ({ key: `closed|${host}|${ws}|${at}`, workspaceKey: null, host, name,
+      ask: reason.startsWith('chat ') ? `Chat closed, ${reason.slice(5)}` : `Workspace closed, ${reason}`,
       ...(url === '-' ? {} : { url, linkText: linkText(url) }), openAsk: reason.includes('; open ask:'), at: Date.parse(at) }));
 }
 async function readClosed(host = runOnHost) {
