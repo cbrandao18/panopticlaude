@@ -13,6 +13,7 @@ const { createEaseReader, fileTicket, declineTicket } = require('./ease-api');
 const { createSecurityReader } = require('./security-api');
 const { createBacklogReader, answer: answerBacklog } = require('./backlog-api');
 const { readEvals } = require('./evals-api');
+const { createAssistantFeedbackReader } = require('./assistant-feedback-api');
 const { createDeploysReader, startHeartbeatTimer, DEFAULT_ROOT, DEFAULT_STATE_PATH } = require('./deploys-api');
 const { createMergeReader } = require('./merge-api');
 const { createBriefReader } = require('./brief-api');
@@ -273,6 +274,7 @@ function createMonitor({
   readSecurity = createSecurityReader({ readMap }),
   readBacklog = createBacklogReader(),
   readEvalResults = readEvals,
+  readAssistantFeedback = createAssistantFeedbackReader(),
   readDeploys = createDeploysReader({ root: process.env.DEPLOYS_ROOT || DEFAULT_ROOT }),
   readMerge = createMergeReader(),
   readBrief = createBriefReader({ render: renderGithubMarkdown }),
@@ -340,6 +342,9 @@ function createMonitor({
       }
       if (req.method === 'GET' && url.pathname === '/api/evals') {
         return send(200, await readEvalResults());
+      }
+      if (req.method === 'GET' && url.pathname === '/api/assistant-feedback') {
+        return send(200, await readAssistantFeedback());
       }
       if (req.method === 'GET' && url.pathname === '/api/backlog') {
         return send(200, await readBacklog());

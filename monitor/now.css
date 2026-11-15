@@ -242,3 +242,9 @@ html[data-theme] .tier .eval-ticket .markdown h3 { font: 600 13.5px/1.4 var(--fo
 .eval-compare td.mismatch .eval-null { color: var(--alarm-ink); }
 .eval-compare .eval-val, .eval-compare .eval-null, .eval-kv .eval-null { white-space: nowrap; }
 @media (max-width: 560px) { .eval-panel { padding: 12px 12px 14px; } }
+
+/* Assistant feedback: score pills inside a row keep their own spacing; answers, ticket drafts and regression output keep their line breaks. */
+.rows li .pills { margin: 2px 0 0; }
+.rows li .pills li { display: block; padding: 2px 9px 2px 20px; border-top: 0; font-size: 12px; }
+.backlog-row .title > p { margin: 0; }
+.tier .pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }

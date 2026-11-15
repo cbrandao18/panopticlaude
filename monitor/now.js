@@ -815,10 +815,71 @@ function Evals() {
     </${Section}>`;
 }
 
+// --- Assistant feedback ----------------------------------------------------------------------------------------------
+const CAUSE = {
+  prompt_rule: 'Prompt rule', missing_tool_data: 'Lookup missing data', tool_bug: 'Lookup bug', model_ignored_rule: 'Model ignored a rule',
+  not_a_fault: 'Not a fault', unclear: 'Unclear', regression: 'Regression'
+};
+const REASON = { wrong_information: 'Wrong information', misunderstood: "Didn't understand", missing_information: 'Missing information', too_slow: 'Too slow' };
+
+function Fix({ fix, regression }) {
+  if (!fix) return null;
+  const q = regression && regression.status !== 'none' && html` · Regression question ${regression.status === 'added' ? 'added' : 'proposed'}${regression.id ? html`: <code>${regression.id}</code>` : ''}`;
+  if (fix.kind === 'branch') return html`<p><b>Fix:</b> ${fix.summary} · <a href=${fix.compareUrl}>${fix.branch}</a>${q}</p>`;
+  if (fix.kind === 'ticket') {
+    return html`<p><b>Ticket draft:</b> ${fix.summary}${q}</p>
+      ${fix.ticket && html`<details class="why"><summary>${fix.ticket.title}</summary><p class="pre">${fix.ticket.body}</p></details>`}`;
+  }
+  return html`<p><b>No fix:</b> ${fix.reason || fix.summary}${q}</p>`;
+}
+
+function FeedbackRow({ t }) {
+  const scores = t.scores || [];
+  return html`
+    <li key=${t.turnId} class="backlog-row">
+      <span class=${`chip stage ${t.cause?.kind === 'not_a_fault' ? 'done' : 'triage'}`}>${CAUSE[t.cause?.kind] || 'Not triaged'}</span>
+      <div class="title grow">
+        <span class="what-title">${t.question}</span>
+        <span class="ws-note">${when(Date.parse(t.at))} · ${t.env}${t.page ? ` · ${t.page}` : ''} · ${REASON[t.reason] || 'no reason given'}${t.comment ? ` · “${t.comment}”` : ''}</span>
+        ${t.cause && html`<p>${t.cause.summary}</p>`}
+        ${scores.length
+          ? html`<ul class="pills" aria-label="Judge scores">${scores.map((s) => html`<li key=${s.evaluator + s.level} class=${Number(s.score) >= 0.5 ? 'ok' : 'bad'} title=${s.explanation || ''}>${s.evaluator} ${s.score}</li>`)}</ul>`
+          : html`<span class="now-muted">Not scored by the judges.</span>`}
+        ${t.judgesPassed && html`<p class="ask">The judges passed this answer${t.judgesMissed ? `: they missed ${t.judgesMissed}` : '.'}</p>`}
+        <${Fix} fix=${t.fix} regression=${t.regression} />
+        <details class="why"><summary>Answer</summary><p class="pre">${t.finalText || '(cards only)'}</p>
+          ${(t.tools || []).length > 0 && html`<p class="now-muted">Lookups: ${t.tools.map((x) => x.name).join(', ')}</p>`}</details>
+      </div>
+      <span class="detail">${t.traceUrl && html`<a href=${t.traceUrl}>Trace</a>`}</span>
+    </li>`;
+}
+
+function AssistantFeedback() {
+  const { data, error } = usePoll('/api/assistant-feedback', 300000);
+  if (!data) return html`<section class="tier"><h2>Assistant feedback</h2><p class="now-muted" role="status">${error || 'Loading assistant feedback…'}</p></section>`;
+  if (data.error) return html`<${Section} id="assistant" title="Assistant feedback" tone="info"><p class="warning">${data.error}</p></${Section}>`;
+  const r = data.regression;
+  const failing = (r?.results || []).filter((x) => !x.pass);
+  return html`
+    <${Section} id="assistant-regression" title="Regression questions" tone=${r && !r.passed ? 'alarm' : 'info'}
+      note=${r ? `Asked on ${r.env} ${when(Date.parse(r.at))}` : ''}>
+      ${r
+        ? html`<p><span class=${`dot ${r.passed ? 'ok' : 'failed'}`} aria-hidden="true"></span><strong>${r.summary}</strong></p>
+          ${failing.length > 0 && html`<details class="why" open><summary>Failing: ${failing.map((x) => x.id).join(', ')}</summary><p class="pre">${r.output}</p></details>`}`
+        : html`<p class="now-muted">Not run yet: the daily triage runs them.</p>`}
+    </${Section}>
+    <${Section} id="assistant-downs" title="Thumbs-downs" count=${data.triaged.length} tone="info"
+      note=${`Triaged daily at 8am on the VM${data.lastRun ? `; last run ${data.lastRun.replace(/ down=(\d+) up=(\d+)(?: fixes=(\d+)| triaged=\d+)?$/, (m, d, u, f) => `: ${d} down, ${u} up${f ? `, ${f} ${f === '1' ? 'fix' : 'fixes'} drafted` : ''}`)}` : ''}${data.pending.length ? `; ${data.pending.length} waiting` : ''}.`}>
+      ${data.triaged.length
+        ? html`<ul class="rows">${data.triaged.map((t) => html`<${FeedbackRow} key=${t.turnId} t=${t} />`)}</ul>`
+        : html`<p class="now-muted empty">No thumbs-downs triaged yet.</p>`}
+    </${Section}>`;
+}
+
 const VIEWS = { 'health': Down, 'ready': Ready, 'needs-you': Attention, 'projects': Releases, 'queue': Slots, 'plans': Plans, 'automations': Automations };
 const currentView = () => {
   const hash = window.location.hash.slice(1);
-  return Object.hasOwn(VIEWS, hash) || hash === 'brief' || hash === 'backlog' || hash === 'evals' ? hash : '';
+  return Object.hasOwn(VIEWS, hash) || hash === 'brief' || hash === 'backlog' || hash === 'evals' || hash === 'assistant' ? hash : '';
 };
 
 function App() {
@@ -838,7 +899,7 @@ function App() {
   const Focused = VIEWS[view];
   return html`
     <${Masthead} page=${page} status=${error ? `Couldn't refresh: ${error}` : data ? `Updated ${clock(data.refreshedAt)}` : 'Checking everything…'} />
-    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : view === 'backlog' ? html`<${Backlog} key="backlog" />` : view === 'evals' ? html`<${Evals} key="evals" />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
+    ${view === 'brief' ? html`<${Brief} key="brief" expanded />` : view === 'backlog' ? html`<${Backlog} key="backlog" />` : view === 'evals' ? html`<${Evals} key="evals" />` : view === 'assistant' ? html`<${AssistantFeedback} key="assistant" />` : data ? Focused ? html`<${Focused} key=${view} data=${data} />` : html`
       <${Down} data=${data} />
       <${Ready} data=${data} />
       <${Attention} data=${data} />

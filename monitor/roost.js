@@ -15,6 +15,7 @@ export const PAGES = [
   { group: 'Operations', href: '/#queue', label: 'Agent queue', color: 'blue', icon: 'M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01', description: 'Capacity, queued work and recent agent starts.' },
   { group: 'Operations', href: '/#projects', label: 'Projects', color: 'orange', icon: 'M3 7V4h6l2 3h10v13H3z', description: 'Progress across watched projects and releases.' },
   { group: 'Operations', href: '/#evals', label: 'Evals', color: 'purple', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2', description: 'How the agent jobs score, and how models and prompts compare on the benchmarks.' },
+  { group: 'Operations', href: '/#assistant', label: 'Assistant feedback', color: 'orange', icon: 'M17 14V2M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z', description: 'Each thumbs-down on the Staff assistant: why, the drafted fix, and the regression questions.' },
   { group: 'Operations', href: '/#backlog', label: 'Backlog', color: 'orange', icon: 'M4 6h16M4 12h10M4 18h6', description: 'The Staff backlog pass: what to build next, what needs you, and progress over time.' },
   { group: 'Operations', href: '/#plans', label: 'Plans', color: 'green', icon: 'M9 4h6v3H9zM6 5H5v16h14V5h-1M9 12h6M9 16h4', description: 'Upcoming plans and their next steps.' },
   { group: 'Resources', href: '/#brief', label: 'Daily brief', color: 'blue', icon: 'M5 3h14v18H5zM8 7h8M8 11h8M8 15h5', description: 'Your latest daily brief.' },
