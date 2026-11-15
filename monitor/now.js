@@ -845,7 +845,7 @@ function FeedbackRow({ t }) {
         ${scores.length
           ? html`<ul class="pills" aria-label="Judge scores">${scores.map((s) => html`<li key=${s.evaluator + s.level} class=${Number(s.score) >= 0.5 ? 'ok' : 'bad'} title=${s.explanation || ''}>${s.evaluator} ${s.score}</li>`)}</ul>`
           : html`<span class="now-muted">Not scored by the judges.</span>`}
-        ${t.judgesPassed && html`<p class="ask">The judges passed this answer${t.judgesMissed ? `: they missed ${t.judgesMissed}` : '.'}</p>`}
+        ${t.judgesPassed && html`<p class="ask"><b>The judges passed this answer.</b>${t.judgesMissed ? ` What they missed: ${t.judgesMissed}` : ''}</p>`}
         <${Fix} fix=${t.fix} regression=${t.regression} />
         <details class="why"><summary>Answer</summary><p class="pre">${t.finalText || '(cards only)'}</p>
           ${(t.tools || []).length > 0 && html`<p class="now-muted">Lookups: ${t.tools.map((x) => x.name).join(', ')}</p>`}</details>
