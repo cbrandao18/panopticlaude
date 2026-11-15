@@ -824,7 +824,7 @@ const REASON = { wrong_information: 'Wrong information', misunderstood: "Didn't 
 
 function Fix({ fix, regression }) {
   if (!fix) return null;
-  const q = regression && regression.status !== 'none' && html` · Regression question ${regression.status === 'added' ? 'added' : 'proposed'}${regression.id ? html`: <code>${regression.id}</code>` : ''}`;
+  const q = regression && regression.status !== 'none' && html` · Regression question ${regression.status === 'added' ? 'added' : 'proposed'}${regression.id ? html`: <code>${regression.id}</code>` : ''}${regression.compareUrl ? html` (<a href=${regression.compareUrl}>${regression.branch || 'commit'}</a>)` : ''}`;
   if (fix.kind === 'branch') return html`<p><b>Fix:</b> ${fix.summary} · <a href=${fix.compareUrl}>${fix.branch}</a>${q}</p>`;
   if (fix.kind === 'ticket') {
     return html`<p><b>Ticket draft:</b> ${fix.summary}${q}</p>
