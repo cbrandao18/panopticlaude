@@ -833,6 +833,13 @@ function Fix({ fix, regression }) {
   return html`<p><b>No fix:</b> ${fix.reason || fix.summary}${q}</p>`;
 }
 
+// The thread in #staff-assistant-feedback, or why the message wasn't posted.
+function slackLink(posted) {
+  if (posted?.ts) return html` · <a href=${`https://team-branch.slack.com/archives/${posted.channel}/p${posted.ts.replace('.', '')}`}>Slack</a>`;
+  if (posted?.blocked) return html` · <span class="warning" title=${posted.blocked}>Not posted</span>`;
+  return null;
+}
+
 function FeedbackRow({ t }) {
   const scores = t.scores || [];
   return html`
@@ -850,7 +857,7 @@ function FeedbackRow({ t }) {
         <details class="why"><summary>Answer</summary><p class="pre">${t.finalText || '(cards only)'}</p>
           ${(t.tools || []).length > 0 && html`<p class="now-muted">Lookups: ${t.tools.map((x) => x.name).join(', ')}</p>`}</details>
       </div>
-      <span class="detail">${t.traceUrl && html`<a href=${t.traceUrl}>Trace</a>`}</span>
+      <span class="detail">${t.traceUrl && html`<a href=${t.traceUrl}>Trace</a>`}${slackLink(t.slack?.posted)}</span>
     </li>`;
 }
 
@@ -869,7 +876,7 @@ function AssistantFeedback() {
         : html`<p class="now-muted">Not run yet: the daily triage runs them.</p>`}
     </${Section}>
     <${Section} id="assistant-downs" title="Thumbs-downs" count=${data.triaged.length} tone="info"
-      note=${`Triaged daily at 8am on the VM${data.lastRun ? `; last run ${data.lastRun.replace(/ down=(\d+) up=(\d+)(?: fixes=(\d+)| triaged=\d+)?$/, (m, d, u, f) => `: ${d} down, ${u} up${f ? `, ${f} ${f === '1' ? 'fix' : 'fixes'} drafted` : ''}`)}` : ''}${data.pending.length ? `; ${data.pending.length} waiting` : ''}.`}>
+      note=${`Triaged hourly on the VM${data.lastRun ? `; last run ${data.lastRun.replace(/ down=(\d+) up=(\d+)(?: fixes=(\d+)| triaged=\d+)?$/, (m, d, u, f) => `: ${d} down, ${u} up${f ? `, ${f} ${f === '1' ? 'fix' : 'fixes'} drafted` : ''}`)}` : ''}${data.pending.length ? `; ${data.pending.length} waiting` : ''}.`}>
       ${data.triaged.length
         ? html`<ul class="rows">${data.triaged.map((t) => html`<${FeedbackRow} key=${t.turnId} t=${t} />`)}</ul>`
         : html`<p class="now-muted empty">No thumbs-downs triaged yet.</p>`}
