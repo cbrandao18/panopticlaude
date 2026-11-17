@@ -266,3 +266,18 @@ test('relay: heartbeat, recent failure, and its last actions', () => {
   assert.equal(relayRow({ lastRun: at + 10 * 60000, log }, at + 11 * 60000).status, 'completed');
   assert.equal(relayRow({ lastRun: null, log: '' }).status, 'waiting');
 });
+
+test('assemble: Down when the VM is not on the Claude Team plan', () => {
+  const base = { automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, map: { value: { hosts: [] } },
+    ease: { value: { posts: [] } }, merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] } };
+  const vmDown = (vmPlan) => assemble({ ...base, vmPlan }).down.filter((d) => d.title.includes('Team plan'));
+  assert.equal(vmDown({ value: 'claude_team' }).length, 0);
+  assert.match(vmDown({ value: 'claude_enterprise' })[0].detail, /claude_enterprise/);
+  assert.equal(vmDown({ error: 'coder: connection refused' }).length, 0);
+  assert.deepEqual(assemble({ ...base, vmPlan: { error: 'coder: connection refused' } }).errors.map((e) => e.source), ['vmPlan']);
+});
+
+test('readVmClaudePlan: trims the host output', async () => {
+  const { readVmClaudePlan } = require('./now-api');
+  assert.equal(await readVmClaudePlan(async () => 'claude_team\n'), 'claude_team');
+});

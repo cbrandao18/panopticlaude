@@ -431,7 +431,18 @@ async function readClosed(host = runOnHost) {
   return [...vm, ...parseClosed(mac, 'mac')];
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, now = Date.now() }) {
+// The VM's agents run on the Claude Team plan and the Mac's on Enterprise (leadership's split for token-heavy work).
+// Orca's selected Claude account on the VM decides it (`selected-host` empty means ~/.claude, the Enterprise login).
+const VM_CLAUDE_PLAN = `/usr/bin/python3 -I -c 'import json,os
+h=os.path.expanduser("~")
+try: p=open(h+"/.config/orca/claude-profiles/selected-host").read().strip() or h
+except OSError: p=h
+print((json.load(open(p+"/.claude.json")).get("oauthAccount") or {}).get("organizationType",""))'`;
+async function readVmClaudePlan(host = runOnHost) {
+  return (await host(VM_CLAUDE_PLAN)).trim();
+}
+
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, vmPlan = { value: 'claude_team' }, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -447,6 +458,9 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     if (r.watcherFailed) down.push({ kind: 'automation', title: `${r.name} feedback watcher failed`, detail: r.last.text });
   }
   down.push(...sweepDown(findings.value));
+  if (vmPlan.value && vmPlan.value !== 'claude_team') {
+    down.push({ kind: 'automation', title: 'VM agents are not on the Claude Team plan', detail: `Orca's selected Claude account on the VM is ${vmPlan.value}; select the Team account there` });
+  }
 
   const workspaces = (map.value?.hosts || []).flatMap((h) => h.workspaces);
   const slotCard = slots.value ? summarizeSlots(slots.value, workspaces, now, ease.value?.posts || []) : null;
@@ -516,7 +530,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   attention.waiting.agents.sort((a, b) => (b.at || 0) - (a.at || 0));
   attention.fyi.push(...recentClosed.filter((c) => !c.openAsk));
 
-  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, plans, closed })
+  const errors = Object.entries({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots, intake, plans, closed, vmPlan })
     .filter(([, r]) => r.error)
     .map(([source, r]) => ({ source, error: clip(r.error, 300) }));
   for (const h of map.value?.hosts || []) if (h.error) errors.push({ source: `map (${h.label})`, error: h.error });
@@ -571,10 +585,11 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
       settle(slots),
       settle(intake),
       settle(plans),
-      settle(() => readClosed(host))
+      settle(() => readClosed(host)),
+      settle(() => readVmClaudePlan(host))
     ])
-      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns, planDocs, closed]) =>
-        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns, plans: planDocs, closed })))
+      .then(([automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slotStatus, intakeRuns, planDocs, closed, vmPlan]) =>
+        (cached = assemble({ automations, statuses, monitors, reviews, map, ease, merge, releases, findings, jobs, slots: slotStatus, intake: intakeRuns, plans: planDocs, closed, vmPlan })))
       .finally(() => { pending = null; });
     return pending;
   };
@@ -582,4 +597,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   return () => read().then((c) => ({ ...c, intake: hideReviewed(c.intake, readReviewed()) }));
 }
 
-module.exports = { parseClosed, readClosed, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { parseClosed, readClosed, readVmClaudePlan, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
