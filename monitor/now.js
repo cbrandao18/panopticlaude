@@ -822,15 +822,25 @@ const CAUSE = {
 };
 const REASON = { wrong_information: 'Wrong information', misunderstood: "Didn't understand", missing_information: 'Missing information', too_slow: 'Too slow' };
 
+// The gobranch/branch ticket the fix PR closes (filed by the bot, or one already open), or why it wasn't filed.
+function TicketLink({ ticket }) {
+  const number = ticket?.number || ticket?.existing;
+  if (number) return html` · <a href=${`https://github.com/gobranch/branch/issues/${number}`}>#${number}</a>${ticket.existing ? ' (already open)' : ''}`;
+  if (ticket?.blocked) return html` · <span class="warning" title=${ticket.blocked}>Ticket not filed</span>`;
+  return null;
+}
+
 function Fix({ fix, regression }) {
   if (!fix) return null;
   const q = regression && regression.status !== 'none' && html` · Regression question ${regression.status === 'added' ? 'added' : 'proposed'}${regression.id ? html`: <code>${regression.id}</code>` : ''}${regression.compareUrl ? html` (<a href=${regression.compareUrl}>${regression.branch || 'commit'}</a>)` : ''}`;
-  if (fix.kind === 'branch') return html`<p><b>Fix:</b> ${fix.summary} · <a href=${fix.compareUrl}>${fix.branch}</a>${q}</p>`;
+  const ticket = html`<${TicketLink} ticket=${fix.ticket} />`;
+  if (fix.kind === 'branch') return html`<p><b>Fix:</b> ${fix.summary} · <a href=${fix.compareUrl}>${fix.branch}</a>${ticket}${q}</p>`;
+  if (fix.kind === 'ticket' && (fix.ticket?.number || fix.ticket?.existing)) return html`<p><b>Ticket:</b> ${fix.summary}${ticket}${q}</p>`;
   if (fix.kind === 'ticket') {
-    return html`<p><b>Ticket draft:</b> ${fix.summary}${q}</p>
-      ${fix.ticket && html`<details class="why"><summary>${fix.ticket.title}</summary><p class="pre">${fix.ticket.body}</p></details>`}`;
+    return html`<p><b>Ticket draft:</b> ${fix.summary}${ticket}${q}</p>
+      ${fix.ticket?.body && html`<details class="why"><summary>${fix.ticket.title}</summary><p class="pre">${fix.ticket.body}</p></details>`}`;
   }
-  return html`<p><b>No fix:</b> ${fix.reason || fix.summary}${q}</p>`;
+  return html`<p><b>No fix:</b> ${fix.reason || fix.summary}${ticket}${q}</p>`;
 }
 
 // The thread in #staff-assistant-feedback, or why the message wasn't posted.
