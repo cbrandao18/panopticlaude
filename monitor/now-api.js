@@ -403,7 +403,8 @@ function mergeVendors(checks) {
 // shortcut: any running agent in the parent covers its children, so a busy parent can hide a stalled child; match on dispatches if that bites.
 const STALL_MS = 30 * 60000;
 function stalled(workspaces, now, automations = []) {
-  const running = (w) => (w.agents || []).some((a) => a.state !== 'done') || (!(w.agents || []).length && w.live > 0);
+  // A finished turn with background tasks still running is waiting to be woken, not stalled.
+  const running = (w) => (w.agents || []).some((a) => a.state !== 'done' || a.background) || (!(w.agents || []).length && w.live > 0);
   const byKey = new Map(workspaces.map((w) => [w.key, w]));
   const scheduled = new Set(automations.filter((a) => a.enabled && a.workspace).map((a) => `${a.host}|${a.workspace}`));
   return workspaces.filter((w) => /^Agent:/i.test(w.comment) && !commentAttention(w.comment) && !scheduled.has(w.key)

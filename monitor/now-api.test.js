@@ -214,6 +214,7 @@ test('stalled: Agent: comment with nothing running, unless the parent runs or an
     ws('idle'),
     ws('done', { agents: [{ state: 'done' }] }),
     ws('working', { agents: [{ state: 'working' }] }),
+    ws('background', { agents: [{ state: 'done', background: true }] }),
     ws('script', { live: 1 }),
     ws('fresh', { lastActivityAt: now - 60000 }),
     ws('you', { comment: 'You: approve #1' }),

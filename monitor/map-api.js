@@ -56,6 +56,7 @@ function workspace(host, w) {
     issue: Number.isInteger(w.linkedIssue) ? w.linkedIssue : null,
     agents: (w.agents || []).map((a) => ({
       state: a.state,
+      background: (a.subagents || []).some((s) => s.state === 'working'),
       type: a.agentType,
       title: clip(a.taskTitle || a.displayName || a.prompt, 140),
       last: clip(a.lastAssistantMessage, 900),
