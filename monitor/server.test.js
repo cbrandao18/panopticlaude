@@ -393,15 +393,10 @@ test('Now, Map and Work pages are served with the vendored helpers; /api/now ret
   assert.deepEqual(await (await f.get('now')).json(), { down: [], marker: 'now' });
 });
 
-test('/api/intake/reviewed needs the monitor header and accepts only intake run keys', async (t) => {
-  const seen = [];
-  const f = await fixture(t, { markIntakeReviewed: (key) => seen.push(key) });
-  const post = (key, headers = { 'X-Panopticlaude': '1' }) => fetch(`${f.base}/api/intake/reviewed`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ key }) });
-  const key = 'https://github.com/gobranch/branch/actions/runs/123#38872';
-  assert.equal((await post(key, {})).status, 403);
-  assert.equal((await post('../../etc#1')).status, 400);
-  assert.equal((await post(key)).status, 200);
-  assert.deepEqual(seen, [key]);
+test('/api/intake/reviewed is gone: intake reviews moved to Branch Tech', async (t) => {
+  const f = await fixture(t, {});
+  const res = await fetch(`${f.base}/api/intake/reviewed`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panopticlaude': '1' }, body: JSON.stringify({ key: 'https://github.com/gobranch/branch/actions/runs/123#38872' }) });
+  assert.equal(res.status, 404);
 });
 
 test('/api/orca/open needs the monitor header and passes only the key', async (t) => {

@@ -3,8 +3,6 @@
 const fs = require('node:fs');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const path = require('node:path');
-const { STATE_DIR } = require('../lib');
 
 const exec = promisify(execFile);
 // Homebrew's gh on the Mac, as the other cards use; whatever gh is on PATH elsewhere (the VM).
@@ -18,26 +16,7 @@ const MAX_REVIEWED_RUNS = 20;
 // bot_writes.py: "::warning::#<issue>: <n> item(s) need review; see the job summary".
 const NEEDS_REVIEW = /^#(\d+): (\d+) item\(s\) need review/;
 
-// Needs-review rows checked off on the Now page, as {key: reviewedAtMs}. Keys outlive their run's 24-hour window, then are pruned.
-const REVIEWED_FILE = path.join(STATE_DIR, 'intake-reviewed.json');
 const reviewKey = (r) => `${r.url}#${r.issue}`;
-
-function loadReviewed(file = REVIEWED_FILE) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
-function saveReviewed(key, now = Date.now(), file = REVIEWED_FILE) {
-  const kept = Object.fromEntries(Object.entries(loadReviewed(file)).filter(([, at]) => now - at < 2 * DAY_MS));
-  kept[key] = now;
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(kept, null, 2));
-}
-
-const hideReviewed = (card, reviewed) => card && { ...card, reviews: card.reviews.filter((r) => !reviewed[r.key]) };
 
 function outcome(r) {
   if (r.status !== 'completed') return 'running';
@@ -89,4 +68,4 @@ function summarize({ live, liveValue, runs, reviews, unchecked = 0, at }) {
   return { live, liveValue, at, url: WORKFLOW_URL, total: runs.length, counts, failed, unchecked, reviews: [...reviews].sort((a, b) => b.at - a.at) };
 }
 
-module.exports = { readIntake, summarize, outcome, reviewCache, MAX_REVIEWED_RUNS, loadReviewed, saveReviewed, hideReviewed };
+module.exports = { readIntake, summarize, outcome, reviewCache, MAX_REVIEWED_RUNS };
