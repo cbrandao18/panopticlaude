@@ -12,8 +12,6 @@ const QUIET_AFTER = 3 * DAY;
 const COLUMNS = [
   ['status-6', 'Fixes'],
   ['status-7', 'Features'],
-  ['status-5', 'Daily process'],
-  ['status-8', 'Automations'],
   ['other', 'Unsorted']
 ];
 
