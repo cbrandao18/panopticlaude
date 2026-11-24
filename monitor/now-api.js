@@ -479,7 +479,7 @@ function vmGateway(gw, now = Date.now()) {
   const card = { status, signedIn: status === 'connected', jobs, apps: gw.apps || null, at: gw.checkedAtMs };
   if (!fresh || card.signedIn) return { down: [], card, blocked: new Set() };
   return {
-    down: [{ kind: 'gateway', title: 'VM MCP gateway needs sign-in', detail: `${status} on the selected Claude account. Jobs that need it: ${jobs.join(', ')}` }],
+    down: [{ kind: 'gateway', title: 'VM MCP gateway needs sign-in', detail: `Selected Claude account: ${status}. Jobs that need it: ${jobs.join(', ')}` }],
     card,
     blocked: new Set((gw.jobs || []).map((j) => j.automationId).filter(Boolean))
   };

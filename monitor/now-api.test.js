@@ -317,7 +317,7 @@ test('assemble: the VM MCP gateway line, and Down with "needs gateway sign-in" w
 
   const out = run(gw(), failed);
   assert.deepEqual(out.down.filter((d) => d.kind === 'gateway').map((d) => [d.title, d.detail.slice(0, 22)]),
-    [['tag-bug-fix failed', 'needs gateway sign-in'], ['VM MCP gateway needs sign-in', 'needs sign-in on the s']]);
+    [['tag-bug-fix failed', 'needs gateway sign-in'], ['VM MCP gateway needs sign-in', 'Selected Claude accoun']]);
   assert.match(out.down.find((d) => d.title === 'VM MCP gateway needs sign-in').detail, /daily-brief \(falls back to desk\), tag-bug-fix/);
   assert.equal(out.down.find((d) => d.title === 'other failed').kind, 'automation');
   assert.equal(out.gateway.signedIn, false);
