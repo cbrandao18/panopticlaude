@@ -3,6 +3,10 @@
 const STUCK_MS = 15 * 60000;
 // slots.py START_GRACE: a fresh start holds its slot this long, so a slot can free up only 20 min after the last start.
 const GRACE_MS = 20 * 60000;
+// slots.timer fills every 5 min; an item that just started fitting gets two ticks before it counts as stuck.
+const FIT_MS = 10 * 60000;
+// Queue key -> when Roost first saw it fit. In memory: a restart only delays the alarm.
+const fitSeen = new Map();
 const { execFile } = require('node:child_process');
 const exec = require('node:util').promisify(execFile);
 const SCRIPT = '. ~/orca/projects/daily-brief/env.sh && /usr/bin/python3 ~/branch-agents/projects/process-updates/slots/slots.py status --json';
@@ -56,7 +60,7 @@ function parseRecent({ at, text, workspace }, titles) {
 }
 
 // The card's data, with workspace names matched to Roost's Orca workspaces so they open in Orca and show their note.
-function summarize(status, workspaces = [], now = Date.now(), easePosts = []) {
+function summarize(status, workspaces = [], now = Date.now(), easePosts = [], seen = fitSeen) {
   const byName = new Map(workspaces.filter((w) => w.host === 'vm').map((w) => [w.path?.split('/').pop(), w]));
   const ws = (name) => ({ name, key: byName.get(name)?.key || null });
   const detail = (name) => {
@@ -76,7 +80,9 @@ function summarize(status, workspaces = [], now = Date.now(), easePosts = []) {
   const queue = status.queue.map((q) => withTitle({ ...q, what: describe(q.key, titles), waitedMs: now - Date.parse(q.queuedAt), workspace: detail(q.workspace) }));
   const recent = status.recent.map((r) => parseRecent(r, titles)).map((r) => withTitle({ ...r, workspace: detail(r.workspace) }));
   const lastStart = recent.find((r) => r.verb === 'started')?.at || 0;
-  const stuck = !status.paused && queue.some((q) => q.fitsNow && q.waitedMs > STUCK_MS)
+  for (const key of seen.keys()) if (!queue.some((q) => q.key === key && q.fitsNow)) seen.delete(key);
+  for (const q of queue) if (q.fitsNow && !seen.has(q.key)) seen.set(q.key, now);
+  const stuck = !status.paused && queue.some((q) => q.fitsNow && q.waitedMs > STUCK_MS && now - seen.get(q.key) >= FIT_MS)
     && now - lastStart > GRACE_MS + STUCK_MS;
   return {
     at: Date.parse(status.at),

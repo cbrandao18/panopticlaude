@@ -65,6 +65,7 @@ test('assemble puts a stuck slot queue on Down and reports an unreachable VM', (
   const now = Date.parse('2026-11-10T17:00:00-05:00');
   const slots = { value: { at: '2026-11-10T16:59:00-05:00', budget: 10, used: 0, paused: null, kinds: {}, recent: [],
     queue: [{ position: 1, kind: 'review', key: 'review:1:2026-11-10', priority: 50, queuedAt: '2026-11-10T16:30:00-05:00', fitsNow: true }] } };
+  assert.equal(assemble({ ...base, slots, now: now - 10 * 60000 }).slots.stuck, false);
   const out = assemble({ ...base, slots, now });
   assert.equal(out.slots.stuck, true);
   assert.match(out.down.find((d) => /slot queue/.test(d.title)).detail, /1 queued item fits now/);

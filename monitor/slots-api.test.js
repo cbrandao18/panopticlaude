@@ -45,13 +45,21 @@ test('summarize matches VM workspaces by folder name and flags a stuck queue', (
     { host: 'vm', path: '/workspaces/branch/.worktrees/branch/review-38647', key: 'vm|abc' },
     { host: 'mac', path: '/Users/x/bugfix-38599', key: 'mac|def' }
   ];
-  const s = summarize(status(), workspaces, NOW);
+  const fitFor = (ms) => new Map([['bugfix:38601', NOW - ms]]);
+  const s = summarize(status(), workspaces, NOW, [], fitFor(10 * 60000));
   assert.deepEqual(s.kinds[0].running, [{ name: 'review-38647', key: 'vm|abc' }]);
   assert.deepEqual(s.kinds[1].running, [{ name: 'bugfix-38599', key: null }]);
   assert.equal(s.queue[0].waitedMs, 30 * 60000);
   assert.equal(s.queue[0].what.url, 'https://github.com/gobranch/branch/issues/38601');
-  // Fits, waited 30 min, last start 50 min ago, not paused.
+  // Fits for 10 min, waited 30 min, last start 50 min ago, not paused.
   assert.equal(s.stuck, true);
+  // A slot freed after the last timer tick: the next tick hasn't had its chance yet.
+  assert.equal(summarize(status(), [], NOW, [], new Map()).stuck, false);
+  assert.equal(summarize(status(), [], NOW, [], fitFor(4 * 60000)).stuck, false);
+  // Stopped fitting in between: the clock restarts.
+  const seen = fitFor(30 * 60000);
+  summarize(status({ queue: [{ ...status().queue[0], fitsNow: false }] }), [], NOW, [], seen);
+  assert.equal(summarize(status(), [], NOW, [], seen).stuck, false);
   assert.equal(summarize(status({ paused: 'high load (15.2 on 8 cores)' }), [], NOW).stuck, false);
   assert.equal(summarize(status({ queue: [{ ...status().queue[0], fitsNow: false }] }), [], NOW).stuck, false);
   const fresh = status({ recent: [{ at: '2026-11-10T16:55:00-05:00', text: 'started bugfix bugfix:38599: started' }] });
