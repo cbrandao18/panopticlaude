@@ -58,6 +58,7 @@ button.more { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
 
 .budget { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 14px; margin-bottom: 12px; }
 .budget meter { width: 140px; }
+.claude-account { font-size: 14px; margin: -4px 0 12px; overflow-wrap: anywhere; }
 .chip.paused { background: var(--you-bg); color: var(--you-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .kinds { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .kinds li { padding: 8px 10px; border-radius: 8px; background: var(--raised); font-size: 13px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }

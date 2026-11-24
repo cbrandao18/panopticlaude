@@ -243,6 +243,11 @@ const Workspace = ({ ws }) => (ws.key
   ? html`<button class="ws" type="button" title="Open in Orca" onClick=${() => openInOrca(ws.key, ws.name)}>${ws.name}</button>`
   : html`<span class="ws">${ws.name}</span>`);
 
+// Which Claude account new VM agents use, and why when it isn't the first one (process-updates claude-accounts/).
+const ClaudeAccount = ({ account }) => (account
+  ? html`<p class="claude-account"><span class=${`chip ${account.onPrimary ? '' : 'paused'}`}>Claude account</span> ${account.summary}${account.paused ? ' (failover paused)' : ''} <span class="now-muted">· checked ${when(account.at)}</span></p>`
+  : null);
+
 function Slots({ data }) {
   const s = data.slots;
   const note = 'Every VM automation that starts a workspace agent queues here; slots.timer starts the best fit every 5 minutes.';
@@ -250,6 +255,7 @@ function Slots({ data }) {
     return html`
       <${Section} id="slots" title="Agent slots" tone="info" note=${note}>
         <p class="warning">Couldn't reach the VM's slot queue${data.slotsError ? `: ${data.slotsError}` : '.'}</p>
+        <${ClaudeAccount} account=${data.claudeAccount} />
       </${Section}>`;
   }
   return html`
@@ -261,6 +267,7 @@ function Slots({ data }) {
           ? html`<span class="chip paused">Waiting: ${s.paused}</span>`
           : html`<span class="now-muted">VM checked ${when(s.at)}</span>`}
       </div>
+      <${ClaudeAccount} account=${data.claudeAccount} />
       <ul class="kinds" aria-label="Slots per kind">
         ${s.kinds.map((k) => html`
           <li key=${k.kind} class=${k.running.length ? 'busy' : ''}>

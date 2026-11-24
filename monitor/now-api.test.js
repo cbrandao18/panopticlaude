@@ -268,17 +268,39 @@ test('relay: heartbeat, recent failure, and its last actions', () => {
   assert.equal(relayRow({ lastRun: null, log: '' }).status, 'waiting');
 });
 
-test('assemble: Down when the VM is not on the Claude Team plan', () => {
+test('assemble: the VM Claude account line, and Down only when nothing explains the selection', () => {
   const base = { automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, map: { value: { hosts: [] } },
     ease: { value: { posts: [] } }, merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] } };
-  const vmDown = (vmPlan) => assemble({ ...base, vmPlan }).down.filter((d) => d.title.includes('Team plan'));
-  assert.equal(vmDown({ value: 'claude_team' }).length, 0);
-  assert.match(vmDown({ value: 'claude_enterprise' })[0].detail, /claude_enterprise/);
-  assert.equal(vmDown({ error: 'coder: connection refused' }).length, 0);
+  const now = 1795490000000;
+  const team = '899baadf-1c0c-454b-8b18-7881b7ca65d7';
+  const state = (over) => ({ checkedAtMs: now - 60000, selected: { id: team, label: 'Team' }, onPrimary: true, allOut: false, summary: 'Team: 5-hour 9%, weekly 84% used', ...over });
+  const run = (value) => assemble({ ...base, vmPlan: { value }, now });
+  const accountDown = (value) => run(value).down.filter((d) => d.kind === 'account');
+
+  assert.equal(accountDown({ selected: team, state: state() }).length, 0);
+  assert.deepEqual(run({ selected: team, state: state() }).claudeAccount, { summary: 'Team: 5-hour 9%, weekly 84% used', onPrimary: true, paused: false, at: now - 60000 });
+
+  // An intentional failover shows the account and why, and isn't Down.
+  const failover = state({ selected: { id: 'system', label: 'Enterprise' }, onPrimary: false, summary: 'Enterprise: Team weekly limit, back Fri 6:00pm' });
+  assert.equal(accountDown({ selected: 'system', state: failover }).length, 0);
+  assert.equal(run({ selected: 'system', state: failover }).claudeAccount.summary, 'Enterprise: Team weekly limit, back Fri 6:00pm');
+
+  // A selection the failover didn't make is noted on the line; the next check puts its pick back.
+  const moved = run({ selected: 'system', state: state() }).claudeAccount;
+  assert.match(moved.summary, /another account selected/);
+  assert.equal(moved.onPrimary, false);
+
+  // Enterprise with no recent failover state is drift; Team with none is fine.
+  assert.match(accountDown({ selected: 'system', state: null })[0].title, /not on the Claude Team account/);
+  assert.equal(accountDown({ selected: 'system', state: state({ checkedAtMs: now - 3600000 }) }).length, 1);
+  assert.equal(accountDown({ selected: team, state: null }).length, 0);
+
+  assert.match(accountDown({ selected: team, state: state({ allOut: true }) })[0].title, /Every VM Claude account/);
+  assert.equal(accountDown(undefined).length, 0);
   assert.deepEqual(assemble({ ...base, vmPlan: { error: 'coder: connection refused' } }).errors.map((e) => e.source), ['vmPlan']);
 });
 
-test('readVmClaudePlan: trims the host output', async () => {
+test('readVmClaudePlan: parses the host output', async () => {
   const { readVmClaudePlan } = require('./now-api');
-  assert.equal(await readVmClaudePlan(async () => 'claude_team\n'), 'claude_team');
+  assert.deepEqual(await readVmClaudePlan(async () => '{"selected": "system", "state": null}\n'), { selected: 'system', state: null });
 });

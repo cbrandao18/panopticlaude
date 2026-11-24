@@ -16,6 +16,7 @@ async function main() {
       fyi: [{ key: 'fyi', name: 'Example workspace', ask: 'Preview available' }], stalled: []
     },
     slots: null, slotsError: 'Fixture queue unavailable',
+    claudeAccount: { summary: 'Enterprise: Team weekly limit, back Fri 6:00pm', onPrimary: false, paused: false, at: Date.now() },
     plans: { upcoming: [{ file: 'superpowers/plans/2026-01-01-example-plan-with-a-long-file-name.md', kind: 'plan', status: 'building', title: 'Example plan', next: 'Approve the example step, which has a long description to wrap on narrow screens', updatedAt: Date.now() - 9 * 86400000, stale: true }], counts: { building: 1, done: 3 }, unlabeled: [] },
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };
@@ -74,6 +75,9 @@ async function main() {
         await page.keyboard.press('Enter');
         assert.equal(await page.getByText('Approve the example change', { exact: true }).isVisible(), true);
       }
+      if (hash === 'queue') {
+        assert.equal(await page.getByText('Enterprise: Team weekly limit, back Fri 6:00pm', { exact: false }).isVisible(), true, 'Agent slots names the active Claude account and why');
+      }
       if (hash === 'ready') {
         assert.equal(await page.locator('.tier:has(#ship-title) .rows li').count(), 7, 'Focused lists start expanded');
         await page.getByRole('button', { name: 'Show fewer' }).click();
@@ -101,7 +105,7 @@ async function main() {
     await page.getByRole('button', { name: 'See the task and expected answer' }).click();
     assert.equal(await page.locator('.eval-ticket-title').textContent(), 'Example ticket', 'The task view shows the judged ticket');
     assert.equal(await page.locator('.eval-kv dd').first().textContent(), '"ready"', 'Text values are quoted');
-    for (const route of ['/#automations', '/#plans', '/#evals', '/plan?file=example.md', '/map', '/work']) {
+    for (const route of ['/#queue', '/#automations', '/#plans', '/#evals', '/plan?file=example.md', '/map', '/work']) {
       await page.goto(base + route);
       await page.locator('.sidebar [aria-current="page"]').waitFor();
       for (const width of [1440, 768, 390]) {

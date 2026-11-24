@@ -432,18 +432,40 @@ async function readClosed(host = runOnHost) {
   return [...vm, ...parseClosed(mac, 'mac')];
 }
 
-// The VM's agents run on the Claude Team plan and the Mac's on Enterprise (leadership's split for token-heavy work).
-// Orca's selected Claude account on the VM decides it (`selected-host` empty means ~/.claude, the Enterprise login).
-const VM_CLAUDE_PLAN = `/usr/bin/python3 -I -c 'import json,os
+// The VM's agents use Orca's selected Claude account. process-updates claude-accounts/ (claude-accounts.timer, every
+// 5 minutes) keeps Team selected, moves new agents to the next account in its list while Team is at its usage limit,
+// and records which account is active and why in state.json. `selected-host` empty means ~/.claude (Enterprise).
+const VM_CLAUDE_ACCOUNT = `/usr/bin/python3 -I -c 'import json,os,re
 h=os.path.expanduser("~")
-try: p=open(h+"/.config/orca/claude-profiles/selected-host").read().strip() or h
-except OSError: p=h
-print((json.load(open(p+"/.claude.json")).get("oauthAccount") or {}).get("organizationType",""))'`;
+try: p=open(h+"/.config/orca/claude-profiles/selected-host").read().strip()
+except OSError: p=""
+m=re.search("claude-profiles/([^/]+)/home",p)
+try: s=json.load(open(h+"/.local/state/claude-accounts/state.json"))
+except (OSError,ValueError): s=None
+print(json.dumps({"selected": m.group(1) if m else "system", "state": s}))'`;
 async function readVmClaudePlan(host = runOnHost) {
-  return (await host(VM_CLAUDE_PLAN)).trim();
+  return JSON.parse(await host(VM_CLAUDE_ACCOUNT));
 }
 
-function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, vmPlan = { value: 'claude_team' }, now = Date.now() }) {
+// Down only when nothing explains the selection: an intentional failover isn't drift. Kind `account`, not `automation`,
+// so roost-medic never switches accounts; a failed or missed claude-accounts.timer shows as its own automation row.
+const ACCOUNT_STALE_MS = 20 * 60000;
+function vmClaudeAccount({ selected, state } = {}, now = Date.now()) {
+  if (!selected) return { down: [], account: null };
+  if (!state || !(now - state.checkedAtMs < ACCOUNT_STALE_MS)) {
+    const down = selected === 'system'
+      ? [{ kind: 'account', title: 'VM agents are not on the Claude Team account', detail: "Orca's selected Claude account on the VM is the system default (Enterprise), and claude-accounts.timer hasn't reported for 20 minutes to say why" }]
+      : [];
+    return { down, account: null };
+  }
+  const moved = state.selected.id !== selected ? ' · Orca has another account selected now; the next check (within 5 minutes) puts this one back' : '';
+  return {
+    down: state.allOut ? [{ kind: 'account', title: 'Every VM Claude account is at its usage limit', detail: state.summary }] : [],
+    account: { summary: state.summary + moved, onPrimary: state.onPrimary && !moved, paused: !!state.paused, at: state.checkedAtMs }
+  };
+}
+
+function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, vmPlan = { value: null }, now = Date.now() }) {
   const down = [];
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
@@ -459,9 +481,8 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     if (r.watcherFailed) down.push({ kind: 'automation', title: `${r.name} feedback watcher failed`, detail: r.last.text });
   }
   down.push(...sweepDown(findings.value));
-  if (vmPlan.value && vmPlan.value !== 'claude_team') {
-    down.push({ kind: 'automation', title: 'VM agents are not on the Claude Team plan', detail: `Orca's selected Claude account on the VM is ${vmPlan.value}; select the Team account there` });
-  }
+  const vmClaude = vmClaudeAccount(vmPlan.value || {}, now);
+  down.push(...vmClaude.down);
 
   const workspaces = (map.value?.hosts || []).flatMap((h) => h.workspaces);
   const slotCard = slots.value ? summarizeSlots(slots.value, workspaces, now, ease.value?.posts || []) : null;
@@ -555,6 +576,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
       return job ? { ...a, logs: job.label, findings: job.hasFindings } : a;
     }),
     slots: slotCard,
+    claudeAccount: vmClaude.account,
     slotsError: slots.error ? clip(slots.error, 300) : null,
     intake: intakeCard,
     intakeError: intake.error ? clip(intake.error, 300) : null,
@@ -597,4 +619,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   return read;
 }
 
-module.exports = { parseClosed, readClosed, readVmClaudePlan, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { parseClosed, readClosed, readVmClaudePlan, vmClaudeAccount, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
