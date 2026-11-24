@@ -17,6 +17,7 @@ async function main() {
     },
     slots: null, slotsError: 'Fixture queue unavailable',
     claudeAccount: { summary: 'Enterprise: Team weekly limit, back Fri 6:00pm', onPrimary: false, paused: false, at: Date.now() },
+    gateway: { status: 'needs sign-in', signedIn: false, jobs: ['daily-brief (falls back to desk)', 'staff-feedback-nightly', 'ease, hotfix and mention agents'], apps: null, at: Date.now() },
     plans: { upcoming: [{ file: 'superpowers/plans/2026-01-01-example-plan-with-a-long-file-name.md', kind: 'plan', status: 'building', title: 'Example plan', next: 'Approve the example step, which has a long description to wrap on narrow screens', updatedAt: Date.now() - 9 * 86400000, stale: true }], counts: { building: 1, done: 3 }, unlabeled: [] },
     automations: [{ key: 'example', name: 'Example automation', status: 'completed', host: 'vm' }]
   };

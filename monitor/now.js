@@ -96,7 +96,7 @@ function Down({ data }) {
       <${More} items=${down} row=${(d, i) => html`
         <li key=${`${d.kind}${i}${d.title}`}>
           <${Bird} state="failed" />
-          <span class=${`chip ${d.kind}`}>${{ vendor: 'Status', automation: 'Automation', sweep: 'Bug sweep', error: 'Prod error' }[d.kind] || d.kind}</span>
+          <span class=${`chip ${d.kind}`}>${{ vendor: 'Status', automation: 'Automation', sweep: 'Bug sweep', error: 'Prod error', gateway: 'MCP gateway' }[d.kind] || d.kind}</span>
           <span class="title"><${Link} href=${d.url}>${d.title}</${Link}></span>
           ${d.detail && html`<span class="detail">${d.detail}</span>`}
           ${d.since && html`<span class="when">${ago(d.since)}</span>`}
@@ -248,6 +248,11 @@ const ClaudeAccount = ({ account }) => (account
   ? html`<p class="claude-account"><span class=${`chip ${account.onPrimary ? '' : 'paused'}`}>Claude account</span> ${account.summary}${account.paused ? ' (failover paused)' : ''} <span class="now-muted">· checked ${when(account.at)}</span></p>`
   : null);
 
+// Whether new VM agents can use the Island MCP gateway, the only MCP server the VM loads (process-updates mcp-gateway/).
+const Gateway = ({ gateway }) => (gateway
+  ? html`<p class="claude-account"><span class=${`chip ${gateway.signedIn ? '' : 'paused'}`}>MCP gateway</span> ${gateway.signedIn ? 'signed in' : gateway.status}${gateway.apps ? ` · apps: ${gateway.apps.join(', ')}` : ''}${gateway.signedIn ? '' : html` · needed by ${gateway.jobs.join(', ')}`} <span class="now-muted">· checked ${when(gateway.at)}</span></p>`
+  : null);
+
 function Slots({ data }) {
   const s = data.slots;
   const note = 'Every VM automation that starts a workspace agent queues here; slots.timer starts the best fit every 5 minutes.';
@@ -256,6 +261,7 @@ function Slots({ data }) {
       <${Section} id="slots" title="Agent slots" tone="info" note=${note}>
         <p class="warning">Couldn't reach the VM's slot queue${data.slotsError ? `: ${data.slotsError}` : '.'}</p>
         <${ClaudeAccount} account=${data.claudeAccount} />
+        <${Gateway} gateway=${data.gateway} />
       </${Section}>`;
   }
   return html`
@@ -268,6 +274,7 @@ function Slots({ data }) {
           : html`<span class="now-muted">VM checked ${when(s.at)}</span>`}
       </div>
       <${ClaudeAccount} account=${data.claudeAccount} />
+      <${Gateway} gateway=${data.gateway} />
       <ul class="kinds" aria-label="Slots per kind">
         ${s.kinds.map((k) => html`
           <li key=${k.kind} class=${k.running.length ? 'busy' : ''}>

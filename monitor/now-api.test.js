@@ -305,3 +305,30 @@ test('readVmClaudePlan: parses the host output', async () => {
   const { readVmClaudePlan } = require('./now-api');
   assert.deepEqual(await readVmClaudePlan(async () => '{"selected": "system", "state": null}\n'), { selected: 'system', state: null });
 });
+
+test('assemble: the VM MCP gateway line, and Down with "needs gateway sign-in" while the selected account is signed out', () => {
+  const base = { automations: { value: [] }, statuses: { value: [] }, reviews: { value: [] }, map: { value: { hosts: [] } },
+    ease: { value: { posts: [] } }, merge: { value: { ready: [], waiting: [] } }, releases: { value: [] }, findings: { value: null }, jobs: { value: [] } };
+  const now = 1795490000000;
+  const jobs = [{ name: 'daily-brief', automationId: 'brief-id', needs: 'Slack', fallback: 'desk' }, { name: 'tag-bug-fix', automationId: 'tag-id', needs: 'Slack' }];
+  const gw = (over) => ({ checkedAtMs: now - 60000, selected: 'max', accounts: { max: 'needs sign-in' }, selectedStatus: 'needs sign-in', jobs, ...over });
+  const failed = { value: [{ id: 'tag-id', host: 'vm', name: 'tag-bug-fix', status: 'failed', error: 'Slack unreadable' }, { id: 'other', host: 'vm', name: 'other', status: 'failed', error: 'boom' }] };
+  const run = (gateway, automations = { value: [] }) => assemble({ ...base, automations, vmPlan: { value: { selected: 'max', state: null, gateway } }, now });
+
+  const out = run(gw(), failed);
+  assert.deepEqual(out.down.filter((d) => d.kind === 'gateway').map((d) => [d.title, d.detail.slice(0, 22)]),
+    [['tag-bug-fix failed', 'needs gateway sign-in'], ['VM MCP gateway needs sign-in', 'needs sign-in on the s']]);
+  assert.match(out.down.find((d) => d.title === 'VM MCP gateway needs sign-in').detail, /daily-brief \(falls back to desk\), tag-bug-fix/);
+  assert.equal(out.down.find((d) => d.title === 'other failed').kind, 'automation');
+  assert.equal(out.gateway.signedIn, false);
+
+  const ok = run(gw({ selectedStatus: 'connected', apps: ['Slack'] }), failed);
+  assert.equal(ok.down.filter((d) => d.kind === 'gateway').length, 0);
+  assert.equal(ok.down.find((d) => d.title === 'tag-bug-fix failed').kind, 'automation');
+  assert.deepEqual(ok.gateway.apps, ['Slack']);
+
+  // A stale reading claims nothing either way; the timer's own row shows its failure.
+  assert.equal(run(gw({ checkedAtMs: now - 3600000 })).down.filter((d) => d.kind === 'gateway').length, 0);
+  assert.match(run(gw({ checkedAtMs: now - 3600000 })).gateway.status, /status unknown/);
+  assert.equal(run(null).gateway, null);
+});

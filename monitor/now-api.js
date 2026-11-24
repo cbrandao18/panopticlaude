@@ -442,7 +442,9 @@ except OSError: p=""
 m=re.search("claude-profiles/([^/]+)/home",p)
 try: s=json.load(open(h+"/.local/state/claude-accounts/state.json"))
 except (OSError,ValueError): s=None
-print(json.dumps({"selected": m.group(1) if m else "system", "state": s}))'`;
+try: g=json.load(open(h+"/.local/state/mcp-gateway/state.json"))
+except (OSError,ValueError): g=None
+print(json.dumps({"selected": m.group(1) if m else "system", "state": s, "gateway": g}))'`;
 async function readVmClaudePlan(host = runOnHost) {
   return JSON.parse(await host(VM_CLAUDE_ACCOUNT));
 }
@@ -465,15 +467,36 @@ function vmClaudeAccount({ selected, state } = {}, now = Date.now()) {
   };
 }
 
+// The VM loads one MCP server, the Island gateway (the CISO's managed config); its sign-in is per Claude account.
+// process-updates mcp-gateway/ (mcp-gateway.timer, every 5 minutes) records each account's status and the jobs that
+// need it. Kind `gateway`, not `automation`, so roost-medic doesn't try to fix a sign-in only Christie can do.
+const GATEWAY_STALE_MS = 20 * 60000;
+function vmGateway(gw, now = Date.now()) {
+  if (!gw) return { down: [], card: null, blocked: new Set() };
+  const fresh = now - gw.checkedAtMs < GATEWAY_STALE_MS;
+  const status = fresh ? gw.selectedStatus : 'status unknown (mcp-gateway.timer has not reported for 20 minutes)';
+  const jobs = (gw.jobs || []).map((j) => j.name + (j.fallback ? ` (falls back to ${j.fallback})` : ''));
+  const card = { status, signedIn: status === 'connected', jobs, apps: gw.apps || null, at: gw.checkedAtMs };
+  if (!fresh || card.signedIn) return { down: [], card, blocked: new Set() };
+  return {
+    down: [{ kind: 'gateway', title: 'VM MCP gateway needs sign-in', detail: `${status} on the selected Claude account. Jobs that need it: ${jobs.join(', ')}` }],
+    card,
+    blocked: new Set((gw.jobs || []).map((j) => j.automationId).filter(Boolean))
+  };
+}
+
 function assemble({ automations, statuses, monitors = { value: [] }, reviews, map, ease, merge, releases, findings, jobs, slots = { value: null }, intake = { value: null }, plans = { value: null }, closed = { value: [] }, vmPlan = { value: null }, now = Date.now() }) {
   const down = [];
+  const gateway = vmGateway(vmPlan.value?.gateway, now);
   const vendors = mergeVendors([...(statuses.value || []), ...(monitors.value || [])]);
   for (const s of vendors) {
     const label = { minor: 'degraded', major: 'major outage', critical: 'outage', alert: 'Datadog alert', unreadable: 'status unknown' }[s.indicator] || 'not operational';
     if (!s.ok) down.push({ kind: 'vendor', title: `${s.name}: ${label}`, detail: s.detail, url: s.url });
   }
   for (const a of automations.value || []) {
-    if (['failed', 'overdue', 'unreadable'].includes(a.status)) {
+    if (['failed', 'overdue', 'unreadable'].includes(a.status) && a.host === 'vm' && gateway.blocked.has(a.id)) {
+      down.push({ kind: 'gateway', title: `${a.name} ${a.status === 'overdue' ? 'missed its run' : 'failed'}`, detail: 'needs gateway sign-in', since: a.lastRunAt });
+    } else if (['failed', 'overdue', 'unreadable'].includes(a.status)) {
       down.push({ kind: 'automation', title: `${a.name} ${a.status === 'overdue' ? 'missed its run' : a.status === 'failed' ? 'failed' : 'unreadable'}`, detail: a.error || `${a.host === 'vm' ? 'VM' : 'Mac'} automation`, since: a.lastRunAt });
     }
   }
@@ -482,7 +505,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
   }
   down.push(...sweepDown(findings.value));
   const vmClaude = vmClaudeAccount(vmPlan.value || {}, now);
-  down.push(...vmClaude.down);
+  down.push(...vmClaude.down, ...gateway.down);
 
   const workspaces = (map.value?.hosts || []).flatMap((h) => h.workspaces);
   const slotCard = slots.value ? summarizeSlots(slots.value, workspaces, now, ease.value?.posts || []) : null;
@@ -577,6 +600,7 @@ function assemble({ automations, statuses, monitors = { value: [] }, reviews, ma
     }),
     slots: slotCard,
     claudeAccount: vmClaude.account,
+    gateway: gateway.card,
     slotsError: slots.error ? clip(slots.error, 300) : null,
     intake: intakeCard,
     intakeError: intake.error ? clip(intake.error, 300) : null,
@@ -619,4 +643,4 @@ function createNowReader({ readMap, readEase, readMerge, readFindings, readJobs,
   return read;
 }
 
-module.exports = { parseClosed, readClosed, readVmClaudePlan, vmClaudeAccount, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
+module.exports = { parseClosed, readClosed, readVmClaudePlan, vmClaudeAccount, vmGateway, medicActions, medicRow, readMedic, relayRow, readRelay,automationRow, statusFromSummary, monitorStatuses, mergeVendors, parseTriageLog, readRelease, sweepDown, stalled, assemble, isFix, createNowReader, STATUS_PAGES, RELEASES };
